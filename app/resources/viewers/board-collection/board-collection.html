@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Board Collection</title>
+    <link rel="stylesheet" href="css/board-collection.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Sidebar: board checklist -->
+      <aside id="sidebar">
+        <div id="sidebar-header">
+          <h2>My Board Collection</h2>
+          <div class="subtitle">Check the boards you own</div>
+        </div>
+        <ul id="board-list"></ul>
+      </aside>
+
+      <!-- Main content -->
+      <main id="main-content">
+        <div id="status-bar"></div>
+
+        <div>
+          <h3>Board Collection</h3>
+          <div class="help-text">
+            <p>Select the FPGA boards you own from the list on the left.</p>
+            <ul>
+              <li>
+                <strong>Checked boards</strong> will appear in the
+                <em>Select → Board</em> menu.
+              </li>
+              <li>
+                If <strong>nothing is checked</strong>, all boards are shown
+                (default).
+              </li>
+              <li>Use <em>Clear all</em> to reset to show-all mode.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div id="selection-count"></div>
+
+        <div class="action-row">
+          <button id="btn-save" class="btn btn-primary">&#10003; Save</button>
+          <button id="btn-clear" class="btn btn-danger">
+            &#10005; Clear all (show all)
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <script src="js/board-collection.js"></script>
+  </body>
+</html>

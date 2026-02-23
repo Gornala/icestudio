@@ -42,7 +42,12 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
       joint.util.template(
         `
       <div class="code-block">
-        <div class="js-codeblock-io-edit" data-blkId="${modelId}"><i class="fas fa-edit"></i></div>
+        <div class="js-codeblock-io-edit" data-blkId="${modelId}" title="Settings"><i class="fas fa-edit"></i></div>
+        <div class="codeblock-extra-btns">
+          <div class="js-codeblock-full-edit codeblock-btn" data-blkId="${modelId}" title="Full Editor"><i class="fas fa-expand-alt"></i></div>
+          <div class="js-codeblock-formal-test codeblock-btn" data-blkId="${modelId}" title="Formal Test"><i class="fas fa-flask"></i></div>
+          <div class="js-codeblock-testbench codeblock-btn" data-blkId="${modelId}" title="Testbench"><i class="fas fa-vial"></i></div>
+        </div>
         <div class="code-content"></div>
         <div class="code-editor" id="${editorLabel}"></div>
         <script>
@@ -268,6 +273,16 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
           'transform': `scale(${state.zoom})`,
           'transform-origin': 'top right',
           'top': '0px',
+          'right': '0px',
+        });
+      }
+
+      var extraBtns = this.$box.find('.codeblock-extra-btns');
+      if (extraBtns.length) {
+        extraBtns.css({
+          'transform': `scale(${state.zoom})`,
+          'transform-origin': 'top right',
+          'top': Math.round(30 * state.zoom) + 'px',
           'right': '0px',
         });
       }

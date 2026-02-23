@@ -31,3 +31,14 @@
     ></span>
   </a>
 </li>
+
+<li>
+  <!-- Edit/Preferences/UI theme/Custom -->
+  <a href ng-click="openCustomTheme()">
+    {{ 'Custom...' | translate }}&ensp;
+    <span
+      ng-show="profile.data.uiTheme == 'custom'"
+      class="glyphicon glyphicon-ok-circle"
+    ></span>
+  </a>
+</li>

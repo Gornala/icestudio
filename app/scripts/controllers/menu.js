@@ -32,7 +32,8 @@ angular.module('icestudio').controller(
 
     //-- Accessing _package object
     //-- Defined in module app/scripts/factories/window.js
-    _package
+    _package,
+    boards
   ) {
     //-------------------------------------------------------------------------
     //-- This code is executed when a new Icestudio Window is created:
@@ -467,6 +468,64 @@ angular.module('icestudio').controller(
 
     $rootScope.$on('saveProjectAs', function (event, callback) {
       $scope.saveProjectAs(callback);
+    });
+
+    // Handle verify request from code-editor popup windows.
+    // Uses a timing trick: commandOutputChanged fires before processResult runs.
+    // If tools.verifyCode() Promise resolves after that → success.
+    // If it never resolves → failure (processResult called reject()).
+    $rootScope.$on('codeblock:requestVerify', function (event, args) {
+      var callerWin = args && args.callerWin;
+      var startMessage = gettextCatalog.getString('Start verification');
+      var endMessage = gettextCatalog.getString('Verification done');
+
+      if (!callerWin) {
+        $scope.verifyCode();
+        return;
+      }
+
+      function sendResult(ok, output) {
+        if (
+          callerWin.window &&
+          typeof callerWin.window.icestudioVerifyResult === 'function'
+        ) {
+          callerWin.window.icestudioVerifyResult(ok, output || '');
+        }
+      }
+
+      var outputText = null;
+      var resolved = false;
+
+      // commandOutputChanged fires once the apio process finishes (before Promise settles)
+      $(document).one('commandOutputChanged', function (evt, output) {
+        outputText = output || '';
+        // Give the Promise chain 600ms to resolve; if it doesn't, verify failed
+        setTimeout(function () {
+          if (!resolved) {
+            resolved = true;
+            sendResult(false, outputText);
+          }
+        }, 600);
+      });
+
+      checkGraph()
+        .then(function () {
+          return tools.verifyCode(startMessage, endMessage);
+        })
+        .then(function () {
+          // SUCCESS: tools.verifyCode() resolved
+          if (!resolved) {
+            resolved = true;
+            sendResult(true, outputText || '');
+          }
+        })
+        .catch(function () {
+          // checkGraph failed (not a verify failure)
+          if (!resolved) {
+            resolved = true;
+            sendResult(false, 'Graph check failed before verify could run.');
+          }
+        });
     });
 
     $scope.addAsBlock = function () {
@@ -1268,6 +1327,178 @@ angular.module('icestudio').controller(
         height: 500,
         icon: 'resources/images/icestudio-logo.png',
       });
+    };
+
+    //-----------------------------------------------------------------
+    // Tools/Custom Board Manager
+    //--
+    $scope.customBoardManager = function () {
+      let apioResourcesPath = common.getApioResourcesDir() || '';
+      let icestudioBoardsDir = path.resolve(path.join('resources', 'boards'));
+      let icestudioMenuJson = path.resolve(
+        path.join('resources', 'boards', 'menu.json')
+      );
+
+      let configObj = {
+        apioResourcesPath: apioResourcesPath,
+        icestudioBoardsDir: icestudioBoardsDir,
+        icestudioMenuJson: icestudioMenuJson,
+        customBoardsDir: common.CUSTOM_BOARDS_DIR,
+        profilePath: common.PROFILE_PATH,
+        theme: profile.data.uiTheme || 'light',
+        customTheme: profile.data.customTheme || null,
+      };
+
+      let configParam = encodeURIComponent(JSON.stringify(configObj));
+      let URL =
+        'resources/viewers/custom-board/custom-board.html?config=' +
+        configParam;
+
+      nw.Window.open(
+        URL,
+        {
+          title: 'Custom Board Manager',
+          focus: true,
+          resizable: true,
+          width: 950,
+          height: 750,
+          icon: 'resources/images/icestudio-logo.png',
+        },
+        function (newWin) {
+          newWin.on('closed', function () {
+            let savedId = global.icestudioLastSavedBoard || null;
+            global.icestudioLastSavedBoard = null;
+            //-- Always sync ownedBoards from disk BEFORE reloadBoards()
+            //-- so the digest sees updates from both save AND delete operations.
+            try {
+              let profileData = JSON.parse(
+                fs.readFileSync(common.PROFILE_PATH, 'utf8')
+              );
+              common.ownedBoards = profileData.ownedBoards || [];
+              profile.data.ownedBoards = common.ownedBoards;
+            } catch (e) {}
+            //-- Reload boards (updates common.boards + triggers rootScopeSafeApply)
+            boards.reloadBoards();
+            if (savedId) {
+              let selected = boards.selectBoard(savedId);
+              if (selected) {
+                profile.set('board', selected.name);
+              }
+            }
+          });
+        }
+      );
+    };
+
+    //-----------------------------------------------------------------
+    // Board ownership filter — used by | filter:isBoardOwned in menu.html
+    //-----------------------------------------------------------------
+    $scope.isBoardOwned = function (board) {
+      return (
+        common.ownedBoards.length === 0 ||
+        common.ownedBoards.indexOf(board.name) !== -1
+      );
+    };
+
+    //-----------------------------------------------------------------
+    // Select/Board Collection — choose which boards appear in the menu
+    //-----------------------------------------------------------------
+    $scope.boardCollection = function () {
+      let icestudioBoardsDir = path.resolve(path.join('resources', 'boards'));
+      let icestudioMenuJson = path.resolve(
+        path.join('resources', 'boards', 'menu.json')
+      );
+
+      //-- Read ownedBoards fresh from disk so the window always reflects
+      //-- the latest saved state (profile.data may be stale if a Custom
+      //-- Board Manager session just ran without a full app restart).
+      let currentOwnedBoards = profile.data.ownedBoards || [];
+      try {
+        var freshProfile = JSON.parse(
+          fs.readFileSync(common.PROFILE_PATH, 'utf8')
+        );
+        currentOwnedBoards = freshProfile.ownedBoards || [];
+        //-- Keep in-memory state in sync too
+        profile.data.ownedBoards = currentOwnedBoards;
+        common.ownedBoards = currentOwnedBoards;
+      } catch (e) {}
+
+      let configObj = {
+        icestudioBoardsDir: icestudioBoardsDir,
+        icestudioMenuJson: icestudioMenuJson,
+        profilePath: common.PROFILE_PATH,
+        ownedBoards: currentOwnedBoards,
+        theme: profile.data.uiTheme || 'light',
+        customTheme: profile.data.customTheme || null,
+      };
+
+      let configParam = encodeURIComponent(JSON.stringify(configObj));
+      let URL =
+        'resources/viewers/board-collection/board-collection.html?config=' +
+        configParam;
+
+      nw.Window.open(
+        URL,
+        {
+          title: 'Board Collection',
+          focus: true,
+          resizable: true,
+          width: 680,
+          height: 520,
+          icon: 'resources/images/icestudio-logo.png',
+        },
+        function (newWin) {
+          newWin.on('closed', function () {
+            //-- Synchronously read profile so common.ownedBoards updates
+            //-- immediately and the ng-if in menuboard re-evaluates in the
+            //-- same digest cycle triggered by rootScopeSafeApply.
+            try {
+              var profileData = JSON.parse(
+                fs.readFileSync(common.PROFILE_PATH, 'utf8')
+              );
+              common.ownedBoards = profileData.ownedBoards || [];
+              profile.data.ownedBoards = common.ownedBoards;
+            } catch (e) {
+              common.ownedBoards = [];
+            }
+            utils.rootScopeSafeApply();
+          });
+        }
+      );
+    };
+
+    //-----------------------------------------------------------------
+    // Edit/Preferences/UI Theme/Custom — open color picker
+    //-----------------------------------------------------------------
+    $scope.openCustomTheme = function () {
+      let configObj = {
+        profilePath: common.PROFILE_PATH,
+        customTheme: profile.data.customTheme || null,
+        theme: profile.data.uiTheme || 'light',
+      };
+
+      let configParam = encodeURIComponent(JSON.stringify(configObj));
+      let URL =
+        'resources/viewers/custom-theme/custom-theme.html?config=' +
+        configParam;
+
+      nw.Window.open(
+        URL,
+        {
+          title: 'Custom Theme',
+          focus: true,
+          resizable: false,
+          width: 620,
+          height: 480,
+          icon: 'resources/images/icestudio-logo.png',
+        },
+        function (newWin) {
+          newWin.on('closed', function () {
+            //-- Reload profile to apply new custom theme colors
+            profile.load(null);
+          });
+        }
+      );
     };
 
     $scope.toggleFPGAResources = function () {

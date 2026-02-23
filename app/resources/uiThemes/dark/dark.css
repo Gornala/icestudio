@@ -958,6 +958,17 @@
   color: #7ccff4;
 }
 
+.codeblock-btn {
+  color: #ccc;
+  background-color: #404040;
+  border: 1px solid #555;
+  border-top: none;
+}
+.codeblock-btn:hover {
+  color: #7ccff4;
+  background-color: #505050;
+}
+
 .tabs {
   border-color: #666;
 }

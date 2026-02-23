@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Custom Theme</title>
+    <link rel="stylesheet" href="css/custom-theme.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Controls panel -->
+      <div id="controls">
+        <h2>Custom Theme</h2>
+        <p class="hint">Pick your colors below. The preview updates live.</p>
+
+        <div class="color-row">
+          <label for="color-bg">Background</label>
+          <input type="color" id="color-bg" />
+          <span class="color-hex" id="hex-bg"></span>
+        </div>
+        <div class="color-row">
+          <label for="color-bg2">Input / Card</label>
+          <input type="color" id="color-bg2" />
+          <span class="color-hex" id="hex-bg2"></span>
+        </div>
+        <div class="color-row">
+          <label for="color-sidebar">Sidebar</label>
+          <input type="color" id="color-sidebar" />
+          <span class="color-hex" id="hex-sidebar"></span>
+        </div>
+        <div class="color-row">
+          <label for="color-border">Border</label>
+          <input type="color" id="color-border" />
+          <span class="color-hex" id="hex-border"></span>
+        </div>
+        <div class="color-row">
+          <label for="color-text">Text</label>
+          <input type="color" id="color-text" />
+          <span class="color-hex" id="hex-text"></span>
+        </div>
+        <div class="color-row">
+          <label for="color-accent">Accent</label>
+          <input type="color" id="color-accent" />
+          <span class="color-hex" id="hex-accent"></span>
+        </div>
+
+        <div class="preset-row">
+          <span class="preset-label">Presets:</span>
+          <button id="btn-light" class="btn-preset">Light</button>
+          <button id="btn-dark" class="btn-preset">Dark</button>
+        </div>
+
+        <div class="action-row">
+          <button id="btn-apply" class="btn btn-primary">
+            &#10003; Apply &amp; Close
+          </button>
+          <button id="btn-cancel" class="btn">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Live preview panel -->
+      <div id="preview">
+        <div class="preview-label">Preview</div>
+        <div class="preview-window" id="preview-window">
+          <div class="prev-sidebar">
+            <div class="prev-sidebar-header">Boards</div>
+            <div class="prev-family">HX8K</div>
+            <div class="prev-board-row">&#9733; My Custom Board</div>
+            <div class="prev-board-row prev-active">&#10003; Alhambra II</div>
+            <div class="prev-family">UP5K</div>
+            <div class="prev-board-row">iCEBreaker</div>
+          </div>
+          <div class="prev-main">
+            <div class="prev-steps">
+              <div class="prev-step prev-step-active">1 Board &amp; FPGA</div>
+              <div class="prev-step">2 Pinout</div>
+              <div class="prev-step">3 Programmer</div>
+            </div>
+            <div class="prev-form">
+              <div class="prev-label">Board ID *</div>
+              <div class="prev-input">my-new-board</div>
+              <div class="prev-label">Board Label *</div>
+              <div class="prev-input">My New Board</div>
+              <div class="prev-accent-line"></div>
+            </div>
+            <div class="prev-nav">
+              <div class="prev-btn-secondary">&#8592; Previous</div>
+              <div class="prev-btn-primary">Next &#8594;</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/custom-theme.js"></script>
+  </body>
+</html>

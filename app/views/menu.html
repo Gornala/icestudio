@@ -596,43 +596,43 @@
                   <li>
                     <a><b>HX1K</b></a>
                   </li>
-                  <li ng-repeat="board in common.boards">
+                  <li ng-repeat="board in common.boards | filter:isBoardOwned">
                     <menuboard type="'HX1K'" board="board"></menuboard>
                   </li>
                   <li>
                     <a><b>HX8K</b></a>
                   </li>
-                  <li ng-repeat="board in common.boards">
+                  <li ng-repeat="board in common.boards | filter:isBoardOwned">
                     <menuboard type="'HX8K'" board="board"></menuboard>
                   </li>
                   <li>
                     <a><b>LP1K</b></a>
                   </li>
-                  <li ng-repeat="board in common.boards">
+                  <li ng-repeat="board in common.boards | filter:isBoardOwned">
                     <menuboard type="'LP1K'" board="board"></menuboard>
                   </li>
                   <li>
                     <a><b>LP8K</b></a>
                   </li>
-                  <li ng-repeat="board in common.boards">
+                  <li ng-repeat="board in common.boards | filter:isBoardOwned">
                     <menuboard type="'LP8K'" board="board"></menuboard>
                   </li>
                   <li>
                     <a><b>U4K</b></a>
                   </li>
-                  <li ng-repeat="board in common.boards">
+                  <li ng-repeat="board in common.boards | filter:isBoardOwned">
                     <menuboard type="'U4K'" board="board"></menuboard>
                   </li>
                   <li>
                     <a><b>UP5K</b></a>
                   </li>
-                  <li ng-repeat="board in common.boards">
+                  <li ng-repeat="board in common.boards | filter:isBoardOwned">
                     <menuboard type="'UP5K'" board="board"></menuboard>
                   </li>
                   <li>
                     <a><b>ECP5</b></a>
                   </li>
-                  <li ng-repeat="board in common.boards">
+                  <li ng-repeat="board in common.boards | filter:isBoardOwned">
                     <menuboard type="'ECP5'" board="board"></menuboard>
                   </li>
                 </ul>
@@ -697,6 +697,14 @@
                     </a>
                   </li>
                 </ul>
+              </li>
+
+              <!-- Select/Board Collection -->
+              <li class="divider"></li>
+              <li>
+                <a href ng-click="boardCollection()">
+                  {{ 'Board Collection...' | translate }}
+                </a>
               </li>
             </ul>
           </li>
@@ -878,6 +886,12 @@
                     </a>
                   </li>
                 </ul>
+              </li>
+              <li class="divider"></li>
+              <li>
+                <a href ng-click="customBoardManager()">
+                  {{ 'Custom Board Manager' | translate }}
+                </a>
               </li>
               <li class="divider"></li>
               <li>

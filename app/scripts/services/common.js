@@ -147,6 +147,13 @@ angular.module('icestudio').service(
       this.WIN32 ? 'apio.exe' : 'apio'
     );
 
+    //-- Custom boards directory (survives apio updates)
+    this.CUSTOM_BOARDS_DIR = nodePath.join(this.ICESTUDIO_DIR, 'custom-boards');
+
+    //-- Board Collection filter (empty = show all boards)
+    //-- Populated by profile.js after load from profile.json
+    this.ownedBoards = [];
+
     this.CACHE_DIR = nodePath.join(this.ICESTUDIO_DIR, '.cache');
     this.IMAGE_CACHE_DIR = nodePath.join(this.CACHE_DIR, 'images');
     this.OLD_BUILD_DIR = nodePath.join(this.ICESTUDIO_DIR, '.build');
@@ -241,6 +248,45 @@ angular.module('icestudio').service(
     this.PATTERN_GLOBAL_PORT_LABEL =
       /^([^\[\]]+)?(\[\s*([A-Za-z_$0-9+\-*/]+)\s*:\s*([A-Za-z_$0-9+\-*/]+)\s*\])?$/;
     this.PATTERN_GLOBAL_PARAM_LABEL = /^([^\[\]]+)?$/;
+
+    //-- Get the path to apio's resources directory (cross-platform)
+    //-- Windows: venv/Lib/site-packages/apio/resources
+    //-- Linux/Mac: venv/lib/python3.X/site-packages/apio/resources
+    this.getApioResourcesDir = function () {
+      if (this.WIN32) {
+        var resDir = nodePath.join(
+          this.ENV_DIR,
+          'Lib',
+          'site-packages',
+          'apio',
+          'resources'
+        );
+        if (nodeFs.existsSync(resDir)) {
+          return resDir;
+        }
+      } else {
+        var libDir = nodePath.join(this.ENV_DIR, 'lib');
+        if (nodeFs.existsSync(libDir)) {
+          var entries = nodeFs.readdirSync(libDir);
+          var pythonDir = entries.find(function (e) {
+            return e.startsWith('python3');
+          });
+          if (pythonDir) {
+            var resDir2 = nodePath.join(
+              libDir,
+              pythonDir,
+              'site-packages',
+              'apio',
+              'resources'
+            );
+            if (nodeFs.existsSync(resDir2)) {
+              return resDir2;
+            }
+          }
+        }
+      }
+      return null;
+    };
 
     this.setBuildDir = function (buildpath) {
       let fserror = false;

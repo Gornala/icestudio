@@ -902,6 +902,154 @@ angular.module('icestudio').service(
         }
       });
 
+      //-- Expose code-save receiver so popup code-editor windows can push code back
+      //-- NOTE: 'window' in this Angular service is gui.Window (NW.js API), not the
+      //-- JS global window. Use nw.Window.get().window to reach the real global.
+      nw.Window.get().window.icestudioReceiveCodeSave = function (
+        blockId,
+        newCode
+      ) {
+        var cell = paper.getModelById(blockId);
+        if (!cell) {
+          return;
+        }
+        cell.attributes.data.code = newCode;
+        var cellView = paper.findViewByModel(cell);
+        if (cellView && cellView.editor) {
+          cellView.updating = true;
+          cellView.editor.session.setValue(newCode);
+          setTimeout(function () {
+            cellView.updating = false;
+          }, 50);
+        }
+        utils.rootScopeSafeApply();
+      };
+
+      //-- Let popup windows read the current code of a block (for Load button)
+      nw.Window.get().window.icestudioGetCode = function (blockId) {
+        var cell = paper.getModelById(blockId);
+        if (!cell) {
+          return '';
+        }
+        return (cell.attributes.data && cell.attributes.data.code) || '';
+      };
+
+      //-- Let popup windows trigger apio verify on the full project
+      //-- callerNWWin: the NW.js window object of the popup (to call back with result)
+      nw.Window.get().window.icestudioRequestVerify = function (
+        blockId,
+        newCode,
+        callerNWWin
+      ) {
+        nw.Window.get().window.icestudioReceiveCodeSave(blockId, newCode);
+        $rootScope.$broadcast('codeblock:requestVerify', {
+          callerWin: callerNWWin,
+        });
+      };
+
+      //-- Click handlers for the three advanced code-editor buttons
+      document.addEventListener('click', function (event) {
+        var nodePath = require('path');
+        var target = event.target;
+        while (target && target !== document) {
+          var mode = null;
+          if (target.matches('.js-codeblock-full-edit')) {
+            mode = 'full';
+          } else if (target.matches('.js-codeblock-formal-test')) {
+            mode = 'formal';
+          } else if (target.matches('.js-codeblock-testbench')) {
+            mode = 'testbench';
+          }
+
+          if (mode) {
+            event.stopPropagation();
+            var blockId = target.getAttribute('data-blkid');
+            if (!blockId) {
+              break;
+            }
+
+            var cell = paper.getModelById(blockId);
+            if (!cell) {
+              break;
+            }
+
+            var data = cell.attributes.data || {};
+            var rawName = (data.label || data.name || blockId).replace(
+              /[^a-zA-Z0-9_]/g,
+              '_'
+            );
+            var moduleName = rawName || 'ice_code_module';
+
+            var configObj = {
+              mode: mode,
+              blockId: blockId,
+              code: data.code || '',
+              ports: data.ports || { in: [], out: [] },
+              params: data.params || [],
+              moduleName: moduleName,
+              theme: profile.data.uiTheme || 'light',
+              customTheme: profile.data.customTheme || null,
+              buildDir: common.BUILD_DIR,
+              blockDir: nodePath.join(common.BUILD_DIR, 'blocks', blockId),
+              toolchainBinDir: nodePath.join(
+                common.APIO_HOME_DIR,
+                'packages',
+                'tools-oss-cad-suite',
+                'bin'
+              ),
+              gtkwavePath: (function () {
+                try {
+                  var isWin = process.platform === 'win32';
+                  var exe = isWin ? 'gtkwave.exe' : 'gtkwave';
+                  // process.cwd() = icestudio root in NW.js (__dirname is undefined in browser scripts)
+                  var appRoot = process.cwd();
+                  var fsSync = require('fs');
+                  var candidates = [
+                    nodePath.join(appRoot, 'GTKWave', 'bin', exe),
+                    nodePath.join(appRoot, 'gtkwave', 'bin', exe),
+                    nodePath.join(appRoot, 'GTKWave', exe),
+                  ];
+                  for (var ci = 0; ci < candidates.length; ci++) {
+                    try {
+                      fsSync.accessSync(candidates[ci]);
+                      return candidates[ci];
+                    } catch (e) {}
+                  }
+                } catch (e) {}
+                return '';
+              })(),
+              isWin32: process.platform === 'win32',
+              formalVerifyPyPath: nodePath.resolve(
+                nodePath.join('..', 'formal_verify', 'formal_verify.py')
+              ),
+              pythonCmd: common.PYTHON_ENV || 'python',
+            };
+
+            var configParam = encodeURIComponent(JSON.stringify(configObj));
+            var editorURL =
+              'resources/viewers/code-editor/code-editor.html?config=' +
+              configParam;
+
+            var titles = {
+              full: 'Full Editor',
+              formal: 'Formal Test',
+              testbench: 'Testbench',
+            };
+            nw.Window.open(editorURL, {
+              title: 'Code Editor — ' + titles[mode],
+              focus: true,
+              resizable: true,
+              show: false, // hidden until code-editor.js positions it
+              width: mode === 'testbench' ? 1200 : 900,
+              height: 700,
+              icon: 'resources/images/icestudio-logo.png',
+            });
+            break;
+          }
+          target = target.parentNode;
+        }
+      });
+
       //-- tooltip error - warning - info position calculation for ace editor
       //-- capture when user are over the error/warning/info mark and calculate
       //-- the tooltip position under the line of the mark

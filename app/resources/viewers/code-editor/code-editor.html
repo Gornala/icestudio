@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Code Editor</title>
+    <link rel="stylesheet" href="css/code-editor.css" />
+  </head>
+  <body>
+    <!-- Toolbar -->
+    <div id="toolbar">
+      <span id="toolbar-title">Code Editor</span>
+      <div id="toolbar-buttons">
+        <button id="btn-load" class="btn btn-secondary">&#8635; Load</button>
+        <button id="btn-save" class="btn btn-primary">&#10003; Save</button>
+        <button id="btn-verify" class="btn btn-secondary">
+          &#9654; Verify
+        </button>
+        <button id="btn-run-sim" class="btn btn-secondary">
+          &#9654; Run Sim
+        </button>
+        <button
+          id="btn-stop-sim"
+          class="btn btn-secondary"
+          style="display: none"
+        >
+          &#9646;&#9646; Stop
+        </button>
+        <button id="btn-gtkwave" class="btn btn-secondary">
+          &#128200; GTKWave
+        </button>
+      </div>
+    </div>
+
+    <!-- Panels container -->
+    <div id="panels">
+      <!-- Mode: full — single panel -->
+      <div id="panel-full-editor" class="panel">
+        <div class="panel-label">Code</div>
+        <div id="ace-code" class="ace-container"></div>
+      </div>
+
+      <!-- Mode: formal — right markdown panel -->
+      <div id="panel-formal-output" class="panel">
+        <div class="panel-label">Formal Verification Report</div>
+        <div id="formal-output" class="output-area">
+          <em>Run Verify to generate the formal report.</em>
+        </div>
+      </div>
+
+      <!-- Mode: testbench — left sim log panel -->
+      <div id="panel-sim-log" class="panel">
+        <div class="panel-label">Simulation Output</div>
+        <div id="sim-log" class="output-area mono">
+          <em>Press "Run Sim" to simulate.</em>
+        </div>
+      </div>
+
+      <!-- Mode: testbench — middle testbench editor -->
+      <div id="panel-testbench" class="panel">
+        <div class="panel-label">Testbench</div>
+        <div id="ace-testbench" class="ace-container"></div>
+      </div>
+    </div>
+
+    <!-- Error bar -->
+    <div id="error-bar"></div>
+
+    <!-- Load Ace editor -->
+    <script src="../../../node_modules/ace-builds/src-noconflict/ace.js"></script>
+    <script src="../../../node_modules/ace-builds/src-noconflict/mode-verilog.js"></script>
+    <!-- Mermaid diagram renderer (v9 UMD — works without ES module support) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.min.js"></script>
+    <script src="js/code-editor.js"></script>
+  </body>
+</html>

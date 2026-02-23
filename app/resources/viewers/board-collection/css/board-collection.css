@@ -1,0 +1,262 @@
+/* ============================================================
+   Board Collection — styles using CSS variables for theming
+   ============================================================ */
+
+:root {
+  --cb-bg: #f5f6f7;
+  --cb-bg2: #fff;
+  --cb-sidebar: #f5f6f7;
+  --cb-border: #d5dadd;
+  --cb-text: #333;
+  --cb-muted: #888;
+  --cb-accent: #63afcf;
+  --cb-accent-hover: #4a9bbf;
+  --cb-hover: #e8ecef;
+  --cb-active: #d8eef8;
+  --cb-ok-bg: #d4ffad;
+  --cb-ok-border: #a9cc8a;
+  --cb-ok-text: #2d5a1b;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  font-family:
+    'LatoWeb',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: 13px;
+  color: var(--cb-text);
+  background: var(--cb-bg);
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+/* ============================================================
+   Sidebar (board list with checkboxes)
+   ============================================================ */
+#sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--cb-sidebar);
+  border-right: 1px solid var(--cb-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#sidebar-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--cb-border);
+  flex-shrink: 0;
+}
+
+#sidebar-header h2 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cb-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#sidebar-header .subtitle {
+  font-size: 11px;
+  color: var(--cb-muted);
+  margin-top: 2px;
+}
+
+#board-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  padding-bottom: 8px;
+}
+
+.family-header {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cb-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 8px 12px 3px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.board-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.board-row:hover {
+  background: var(--cb-hover);
+}
+
+.board-row input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--cb-accent);
+}
+
+.board-row label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--cb-text);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-row .board-id {
+  font-size: 10px;
+  color: var(--cb-muted);
+  font-family: 'Courier New', monospace;
+}
+
+/* ============================================================
+   Main content
+   ============================================================ */
+#main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 24px;
+  overflow-y: auto;
+  gap: 16px;
+}
+
+#main-content h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--cb-text);
+  margin-bottom: 4px;
+}
+
+.help-text {
+  font-size: 12px;
+  color: var(--cb-muted);
+  line-height: 1.5;
+}
+
+.help-text ul {
+  margin: 6px 0 0 16px;
+}
+
+.help-text li {
+  margin-bottom: 3px;
+}
+
+/* ============================================================
+   Status bar
+   ============================================================ */
+#status-bar {
+  font-size: 12px;
+  padding: 6px 24px;
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+  transition: max-height 0.15s;
+  max-height: 0;
+}
+
+#status-bar.status-visible {
+  max-height: 60px;
+  border-bottom: 1px solid var(--cb-border);
+}
+
+#status-bar.status-ok {
+  background: var(--cb-ok-bg);
+  border-bottom: 1px solid var(--cb-ok-border);
+  color: var(--cb-ok-text);
+}
+
+#status-bar.status-err {
+  background: #ffb3b6;
+  border-bottom: 1px solid #ff8084;
+  color: #5a1b1b;
+}
+
+/* ============================================================
+   Action buttons
+   ============================================================ */
+.action-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 6px 16px;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--cb-border);
+  background: var(--cb-bg2);
+  color: var(--cb-text);
+}
+
+.btn:hover {
+  background: var(--cb-hover);
+  border-color: #b5bfc8;
+}
+
+.btn-primary {
+  background: #337ab7;
+  border-color: #2e6da4;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #286090;
+  border-color: #204d74;
+}
+
+.btn-danger {
+  background: #d9534f;
+  border-color: #c9302c;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #c9302c;
+  border-color: #ac2925;
+}
+
+/* ============================================================
+   Counter badge
+   ============================================================ */
+#selection-count {
+  font-size: 12px;
+  color: var(--cb-muted);
+  font-style: italic;
+}
+
+.count-badge {
+  display: inline-block;
+  background: var(--cb-accent);
+  color: #fff;
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  font-style: normal;
+}

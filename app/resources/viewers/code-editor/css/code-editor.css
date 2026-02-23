@@ -1,0 +1,243 @@
+/* ============================================================
+   Code Editor Viewer — CSS
+   ============================================================ */
+
+/* ---- CSS Variables (light defaults) ---- */
+:root {
+  --ce-bg: #f5f6f7;
+  --ce-bg2: #ffffff;
+  --ce-toolbar: #e8eaec;
+  --ce-border: #d5dadd;
+  --ce-text: #333333;
+  --ce-muted: #888888;
+  --ce-accent: #63afcf;
+  --ce-accent-hover: #4a9bbf;
+  --ce-error-bg: #fde8e8;
+  --ce-error-text: #c0392b;
+  --ce-ok-bg: #e8f8e8;
+  --ce-ok-text: #27ae60;
+  --ce-panel-label: #63afcf;
+}
+
+/* ---- Base ---- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  background: var(--ce-bg);
+  color: var(--ce-text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---- Toolbar ---- */
+#toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--ce-toolbar);
+  border-bottom: 1px solid var(--ce-border);
+  padding: 6px 10px;
+  flex-shrink: 0;
+  height: 40px;
+}
+
+#toolbar-title {
+  font-weight: 600;
+  color: var(--ce-text);
+  font-size: 13px;
+}
+
+#toolbar-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.btn {
+  padding: 4px 12px;
+  border: 1px solid var(--ce-border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  background: var(--ce-bg2);
+  color: var(--ce-text);
+  transition: background 0.15s;
+}
+
+.btn:hover {
+  background: var(--ce-border);
+}
+
+.btn-primary {
+  background: var(--ce-accent);
+  color: #fff;
+  border-color: var(--ce-accent);
+}
+.btn-primary:hover {
+  background: var(--ce-accent-hover);
+}
+
+/* ---- Panels Container ---- */
+#panels {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--ce-border);
+  overflow: hidden;
+}
+.panel:last-child {
+  border-right: none;
+}
+
+.panel-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ce-panel-label);
+  padding: 4px 8px;
+  background: var(--ce-toolbar);
+  border-bottom: 1px solid var(--ce-border);
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ace-container {
+  flex: 1;
+  overflow: hidden;
+}
+
+.output-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  background: var(--ce-bg2);
+}
+
+.output-area.mono {
+  font-family: 'Consolas', 'Courier New', monospace;
+  white-space: pre-wrap;
+  color: var(--ce-text);
+}
+
+/* ---- Error Bar ---- */
+#error-bar {
+  display: none;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  white-space: pre-wrap;
+  flex-shrink: 0;
+  max-height: 120px;
+  overflow-y: auto;
+}
+#error-bar.err {
+  display: block;
+  background: var(--ce-error-bg);
+  color: var(--ce-error-text);
+  border-top: 1px solid var(--ce-error-text);
+}
+#error-bar.ok {
+  display: block;
+  background: var(--ce-ok-bg);
+  color: var(--ce-ok-text);
+  border-top: 1px solid var(--ce-ok-text);
+}
+
+/* ---- Mode: full ---- */
+body.mode-full #panel-full-editor {
+  flex: 1;
+}
+body.mode-full #panel-formal-output,
+body.mode-full #panel-sim-log,
+body.mode-full #panel-testbench {
+  display: none;
+}
+body.mode-full #btn-run-sim,
+body.mode-full #btn-gtkwave {
+  display: none;
+}
+
+/* ---- Mode: formal ---- */
+body.mode-formal #panel-full-editor {
+  flex: 1;
+}
+body.mode-formal #panel-formal-output {
+  flex: 1;
+}
+body.mode-formal #panel-sim-log,
+body.mode-formal #panel-testbench {
+  display: none;
+}
+body.mode-formal #btn-run-sim,
+body.mode-formal #btn-gtkwave {
+  display: none;
+}
+
+/* ---- Mode: testbench ---- */
+body.mode-testbench #panel-sim-log {
+  flex: 25%;
+}
+body.mode-testbench #panel-testbench {
+  flex: 40%;
+}
+body.mode-testbench #panel-full-editor {
+  flex: 35%;
+}
+body.mode-testbench #panel-formal-output {
+  display: none;
+}
+body.mode-testbench #btn-verify {
+  display: none;
+}
+
+/* ---- Markdown rendering ---- */
+#formal-output h1,
+#formal-output h2,
+#formal-output h3 {
+  margin: 10px 0 6px;
+  color: var(--ce-accent);
+}
+#formal-output table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 12px;
+}
+#formal-output th,
+#formal-output td {
+  border: 1px solid var(--ce-border);
+  padding: 4px 8px;
+  text-align: left;
+}
+#formal-output th {
+  background: var(--ce-toolbar);
+}
+#formal-output code,
+#formal-output pre {
+  background: var(--ce-toolbar);
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+}
+#formal-output pre {
+  padding: 8px;
+  display: block;
+  margin: 6px 0;
+  white-space: pre-wrap;
+}

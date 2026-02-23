@@ -1,5 +1,15 @@
 [
-  { "type": "HX1K", "boards": ["icezum", "go-board", "icestick", "iCE40-HX1K-EVB"] },
+  {
+    "type": "HX1K",
+    "boards": [
+      "icezum",
+      "go-board",
+      "icestick",
+      "iCE40-HX1K-EVB",
+      "54321",
+      "99"
+    ]
+  },
   {
     "type": "HX8K",
     "boards": [
@@ -17,9 +27,26 @@
       "ThetaMachines-ETH4K"
     ]
   },
-  { "type": "LP8K", "boards": ["TinyFPGA-B2", "TinyFPGA-BX"] },
-  { "type": "LP1K", "boards": ["iCESugar-nano"] },
-  { "type": "U4K", "boards": ["ODT_IcyBlue_Feather", "ODT_RPGA_Feather"] },
+  {
+    "type": "LP8K",
+    "boards": [
+      "TinyFPGA-B2",
+      "TinyFPGA-BX"
+    ]
+  },
+  {
+    "type": "LP1K",
+    "boards": [
+      "iCESugar-nano"
+    ]
+  },
+  {
+    "type": "U4K",
+    "boards": [
+      "ODT_IcyBlue_Feather",
+      "ODT_RPGA_Feather"
+    ]
+  },
   {
     "type": "UP5K",
     "boards": [
@@ -78,7 +105,8 @@
       "ColorLight-i9-v7.2_(USB-Blaster)",
       "ColorLight-i9-v7.2_(CMSIS-DAP)",
       "Cynthion-r1.4",
-      "mimas-ecp5-mini"
+      "mimas-ecp5-mini",
+      "66"
     ]
   }
 ]

@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Custom Board Manager</title>
+    <!-- Local jspreadsheet/jsuites from node_modules -->
+    <link
+      rel="stylesheet"
+      href="../../../node_modules/jspreadsheet-ce/dist/jspreadsheet.css"
+    />
+    <link
+      rel="stylesheet"
+      href="../../../node_modules/jsuites/dist/jsuites.css"
+    />
+    <link rel="stylesheet" href="css/custom-board.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Sidebar: board list -->
+      <aside id="sidebar">
+        <div id="sidebar-header">
+          <h2>Boards</h2>
+          <button id="btn-new-board" class="btn-new">+ New Board</button>
+        </div>
+        <div class="sidebar-section-label">Custom boards</div>
+        <ul id="board-list-custom"></ul>
+        <div class="sidebar-section-label section-all">All boards</div>
+        <ul id="board-list-all"></ul>
+      </aside>
+
+      <!-- Main content -->
+      <main id="main-content">
+        <!-- Status bar -->
+        <div id="status-bar"></div>
+
+        <!-- Step indicator -->
+        <div id="step-indicators">
+          <div class="step-indicator active" data-step="1">
+            <span class="step-num">1</span>
+            <span class="step-label">Board &amp; FPGA</span>
+          </div>
+          <div class="step-indicator" data-step="2">
+            <span class="step-num">2</span>
+            <span class="step-label">Pinout</span>
+          </div>
+          <div class="step-indicator" data-step="3">
+            <span class="step-num">3</span>
+            <span class="step-label">Programmer</span>
+          </div>
+          <div class="step-indicator" data-step="4">
+            <span class="step-num">4</span>
+            <span class="step-label">Review &amp; Save</span>
+          </div>
+        </div>
+
+        <!-- Step 1: Board Identity & FPGA -->
+        <div id="step1" class="wizard-step active">
+          <div class="step-toolbar">
+            <button id="btn-import-info" class="btn-tool">
+              &#8599; Import info.json
+            </button>
+            <input
+              type="file"
+              id="file-import-info"
+              accept=".json"
+              style="display: none"
+            />
+          </div>
+
+          <div class="form-grid">
+            <div class="field-group">
+              <label for="board-id">Board ID <span class="req">*</span></label>
+              <input
+                type="text"
+                id="board-id"
+                placeholder="e.g. my-board (no spaces)"
+              />
+              <span class="field-hint"
+                >Letters, numbers, hyphens, underscores only.</span
+              >
+              <span class="field-error" id="err-board-id"></span>
+            </div>
+
+            <div class="field-group">
+              <label for="board-label"
+                >Board Label <span class="req">*</span></label
+              >
+              <input
+                type="text"
+                id="board-label"
+                placeholder="e.g. My Custom Board"
+              />
+              <span class="field-error" id="err-board-label"></span>
+            </div>
+
+            <div class="field-group field-group--full">
+              <label for="fpga-select">FPGA <span class="req">*</span></label>
+              <div class="input-row">
+                <select id="fpga-select" style="flex: 1"></select>
+                <label class="toggle-label">
+                  <input type="checkbox" id="fpga-new-toggle" />
+                  Define new FPGA
+                </label>
+              </div>
+              <span class="field-error" id="err-fpga"></span>
+            </div>
+
+            <div
+              id="fpga-new-fields"
+              class="sub-section field-group--full hidden"
+            >
+              <div class="form-grid">
+                <div class="field-group">
+                  <label for="fpga-new-id"
+                    >FPGA ID <span class="req">*</span></label
+                  >
+                  <input
+                    type="text"
+                    id="fpga-new-id"
+                    placeholder="e.g. iCE40-HX4K-TQ144"
+                  />
+                </div>
+                <div class="field-group">
+                  <label for="fpga-new-arch"
+                    >Architecture <span class="req">*</span></label
+                  >
+                  <select id="fpga-new-arch">
+                    <option value="ice40">ice40</option>
+                    <option value="ecp5">ecp5</option>
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label for="fpga-new-type"
+                    >Type <span class="req">*</span></label
+                  >
+                  <input type="text" id="fpga-new-type" placeholder="e.g. hx" />
+                </div>
+                <div class="field-group">
+                  <label for="fpga-new-size"
+                    >Size <span class="req">*</span></label
+                  >
+                  <input type="text" id="fpga-new-size" placeholder="e.g. 8k" />
+                </div>
+                <div class="field-group">
+                  <label for="fpga-new-pack"
+                    >Package <span class="req">*</span></label
+                  >
+                  <input
+                    type="text"
+                    id="fpga-new-pack"
+                    placeholder="e.g. tq144"
+                  />
+                </div>
+                <div class="field-group">
+                  <label for="fpga-new-idcode"
+                    >ID Code <span class="hint-label">(ECP5 only)</span></label
+                  >
+                  <input
+                    type="text"
+                    id="fpga-new-idcode"
+                    placeholder="e.g. 0x21111043"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label for="fpga-family"
+                >FPGA Family <span class="req">*</span></label
+              >
+              <div class="input-row">
+                <select id="fpga-family" style="flex: 1"></select>
+                <span style="padding: 0 6px; line-height: 30px; color: #888"
+                  >or</span
+                >
+                <input
+                  type="text"
+                  id="fpga-family-custom"
+                  placeholder="new family name"
+                  style="flex: 1"
+                />
+              </div>
+              <span class="field-error" id="err-family"></span>
+            </div>
+
+            <div class="field-group">
+              <label for="board-interface">Interface</label>
+              <select id="board-interface">
+                <option value="FTDI">FTDI</option>
+                <option value="Serial">Serial</option>
+                <option value="GPIO">GPIO</option>
+                <option value="pico_load">pico_load</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="sys-clk"
+                >System Clock (MHz) <span class="req">*</span></label
+              >
+              <input type="number" id="sys-clk" value="12" min="1" />
+              <span class="field-error" id="err-clk"></span>
+            </div>
+
+            <div class="field-group field-group--full">
+              <label for="datasheet-url">Datasheet URL</label>
+              <input type="text" id="datasheet-url" placeholder="https://..." />
+            </div>
+
+            <div class="field-group field-group--full">
+              <label>FPGA Resources</label>
+              <div class="form-grid-5">
+                <div>
+                  <label class="sub-label">FFs</label>
+                  <input type="number" id="res-ffs" value="0" min="0" />
+                </div>
+                <div>
+                  <label class="sub-label">LUTs</label>
+                  <input type="number" id="res-luts" value="0" min="0" />
+                </div>
+                <div>
+                  <label class="sub-label">PIOs</label>
+                  <input type="number" id="res-pios" value="0" min="0" />
+                </div>
+                <div>
+                  <label class="sub-label">PLBs</label>
+                  <input type="number" id="res-plbs" value="0" min="0" />
+                </div>
+                <div>
+                  <label class="sub-label">BRAMs</label>
+                  <input type="number" id="res-brams" value="0" min="0" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Pinout Configuration -->
+        <div id="step2" class="wizard-step">
+          <div class="step-toolbar">
+            <button id="btn-import-pinout" class="btn-tool">
+              &#8599; Import pinout.json
+            </button>
+            <input
+              type="file"
+              id="file-import-pinout"
+              accept=".json"
+              style="display: none"
+            />
+            <button id="btn-add-pin-row" class="btn-tool">+ Row</button>
+            <button id="btn-remove-pin-row" class="btn-tool">- Row</button>
+            <span
+              class="field-error"
+              id="err-pinout"
+              style="margin-left: 8px"
+            ></span>
+          </div>
+
+          <div id="pinout-table-container"></div>
+
+          <div class="section-divider">Constraint File (.pcf / .lpf)</div>
+          <div class="step-toolbar">
+            <button id="btn-import-constraint" class="btn-tool">
+              &#8599; Import .pcf / .lpf
+            </button>
+            <input
+              type="file"
+              id="file-import-constraint"
+              accept=".pcf,.lpf"
+              style="display: none"
+            />
+            <button id="btn-auto-constraint" class="btn-tool">
+              &#9881; Auto-generate from pinout
+            </button>
+            <span
+              class="field-error"
+              id="err-constraint"
+              style="margin-left: 8px"
+            ></span>
+          </div>
+          <textarea
+            id="constraint-content"
+            rows="7"
+            placeholder="Constraint file content..."
+          ></textarea>
+
+          <div class="section-divider">Auto-connection Rules</div>
+          <div class="step-toolbar">
+            <button id="btn-import-rules" class="btn-tool">
+              &#8599; Import rules.json
+            </button>
+            <input
+              type="file"
+              id="file-import-rules"
+              accept=".json"
+              style="display: none"
+            />
+          </div>
+          <div class="form-grid">
+            <div class="field-group">
+              <label>Clock pin (input rule)</label>
+              <div class="input-row">
+                <input
+                  type="text"
+                  id="rule-clk-port"
+                  placeholder="Port (e.g. clk)"
+                  style="flex: 2"
+                />
+                <span style="padding: 0 4px; line-height: 30px; color: #888"
+                  >→ pin</span
+                >
+                <input
+                  type="text"
+                  id="rule-clk-pin"
+                  placeholder="e.g. 35"
+                  style="flex: 1"
+                />
+              </div>
+            </div>
+            <div class="field-group">
+              <label>Reset pin (optional)</label>
+              <div class="input-row">
+                <input
+                  type="text"
+                  id="rule-rst-port"
+                  placeholder="Port (e.g. reset)"
+                  style="flex: 2"
+                />
+                <span style="padding: 0 4px; line-height: 30px; color: #888"
+                  >→ pin</span
+                >
+                <input
+                  type="text"
+                  id="rule-rst-pin"
+                  placeholder="e.g. 66"
+                  style="flex: 1"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Programmer Configuration -->
+        <div id="step3" class="wizard-step">
+          <div class="field-group">
+            <label for="programmer-select"
+              >Programmer <span class="req">*</span></label
+            >
+            <div class="input-row">
+              <select id="programmer-select" style="flex: 1"></select>
+              <label class="toggle-label">
+                <input type="checkbox" id="programmer-new-toggle" />
+                Define new programmer
+              </label>
+            </div>
+            <span class="field-error" id="err-programmer"></span>
+          </div>
+
+          <div id="programmer-new-fields" class="sub-section hidden">
+            <div class="form-grid">
+              <div class="field-group">
+                <label for="prog-new-id"
+                  >Programmer ID <span class="req">*</span></label
+                >
+                <input
+                  type="text"
+                  id="prog-new-id"
+                  placeholder="e.g. my_programmer"
+                />
+              </div>
+              <div class="field-group">
+                <label for="prog-new-cmd"
+                  >Command <span class="req">*</span></label
+                >
+                <input
+                  type="text"
+                  id="prog-new-cmd"
+                  placeholder="e.g. iceprog"
+                />
+              </div>
+              <div class="field-group field-group--full">
+                <label for="prog-new-args">Arguments</label>
+                <input
+                  type="text"
+                  id="prog-new-args"
+                  placeholder="-d i:0x${VID}:0x${PID}:${FTDI_ID}"
+                />
+                <span class="field-hint"
+                  >Variables: ${VID}, ${PID}, ${FTDI_ID}, ${SERIAL_PORT},
+                  ${FILE}</span
+                >
+              </div>
+              <div class="field-group field-group--full">
+                <label for="prog-new-pip"
+                  >pip packages
+                  <span class="hint-label">(comma separated)</span></label
+                >
+                <input
+                  type="text"
+                  id="prog-new-pip"
+                  placeholder="e.g. tinyprog"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="prog-extra-args">Programmer extra_args</label>
+            <input type="text" id="prog-extra-args" placeholder="e.g. -I B" />
+          </div>
+
+          <div class="section-divider">USB Identification</div>
+          <div class="form-grid">
+            <div class="field-group">
+              <label for="usb-vid">USB VID (4-char hex)</label>
+              <input
+                type="text"
+                id="usb-vid"
+                placeholder="e.g. 0403"
+                maxlength="4"
+              />
+              <span class="field-error" id="err-vid"></span>
+            </div>
+            <div class="field-group">
+              <label for="usb-pid">USB PID (4-char hex)</label>
+              <input
+                type="text"
+                id="usb-pid"
+                placeholder="e.g. 6010"
+                maxlength="4"
+              />
+              <span class="field-error" id="err-pid"></span>
+            </div>
+          </div>
+
+          <div class="section-divider">
+            Device Descriptors <span class="hint-label">(optional)</span>
+          </div>
+          <div class="form-grid">
+            <div class="field-group">
+              <label for="ftdi-desc">FTDI description</label>
+              <input
+                type="text"
+                id="ftdi-desc"
+                placeholder="e.g. Dual RS232-HS"
+              />
+            </div>
+            <div class="field-group">
+              <label for="tinyprog-desc">TinyProg description</label>
+              <input type="text" id="tinyprog-desc" placeholder="" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Review & Save -->
+        <div id="step4" class="wizard-step">
+          <div id="validation-panel"></div>
+
+          <div class="preview-section">
+            <div class="preview-title">info.json</div>
+            <pre id="preview-info" class="preview-box"></pre>
+          </div>
+          <div class="preview-section">
+            <div class="preview-title">
+              pinout.json <span class="hint-label">(first 10 pins)</span>
+            </div>
+            <pre id="preview-pinout" class="preview-box"></pre>
+          </div>
+          <div class="preview-section">
+            <div class="preview-title">Constraint file</div>
+            <pre id="preview-constraint" class="preview-box"></pre>
+          </div>
+          <div class="preview-section">
+            <div class="preview-title">rules.json</div>
+            <pre id="preview-rules" class="preview-box"></pre>
+          </div>
+          <div class="preview-section">
+            <div class="preview-title">apio boards.json entry</div>
+            <pre id="preview-apio-board" class="preview-box"></pre>
+          </div>
+        </div>
+
+        <!-- Navigation -->
+        <div id="wizard-nav">
+          <button id="btn-prev" class="btn-nav" disabled>
+            &#8592; Previous
+          </button>
+          <button id="btn-next" class="btn-nav btn-primary">
+            Next &#8594;
+          </button>
+          <button id="btn-save" class="btn-nav btn-success hidden">
+            &#10003; Save Board
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <script src="../../../node_modules/jsuites/dist/jsuites.js"></script>
+    <script src="../../../node_modules/jspreadsheet-ce/dist/index.js"></script>
+    <script src="js/custom-board.js"></script>
+  </body>
+</html>

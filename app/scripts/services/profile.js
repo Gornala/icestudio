@@ -25,6 +25,8 @@ angular
       displayVersionInfoWindow: 'yes',
       pythonEnv: { python: '', pip: '' },
       recentProjects: [],
+      ownedBoards: [], //-- Board Collection filter (empty = show all)
+      customTheme: null, //-- Custom theme colors object (null = use dark/light CSS)
     };
 
     //-- Property added to the MACs
@@ -60,6 +62,8 @@ angular
             loggingFile: data.loggingFile || '',
             pythonEnv: data.pythonEnv || { python: '', pip: '' },
             recentProjects: data.recentProjects || [],
+            ownedBoards: data.ownedBoards || [],
+            customTheme: data.customTheme || null,
           };
 
           if (self.data.pythonEnv.python.length > 0) {
@@ -76,6 +80,10 @@ angular
           if (uiThemeEl) {
             uiThemeEl.remove();
           }
+          let uiThemeCustomEl = document.getElementById('uiThemeCustom');
+          if (uiThemeCustomEl) {
+            uiThemeCustomEl.remove();
+          }
           //-- Dark Theme:
           if (self.data.uiTheme === 'dark') {
             let cssFile =
@@ -90,7 +98,68 @@ angular
             let pHead = document.getElementsByTagName('head')[0];
             pHead.innerHTML = pHead.innerHTML + cssFile;
           }
+          //-- Custom Theme: use light.css as base, then overlay custom colors.
+          if (self.data.uiTheme === 'custom') {
+            let cssFile =
+              '<link id="uiTheme" rel="stylesheet" href="resources/uiThemes/light/light.css">';
+            let pHead = document.getElementsByTagName('head')[0];
+            pHead.innerHTML = pHead.innerHTML + cssFile;
+            let ct = self.data.customTheme;
+            if (ct) {
+              let customStyle = document.createElement('style');
+              customStyle.id = 'uiThemeCustom';
+              customStyle.textContent = [
+                '.joint-paper-background { background: ' +
+                  ct.bg +
+                  ' !important; }',
+                '.ice-bar { background: ' +
+                  (ct.sidebar || ct.bg) +
+                  ' !important; color: ' +
+                  ct.text +
+                  ' !important; border-bottom: 1px solid ' +
+                  ct.border +
+                  '; }',
+                '.footer { background: ' +
+                  (ct.sidebar || ct.bg) +
+                  ' !important; color: ' +
+                  ct.text +
+                  ' !important; border-top: 1px solid ' +
+                  ct.border +
+                  '; }',
+                '.ice-button { background: ' +
+                  ct.bg2 +
+                  ' !important; color: ' +
+                  ct.text +
+                  ' !important; border: 1px solid ' +
+                  ct.border +
+                  '; }',
+                '.dropdown-menu { background: ' + ct.bg2 + ' !important; }',
+                '.dropdown-menu > li > a { background: ' +
+                  ct.bg2 +
+                  '; color: ' +
+                  ct.text +
+                  '; }',
+                '.dropdown-menu > li > a:hover { background: ' +
+                  ct.border +
+                  ' !important; color: ' +
+                  ct.text +
+                  '; }',
+                '.dropdown a { color: ' + ct.text + ' !important; }',
+                '.breadcrumb { background: ' + ct.bg + ' !important; }',
+                '.breadcrumb span { color: ' + ct.text + '; }',
+                '.info { background: ' +
+                  (ct.sidebar || ct.bg) +
+                  ' !important; color: ' +
+                  ct.text +
+                  ' !important; }',
+              ].join('\n');
+              document.head.appendChild(customStyle);
+            }
+          }
           //-- End Custom Theme support
+
+          //-- Sync ownedBoards to common for use in menuboard directive
+          common.ownedBoards = self.data.ownedBoards || [];
 
           if (common.DARWIN) {
             self.data['macosFTDIDrivers'] = data.macosFTDIDrivers || false;

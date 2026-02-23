@@ -25,7 +25,8 @@ angular
       nodeAdmZip,
       _package,
       $rootScope,
-      gui
+      gui,
+      boards
     ) {
       //-- Flag that indicates if there is an apio command already running
       var taskRunning = false;
@@ -1654,7 +1655,11 @@ angular
         updateProgress('pip ' + apio, 40);
 
         //-- Perform the real installation
-        utils.installOnlineApio(callback);
+        utils.installOnlineApio(function () {
+          //-- Re-apply custom board patches after apio reinstall
+          boards.patchApioResources();
+          callback();
+        });
       }
 
       //------------------------------------------

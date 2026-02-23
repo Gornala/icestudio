@@ -44,12 +44,270 @@ angular
     const DEFAULT = 'alhambra-ii';
 
     //-----------------------------------------------------------------
+    //-- Patch apio resource files with custom board entries.
+    //-- This ensures custom boards survive apio reinstalls/updates.
+    //-- Reads from ~/.icestudio/custom-boards/custom-boards.json
+    //-- and merges entries into the live apio resource files.
+    //-----------------------------------------------------------------
+    this.patchApioResources = function () {
+      var customBoardsFile = nodePath.join(
+        common.CUSTOM_BOARDS_DIR,
+        'custom-boards.json'
+      );
+
+      //-- Nothing to do if no custom boards exist
+      if (!nodeFs.existsSync(customBoardsFile)) {
+        return;
+      }
+
+      var apioResDir = common.getApioResourcesDir();
+      if (!apioResDir) {
+        console.warn('patchApioResources: apio resources dir not found');
+        return;
+      }
+
+      var customBoards;
+      try {
+        customBoards = JSON.parse(
+          nodeFs.readFileSync(customBoardsFile, 'utf8')
+        );
+      } catch (e) {
+        console.error(
+          'patchApioResources: failed to read custom-boards.json',
+          e
+        );
+        return;
+      }
+
+      var boardIds = Object.keys(customBoards);
+      if (boardIds.length === 0) {
+        return;
+      }
+
+      //-- Patch boards.json
+      try {
+        var apioBoardsPath = nodePath.join(apioResDir, 'boards.json');
+        var apioBoards = JSON.parse(
+          nodeFs.readFileSync(apioBoardsPath, 'utf8')
+        );
+        boardIds.forEach(function (id) {
+          if (customBoards[id].apio && customBoards[id].apio.board) {
+            apioBoards[id] = customBoards[id].apio.board;
+          }
+        });
+        nodeFs.writeFileSync(
+          apioBoardsPath,
+          JSON.stringify(apioBoards, null, 2)
+        );
+      } catch (e) {
+        console.error('patchApioResources: failed to patch boards.json', e);
+      }
+
+      //-- Patch fpgas.json (only for boards that define new FPGAs)
+      try {
+        var apioFpgasPath = nodePath.join(apioResDir, 'fpgas.json');
+        var apioFpgas = JSON.parse(nodeFs.readFileSync(apioFpgasPath, 'utf8'));
+        boardIds.forEach(function (id) {
+          if (customBoards[id].apio && customBoards[id].apio.fpga) {
+            var fpgaEntry = customBoards[id].apio.fpga;
+            apioFpgas[fpgaEntry.id] = fpgaEntry.data;
+          }
+        });
+        nodeFs.writeFileSync(apioFpgasPath, JSON.stringify(apioFpgas, null, 2));
+      } catch (e) {
+        console.error('patchApioResources: failed to patch fpgas.json', e);
+      }
+
+      //-- Patch programmers.json (only for boards with new programmers)
+      try {
+        var apioProgrammersPath = nodePath.join(apioResDir, 'programmers.json');
+        var apioProgrammers = JSON.parse(
+          nodeFs.readFileSync(apioProgrammersPath, 'utf8')
+        );
+        boardIds.forEach(function (id) {
+          if (customBoards[id].apio && customBoards[id].apio.programmer) {
+            var progEntry = customBoards[id].apio.programmer;
+            apioProgrammers[progEntry.id] = progEntry.data;
+          }
+        });
+        nodeFs.writeFileSync(
+          apioProgrammersPath,
+          JSON.stringify(apioProgrammers, null, 2)
+        );
+      } catch (e) {
+        console.error(
+          'patchApioResources: failed to patch programmers.json',
+          e
+        );
+      }
+
+      //-- Patch apio menu.json
+      try {
+        var apioMenuPath = nodePath.join(apioResDir, 'menu.json');
+        var apioMenu = JSON.parse(nodeFs.readFileSync(apioMenuPath, 'utf8'));
+        boardIds.forEach(function (id) {
+          var family = customBoards[id].family;
+          if (!family) {
+            return;
+          }
+          var familyEntry = apioMenu.find(function (f) {
+            return f.type === family;
+          });
+          if (familyEntry) {
+            if (familyEntry.boards.indexOf(id) === -1) {
+              familyEntry.boards.push(id);
+            }
+          } else {
+            apioMenu.push({ type: family, boards: [id] });
+          }
+        });
+        nodeFs.writeFileSync(apioMenuPath, JSON.stringify(apioMenu, null, 2));
+      } catch (e) {
+        console.error('patchApioResources: failed to patch apio menu.json', e);
+      }
+
+      console.log(
+        'patchApioResources: patched ' + boardIds.length + ' custom board(s)'
+      );
+    };
+
+    //-----------------------------------------------------------------
+    //-- Sync custom board directories into icestudio's resources/boards/
+    //-- Copies board files (info.json, pinout.json, pinout.pcf/lpf, rules.json)
+    //-- from ~/.icestudio/custom-boards/{boardId}/ to resources/boards/{boardId}/
+    //-- Also updates the icestudio menu.json
+    //-----------------------------------------------------------------
+    this.syncCustomBoardDirs = function () {
+      var customBoardsFile = nodePath.join(
+        common.CUSTOM_BOARDS_DIR,
+        'custom-boards.json'
+      );
+
+      if (!nodeFs.existsSync(customBoardsFile)) {
+        return;
+      }
+
+      var customBoards;
+      try {
+        customBoards = JSON.parse(
+          nodeFs.readFileSync(customBoardsFile, 'utf8')
+        );
+      } catch (e) {
+        console.error(
+          'syncCustomBoardDirs: failed to read custom-boards.json',
+          e
+        );
+        return;
+      }
+
+      var boardIds = Object.keys(customBoards);
+      if (boardIds.length === 0) {
+        return;
+      }
+
+      var iceBoardsDir = nodePath.join('resources', 'boards');
+      var iceMenuPath = nodePath.join(iceBoardsDir, 'menu.json');
+
+      //-- Read icestudio menu.json
+      var iceMenu;
+      try {
+        iceMenu = JSON.parse(nodeFs.readFileSync(iceMenuPath, 'utf8'));
+      } catch (e) {
+        console.error(
+          'syncCustomBoardDirs: failed to read icestudio menu.json',
+          e
+        );
+        return;
+      }
+
+      boardIds.forEach(function (boardId) {
+        var srcDir = nodePath.join(common.CUSTOM_BOARDS_DIR, boardId);
+        var destDir = nodePath.join(iceBoardsDir, boardId);
+
+        if (!nodeFs.existsSync(srcDir)) {
+          return;
+        }
+
+        //-- Create destination directory if needed
+        if (!nodeFs.existsSync(destDir)) {
+          nodeFs.mkdirSync(destDir, { recursive: true });
+        }
+
+        //-- Copy board files
+        var filesToCopy = ['info.json', 'pinout.json', 'rules.json'];
+        //-- Also copy constraint files if they exist
+        ['pinout.pcf', 'pinout.lpf'].forEach(function (f) {
+          if (nodeFs.existsSync(nodePath.join(srcDir, f))) {
+            filesToCopy.push(f);
+          }
+        });
+
+        filesToCopy.forEach(function (filename) {
+          var srcFile = nodePath.join(srcDir, filename);
+          if (!nodeFs.existsSync(srcFile)) {
+            return;
+          }
+          var destFile = nodePath.join(destDir, filename);
+          //-- Only write if content differs (avoids triggering grunt watch)
+          var srcContent = nodeFs.readFileSync(srcFile);
+          var destContent = nodeFs.existsSync(destFile)
+            ? nodeFs.readFileSync(destFile)
+            : null;
+          if (!destContent || !srcContent.equals(destContent)) {
+            nodeFs.writeFileSync(destFile, srcContent);
+          }
+        });
+
+        //-- Update icestudio menu.json
+        var family = customBoards[boardId].family;
+        if (family) {
+          var familyEntry = iceMenu.find(function (f) {
+            return f.type === family;
+          });
+          if (familyEntry) {
+            if (familyEntry.boards.indexOf(boardId) === -1) {
+              familyEntry.boards.push(boardId);
+            }
+          } else {
+            iceMenu.push({ type: family, boards: [boardId] });
+          }
+        }
+      });
+
+      //-- Only write menu.json if content actually changed
+      //-- Writing unconditionally triggers grunt watch → infinite restart loop
+      try {
+        var newMenuContent = JSON.stringify(iceMenu, null, 2);
+        var existingMenuContent = '';
+        try {
+          existingMenuContent = nodeFs.readFileSync(iceMenuPath, 'utf8');
+        } catch (e2) {}
+        if (newMenuContent !== existingMenuContent) {
+          nodeFs.writeFileSync(iceMenuPath, newMenuContent);
+        }
+      } catch (e) {
+        console.error(
+          'syncCustomBoardDirs: failed to write icestudio menu.json',
+          e
+        );
+      }
+
+      console.log(
+        'syncCustomBoardDirs: synced ' + boardIds.length + ' custom board(s)'
+      );
+    };
+
+    //-----------------------------------------------------------------
     //-- Read all the boards FILES and store all the information
     //-- in the GLOBAL OBJECT: common.boards
     //-----------------------------------------------------------------
     //-- Only the boards located in the menu.json FILE are READ
     //-----------------------------------------------------------------
     this.loadBoards = function () {
+      //-- First, sync custom boards into place
+      this.syncCustomBoardDirs();
+      this.patchApioResources();
+
       let boards = [];
 
       //-- Construct the Boards path: "resources/boards"
@@ -110,6 +368,15 @@ angular
 
       //-- The boards are available through the GLOBAL OBJECT common.boards
       common.boards = boards;
+    };
+
+    //-----------------------------------------------------------------
+    //-- Reload boards and update Angular UI
+    //-- Called after custom board wizard saves changes
+    //-----------------------------------------------------------------
+    this.reloadBoards = function () {
+      this.loadBoards();
+      utils.rootScopeSafeApply();
     };
 
     //---- PENDING: DOCUMENTATION!!!!!!
