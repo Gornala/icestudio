@@ -62,6 +62,7 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
          ${editorLabel}.session.setMode("ace/mode/verilog");
         </script>
         <div class="resizer"/></div>
+        <div class="code-block-name"></div>
       </div>
       `
       )()
@@ -73,6 +74,7 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
       box: this.$box[0],
       editorSelector: this.$box[0].querySelectorAll('.code-editor'),
       contentSelector: this.$box[0].querySelectorAll('.code-content'),
+      nameEl: this.$box[0].querySelector('.code-block-name'),
     };
 
     this.model.on('change', this.updateBox, this);
@@ -249,11 +251,27 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
       editorUpdated = true;
       this.prevZoom = state.zoom;
       var editorStyles = {
-        'margin': 7 * state.zoom + 'px',
+        'margin-top': Math.round(40 * state.zoom) + 'px',
+        'margin-right': Math.round(7 * state.zoom) + 'px',
+        'margin-bottom': Math.round(7 * state.zoom) + 'px',
+        'margin-left': Math.round(7 * state.zoom) + 'px',
         'border-radius': 5 * state.zoom + 'px',
         'border-width': state.zoom + 0.5 + 'px',
       };
       this.applyStyles(this.nativeDom.editorSelector, editorStyles);
+
+      if (this.nativeDom.nameEl) {
+        var nameGap = Math.round(9 * state.zoom);
+        this.nativeDom.nameEl.style.top = Math.round(4 * state.zoom) + 'px';
+        this.nativeDom.nameEl.style.left = Math.round(15 * state.zoom) + 'px';
+        this.nativeDom.nameEl.style.right =
+          Math.round(80 * state.zoom + nameGap) + 'px';
+        this.nativeDom.nameEl.style.fontSize =
+          Math.round(22 * state.zoom) + 'px';
+        this.nativeDom.nameEl.style.lineHeight =
+          Math.round(40 * state.zoom) + 'px';
+        this.nativeDom.nameEl.style.maxWidth = '';
+      }
 
       var annotationSize = Math.round(15 * state.zoom) + 'px';
       var annotationTypes = ['.ace_error', '.ace_warning', '.ace_info'];
@@ -342,6 +360,11 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
     }
 
     this.editor?.resize();
+
+    if (this.nativeDom.nameEl) {
+      this.nativeDom.nameEl.textContent = data && data.label ? data.label : '';
+    }
+
     return pendingTasks;
   },
 

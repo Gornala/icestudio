@@ -558,10 +558,25 @@ g {
   left: 0;
   right: 0;
   bottom: 0;
-  margin: 7px;
+  margin: 40px 7px 7px 7px;
   border-radius: 5px;
   border: 5px solid #aaa;
   pointer-events: auto;
+}
+
+.code-block .code-block-name {
+  position: absolute;
+  bottom: 0px;
+  left: 100px;
+  right: 89px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #096fd4;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 40px;
 }
 
 .info-block {

@@ -424,7 +424,7 @@ angular.module('icestudio').service(
     }
 
     function newBasicCode(callback) {
-      let form = new forms.FormBasicCode('', '', '', '', '');
+      let form = new forms.FormBasicCode('', '', '', '', '', '');
       $('.ajs-input').val('');
       //-- Display the form
       form.display((evt) => {
@@ -454,6 +454,7 @@ angular.module('icestudio').service(
         if (form.code.trim() !== '') {
           blockInstance.data.code = form.code;
         }
+        blockInstance.data.label = form.label;
 
         //-- Build the cell
         let cell = loadBasicCode(blockInstance);
@@ -1400,7 +1401,8 @@ angular.module('icestudio').service(
         outPortNames,
         inParamNames,
         inoutLeftPortNames,
-        inoutRightPortNames
+        inoutRightPortNames,
+        block.data.label || ''
       );
 
       //-- Display the form
@@ -1444,6 +1446,7 @@ angular.module('icestudio').service(
         } else {
           blockInstance.data.code = block.data.code;
         }
+        blockInstance.data.label = form.label;
 
         //-- Build the cell
         let cell = loadBasicCode(blockInstance);

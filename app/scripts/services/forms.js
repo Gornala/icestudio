@@ -1883,7 +1883,8 @@ angular
           portsOut = '',
           paramsIn = '',
           portsInOutLeft = '',
-          portsInOutRight = ''
+          portsInOutRight = '',
+          label = ''
         ) {
           //-- Create a blank Form (calling the upper Class)
           super();
@@ -1915,6 +1916,16 @@ angular
           );
 
           const modulePortsLabel = gettextCatalog.getString('Module Ports');
+
+          //-- Field 9: Module name / human-readable label
+          let fieldLabel = new TextField(
+            gettextCatalog.getString('Name'),
+            label,
+            9
+          );
+          this.addField(fieldLabel, modulePortsLabel);
+          this._labelField = fieldLabel;
+          this.iniLabel = label;
 
           this.addField(field0, modulePortsLabel);
           this.addField(field1, modulePortsLabel);
@@ -2042,15 +2053,15 @@ angular
               source: ['IN', 'OUT', 'BIDI'],
             },
             { type: 'numeric', title: 'Bus width', width: 80 },
-            { type: 'checkbox', title: 'Signed', width: 55 },
-            { type: 'checkbox', title: 'Registered', width: 80 },
             { type: 'checkbox', title: 'Enable', width: 60 },
           ];
-          const data = [['', 'IN', 1, false, false, true]];
+          const data = [['', 'IN', 1, true]];
 
           let field7 = new GridField(7, 'ports-table', columns, data);
           field7.onEnter = () => this.onEnterIOPortsTable(field7.table);
           this.addField(field7, modulePortsLabel);
+          this._field7 = field7;
+          this._allowInoutPorts = allowInoutPorts;
 
           field0.onChange((value) => {
             if (this._updatingFromGrid) {
@@ -2112,18 +2123,11 @@ angular
             this.iniPortsInOutRight = portsInOutRight;
           }
 
-          this.inInput = Array.isArray(this.fields)
-            ? this.fields[0]
-            : this.fields[modulePortsLabel][0];
-          this.outInput = Array.isArray(this.fields)
-            ? this.fields[1]
-            : this.fields[modulePortsLabel][1];
-          this.bidiInput1 = Array.isArray(this.fields)
-            ? this.fields[3]
-            : this.fields[modulePortsLabel][3];
-          this.bidiInput2 = Array.isArray(this.fields)
-            ? this.fields[4]
-            : this.fields[modulePortsLabel][4];
+          // fieldLabel is at index 0; field0..field4 shifted by +1
+          this.inInput = this.fields[modulePortsLabel][1];
+          this.outInput = this.fields[modulePortsLabel][2];
+          this.bidiInput1 = this.fields[modulePortsLabel][4];
+          this.bidiInput2 = this.fields[modulePortsLabel][5];
         }
 
         //-----------------------------------------------------------------------
@@ -2176,31 +2180,32 @@ angular
           //-- Read the values from the form
           this.values = this.readFields();
 
-          //-- Values[0]: Input port names
+          // values[0] = Name (label) field — not a port, skip
+          //-- Values[1]: Input port names
           //-- Parse the input port names
-          this.inPorts = Form.parseNames(this.values[0].replace(/\s+/g, ''));
+          this.inPorts = Form.parseNames(this.values[1].replace(/\s+/g, ''));
 
-          //-- Values[1]: Output port names
+          //-- Values[2]: Output port names
           //-- Parse the output port names
-          this.outPorts = Form.parseNames(this.values[1].replace(/\s+/g, ''));
+          this.outPorts = Form.parseNames(this.values[2].replace(/\s+/g, ''));
 
-          //-- Values[2]: Input parameters
+          //-- Values[3]: Input parameters
           //-- Parse the input parameters
-          this.inParams = Form.parseNames(this.values[2].replace(/\s+/g, ''));
+          this.inParams = Form.parseNames(this.values[3].replace(/\s+/g, ''));
 
-          //-- Values[3]: InputOutput port names at the left of the block
-          //-- If field is present in Values, then parse the inout port names
-          if (this.values[3]) {
+          //-- Values[4]: InputOutput port names at the left of the block
+          //-- Only present (as string) when inout ports are enabled
+          if (this.values[4] && typeof this.values[4] === 'string') {
             this.inoutLeftPorts = Form.parseNames(
-              this.values[3].replace(/\s+/g, '')
+              this.values[4].replace(/\s+/g, '')
             );
           }
 
-          //-- Values[4]: InputOutput port names at the right of the block
-          //-- If field is present in Values, then parse the inout port names
-          if (this.values[4]) {
+          //-- Values[5]: InputOutput port names at the right of the block
+          //-- Only present (as string) when inout ports are enabled
+          if (this.values[5] && typeof this.values[5] === 'string') {
             this.inoutRightPorts = Form.parseNames(
-              this.values[4].replace(/\s+/g, '')
+              this.values[5].replace(/\s+/g, '')
             );
           }
         }
@@ -2320,10 +2325,42 @@ angular
             (this.hasOwnProperty('iniPortsInOutLeft') &&
               this.iniPortsInOutLeft !== inoutLeftPortNames) ||
             (this.hasOwnProperty('iniPortsInOutRight') &&
-              this.iniPortsInOutRight !== inoutRightPortNames);
+              this.iniPortsInOutRight !== inoutRightPortNames) ||
+            this.iniLabel !== this.label;
 
           //-- Return a boolean value
           return changed;
+        }
+
+        get label() {
+          return this._labelField ? this._labelField.read() : '';
+        }
+
+        init() {
+          // Let the base class initialize all fields — this creates field7.table
+          super.init();
+
+          // Pre-populate the table from the existing port strings
+          this._updatingFromText = true;
+          if (this.iniPortsIn) {
+            this.updateIOPortsTable(this._field7.table, this.iniPortsIn, 'IN');
+          }
+          if (this.iniPortsOut) {
+            this.updateIOPortsTable(
+              this._field7.table,
+              this.iniPortsOut,
+              'OUT'
+            );
+          }
+          if (this._allowInoutPorts) {
+            const bidi = [this.iniPortsInOutLeft, this.iniPortsInOutRight]
+              .filter((s) => s && s.trim())
+              .join(', ');
+            if (bidi) {
+              this.updateIOPortsTable(this._field7.table, bidi, 'BIDI');
+            }
+          }
+          this._updatingFromText = false;
         }
 
         onEnterIOPortsTable(table) {
@@ -2338,14 +2375,13 @@ angular
           };
 
           table.getData().forEach((row) => {
-            const enabled = row[5] !== false;
+            const enabled = row[3] !== false;
             if (!enabled) {
               return;
             }
             let name = row[0]?.trim();
             const type = row[1]?.toUpperCase();
             const busWidth = parseInt(row[2], 10);
-            const signed = row[3] === true;
 
             if (!name || !type) {
               return;
@@ -2353,10 +2389,6 @@ angular
 
             if (!isNaN(busWidth) && busWidth > 1) {
               name += `[${busWidth - 1}:0]`;
-            }
-
-            if (signed) {
-              name = `@${name}`;
             }
 
             if (grouped[type]) {
@@ -2383,7 +2415,7 @@ angular
           const totalRows = data.length;
 
           const isEmpty = !name;
-          const defaultRow = ['', 'IN', 1, false, false, true];
+          const defaultRow = ['', 'IN', 1, true];
 
           if (isEmpty) {
             const otherEmptyRowExists = data.some((r, i) => !r[0] && i !== row);
@@ -2409,12 +2441,10 @@ angular
             .split(',')
             .map((n) => {
               let trimmed = n.trim();
-              let signed = false;
 
-              if (trimmed.startsWith('@')) {
-                signed = true;
-                trimmed = trimmed.slice(1);
-              }
+              // Strip legacy @ (signed) and # (registered) prefixes if present
+              // in saved projects — they are no longer used
+              trimmed = trimmed.replace(/^[@#]+/, '');
 
               const match = trimmed.match(/^(\w+)\[(\d+):(\d+)\]$/);
               if (match) {
@@ -2422,13 +2452,13 @@ angular
                 const msb = parseInt(match[2], 10);
                 const lsb = parseInt(match[3], 10);
                 const busWidth = Math.abs(msb - lsb) + 1;
-                return { name, busWidth, signed };
+                return { name, busWidth };
               }
-              return { name: trimmed, busWidth: 1, signed };
+              return { name: trimmed, busWidth: 1 };
             })
             .filter(({ name }) => name !== '');
 
-          const defaultRow = ['', 'IN', 1, false, false, true];
+          const defaultRow = ['', 'IN', 1, true];
           const data = instance.getData();
 
           const nameToRowIndex = new Map();
@@ -2442,7 +2472,7 @@ angular
           });
 
           const newNames = parsedNames.map((p) => p.name);
-          parsedNames.forEach(({ name, busWidth, signed }) => {
+          parsedNames.forEach(({ name, busWidth }) => {
             if (nameToRowIndex.has(name)) {
               const i = nameToRowIndex.get(name);
               const row = instance.getData()[i];
@@ -2452,7 +2482,6 @@ angular
               if (row[2] !== busWidth) {
                 instance.setValueFromCoords(2, i, busWidth);
               }
-              instance.setValueFromCoords(3, i, signed);
               usedIndexes.add(i);
             } else {
               let reused = false;
@@ -2466,14 +2495,13 @@ angular
                 ) {
                   instance.setValueFromCoords(0, i, name);
                   instance.setValueFromCoords(2, i, busWidth);
-                  instance.setValueFromCoords(3, i, signed);
                   usedIndexes.add(i);
                   reused = true;
                   break;
                 }
               }
               if (!reused) {
-                instance.insertRow([name, type, busWidth, signed, false, true]);
+                instance.insertRow([name, type, busWidth, true]);
               }
             }
           });

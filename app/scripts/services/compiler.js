@@ -119,71 +119,41 @@ angular
         var ports = [];
         let i, o, _in, _out, _inout;
 
-        let signed;
+        // Strip legacy @ (signed) and # (registered) prefixes from old projects
+        var stripLegacyPrefixes = function (name) {
+          return name.replace(/^[@#]+/, '');
+        };
+
         for (i in data.ports.in) {
           _in = data.ports.in[i];
-          pname = _in.name;
-          signed = '';
-          if (_in.name.charAt(0) === '@') {
-            pname = _in.name.substr(1);
-            signed = ' signed ';
-          }
-          ports.push(
-            ' input ' + signed + (_in.range ? _in.range + ' ' : '') + pname
-          );
+          pname = stripLegacyPrefixes(_in.name);
+          ports.push(' input ' + (_in.range ? _in.range + ' ' : '') + pname);
         }
 
         for (o in data.ports.out) {
           _out = data.ports.out[o];
-          pname = _out.name;
-          signed = '';
-          if (_out.name.charAt(0) === '@') {
-            pname = _out.name.substr(1);
-            signed = ' signed ';
-          }
-          ports.push(
-            ' output ' + signed + (_out.range ? _out.range + ' ' : '') + pname
-          );
+          pname = stripLegacyPrefixes(_out.name);
+          ports.push(' output ' + (_out.range ? _out.range + ' ' : '') + pname);
         }
+
         for (i in data.ports.inout) {
           _inout = data.ports.inout[i];
-          pname = _inout.name;
-          signed = '';
-          if (_inout.name.charAt(0) === '@') {
-            pname = _inout.name.substr(1);
-            signed = ' signed ';
-          }
+          pname = stripLegacyPrefixes(_inout.name);
           ports.push(
-            ' inout ' +
-              signed +
-              (_inout.range ? _inout.range + ' ' : '') +
-              pname
+            ' inout ' + (_inout.range ? _inout.range + ' ' : '') + pname
           );
         }
 
         for (i in data.ports.inoutLeft) {
           _in = data.ports.inoutLeft[i];
-          pname = _in.name;
-          signed = '';
-          if (_in.name.charAt(0) === '@') {
-            pname = _in.name.substr(1);
-            signed = ' signed ';
-          }
-          ports.push(
-            ' inout ' + signed + (_in.range ? _in.range + ' ' : '') + pname
-          );
+          pname = stripLegacyPrefixes(_in.name);
+          ports.push(' inout ' + (_in.range ? _in.range + ' ' : '') + pname);
         }
+
         for (o in data.ports.inoutRight) {
           _out = data.ports.inoutRight[o];
-          pname = _out.name;
-          signed = '';
-          if (_out.name.charAt(0) === '@') {
-            pname = _out.name.substr(1);
-            signed = ' signed ';
-          }
-          ports.push(
-            ' inout ' + signed + (_out.range ? _out.range + ' ' : '') + pname
-          );
+          pname = stripLegacyPrefixes(_out.name);
+          ports.push(' inout ' + (_out.range ? _out.range + ' ' : '') + pname);
         }
 
         if (ports.length > 0) {
