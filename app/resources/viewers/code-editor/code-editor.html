@@ -61,6 +61,12 @@
         <div class="panel-label">Testbench</div>
         <div id="ace-testbench" class="ace-container"></div>
       </div>
+
+      <!-- Mode: testbench — bottom waveform viewer panel -->
+      <div id="panel-waveform" class="panel">
+        <div class="panel-label">Waveform Viewer</div>
+        <div id="waveform-viewer"></div>
+      </div>
     </div>
 
     <!-- Error bar -->
@@ -71,6 +77,9 @@
     <script src="../../../node_modules/ace-builds/src-noconflict/mode-verilog.js"></script>
     <!-- Mermaid diagram renderer (v9 UMD — works without ES module support) -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.min.js"></script>
+    <!-- Waveform viewer -->
+    <script src="js/vcd-parser.js"></script>
+    <script src="js/waveform-viewer.js"></script>
     <script src="js/code-editor.js"></script>
   </body>
 </html>

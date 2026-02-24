@@ -188,20 +188,47 @@ body.mode-formal #btn-gtkwave {
   display: none;
 }
 
-/* ---- Mode: testbench ---- */
+/* ---- Mode: testbench (CSS grid: editors top, waveform bottom) ---- */
+body.mode-testbench #panels {
+  display: grid;
+  grid-template-columns: 25% 40% 35%;
+  grid-template-rows: 1fr;
+}
 body.mode-testbench #panel-sim-log {
-  flex: 25%;
+  grid-column: 1;
+  grid-row: 1;
 }
 body.mode-testbench #panel-testbench {
-  flex: 40%;
+  grid-column: 2;
+  grid-row: 1;
 }
 body.mode-testbench #panel-full-editor {
-  flex: 35%;
+  grid-column: 3;
+  grid-row: 1;
 }
 body.mode-testbench #panel-formal-output {
   display: none;
 }
+body.mode-testbench #panel-waveform {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: none;
+  border-top: 2px solid var(--ce-accent);
+  border-right: none;
+  min-height: 0;
+}
+body.mode-testbench #panel-waveform.visible {
+  display: flex;
+}
+body.mode-testbench.waveform-open #panels {
+  grid-template-rows: 1fr 1fr;
+}
 body.mode-testbench #btn-verify {
+  display: none;
+}
+/* Hide waveform panel in non-testbench modes */
+body.mode-full #panel-waveform,
+body.mode-formal #panel-waveform {
   display: none;
 }
 
@@ -240,4 +267,392 @@ body.mode-testbench #btn-verify {
   display: block;
   margin: 6px 0;
   white-space: pre-wrap;
+}
+
+/* ============================================================
+   Waveform Viewer Component Styles
+   ============================================================ */
+#waveform-viewer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  background: var(--ce-bg);
+}
+
+/* Toolbar */
+.wv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--ce-toolbar);
+  border-bottom: 1px solid var(--ce-border);
+  flex-shrink: 0;
+  height: 32px;
+}
+.wv-btn {
+  padding: 2px 10px;
+  border: 1px solid var(--ce-border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  background: var(--ce-bg2);
+  color: var(--ce-text);
+}
+.wv-btn:hover {
+  background: var(--ce-border);
+}
+.wv-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.wv-btn:disabled:hover {
+  background: var(--ce-bg2);
+}
+.wv-marker-readout {
+  font-size: 11px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: var(--ce-muted);
+  margin-left: auto;
+}
+
+/* Body (flex row: signal list | canvases | measurement) */
+.wv-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Signal column (left) */
+.wv-signal-col {
+  display: flex;
+  flex-direction: column;
+  width: 180px;
+  min-width: 120px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--ce-border);
+  background: var(--ce-bg);
+  overflow: hidden;
+}
+.wv-signal-spacer {
+  background: var(--ce-bg);
+  border-bottom: 1px solid var(--ce-border);
+}
+.wv-signal-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--ce-bg);
+}
+.wv-signal-row {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--ce-border);
+  font-size: 11px;
+  cursor: default;
+  transition: background 0.1s;
+}
+.wv-signal-row:hover {
+  background: var(--ce-toolbar);
+}
+.wv-signal-row.wv-selected {
+  background: rgba(99, 175, 207, 0.15);
+  border-left: 2px solid var(--ce-accent);
+}
+/* Disabled signal rows */
+.wv-signal-row.wv-disabled {
+  opacity: 0.5;
+}
+.wv-signal-row.wv-disabled:hover {
+  opacity: 0.75;
+}
+/* Drag handle */
+.wv-drag-handle {
+  cursor: grab;
+  color: var(--ce-muted);
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  user-select: none;
+  margin-top: 1px;
+}
+.wv-drag-handle:hover {
+  color: var(--ce-text);
+}
+/* Drag states */
+.wv-signal-row.wv-dragging {
+  opacity: 0.4;
+}
+.wv-signal-row.wv-drag-over {
+  border-top: 2px solid var(--ce-accent);
+}
+/* Drop zone at end of visible signals */
+.wv-drop-end {
+  height: 16px;
+  flex-shrink: 0;
+  transition: border-top 0.1s;
+}
+.wv-drop-end.wv-drag-over {
+  border-top: 2px solid var(--ce-accent);
+  background: rgba(99, 175, 207, 0.08);
+}
+/* Disabled separator */
+.wv-disabled-separator {
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ce-muted);
+  background: var(--ce-toolbar);
+  border-bottom: 1px solid var(--ce-border);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+.wv-signal-row input[type='checkbox'] {
+  flex-shrink: 0;
+  cursor: pointer;
+  margin-top: 2px;
+}
+.wv-color-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid var(--ce-border);
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  margin-top: 2px;
+}
+.wv-color-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.wv-signal-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.wv-signal-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.wv-width-badge {
+  font-size: 9px;
+  color: var(--ce-muted);
+  flex-shrink: 0;
+}
+/* Display mode buttons (under bus signals) */
+.wv-mode-btns {
+  display: flex;
+  gap: 2px;
+  width: 100%;
+  padding-left: 20px;
+}
+.wv-mode-btn {
+  padding: 1px 5px;
+  border: 1px solid var(--ce-border);
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 9px;
+  background: var(--ce-bg2);
+  color: var(--ce-muted);
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+.wv-mode-btn:hover {
+  background: var(--ce-border);
+  color: var(--ce-text);
+}
+.wv-mode-btn.active {
+  background: var(--ce-accent);
+  color: #fff;
+  border-color: var(--ce-accent);
+}
+
+/* Canvas column */
+.wv-canvas-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+.wv-canvas-col canvas {
+  display: block;
+  width: 100%;
+}
+canvas.wv-overview {
+  height: 120px;
+  flex-shrink: 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--ce-border);
+}
+/* Marker info — fixed top of measurement column, aligned with overview */
+.wv-meas-marker-info {
+  height: 120px;
+  flex-shrink: 0;
+  padding: 4px 6px;
+  background: var(--ce-toolbar);
+  border-bottom: 1px solid var(--ce-border);
+  font-size: 18px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+/* Individual time readout lines */
+.wv-minfo-time-line {
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--ce-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wv-minfo-time-line .wv-minfo-label {
+  font-weight: 600;
+  margin-right: 2px;
+}
+/* Marker add/reset buttons */
+.wv-minfo-btns {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.wv-minfo-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--ce-border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 600;
+  background: var(--ce-bg2);
+  color: var(--ce-text);
+  line-height: 1.3;
+}
+.wv-minfo-btn:hover {
+  background: var(--ce-border);
+}
+.wv-minfo-btn-a {
+  color: #ff5722;
+  border-color: #ff5722;
+}
+.wv-minfo-btn-a:hover {
+  background: rgba(255, 87, 34, 0.15);
+}
+.wv-minfo-btn-b {
+  color: #2196f3;
+  border-color: #2196f3;
+}
+.wv-minfo-btn-b:hover {
+  background: rgba(33, 150, 243, 0.15);
+}
+.wv-minfo-btn-clear {
+  color: var(--ce-error-text);
+  margin-left: auto;
+}
+/* Edge count display in measurement rows */
+.wv-edge-rising {
+  color: #27ae60;
+  font-weight: 600;
+  font-size: 20px;
+  margin-right: 8px;
+}
+.wv-edge-falling {
+  color: #c0392b;
+  font-weight: 600;
+  font-size: 20px;
+}
+.wv-edge-changes {
+  color: var(--ce-accent);
+  font-weight: 600;
+  font-size: 20px;
+}
+.wv-waveform-wrap {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+canvas.wv-waveform {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+canvas.wv-waveform:active {
+  cursor: grabbing;
+}
+canvas.wv-timeaxis {
+  height: 20px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--ce-border);
+}
+
+/* Hover tooltip for integer values */
+.wv-tooltip {
+  position: absolute;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-size: 11px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+/* Measurement column (right) */
+.wv-meas-col {
+  display: flex;
+  flex-direction: column;
+  width: 200px;
+  min-width: 140px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--ce-border);
+  background: var(--ce-bg);
+  overflow: hidden;
+}
+.wv-measurement {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--ce-bg);
+  font-size: 20px;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+.wv-meas-row {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--ce-border);
+  color: var(--ce-text);
+}
+.wv-meas-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  flex: 1;
+}
+.wv-meas-row.wv-meas-disabled {
+  opacity: 0.4;
 }

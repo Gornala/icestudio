@@ -668,6 +668,38 @@ function renderMarkdown(md) {
 var vcdPath = '';
 var runningSimProc = null; // track the active vvp process for Stop button
 var gtkwaveProc = null; // track the GTKWave process for kill-on-rerun
+var waveformViewer = null; // embedded waveform viewer instance
+
+// ============================================================
+// Waveform viewer state persistence
+// ============================================================
+function saveWaveformState() {
+  if (!waveformViewer || !blockDir) {
+    return;
+  }
+  try {
+    var state = waveformViewer.getState();
+    // Don't save empty/default state (no data loaded yet)
+    if (!state.signals || state.signals.length === 0) {
+      return;
+    }
+    saveBlockFile('waveform_state.json', JSON.stringify(state, null, 2));
+  } catch (e) {
+    console.error('saveWaveformState:', e.message);
+  }
+}
+
+function loadWaveformState() {
+  var json = readBlockFile('waveform_state.json');
+  if (!json) {
+    return null;
+  }
+  try {
+    return JSON.parse(json);
+  } catch (e) {
+    return null;
+  }
+}
 
 function stopSimulation() {
   if (runningSimProc) {
@@ -819,9 +851,42 @@ function runSimulation() {
           if (gtkBtn) {
             gtkBtn.disabled = false;
           }
-          // Always open GTKWave with the new VCD (closes old instance if running)
-          showOk('Simulation done — opening GTKWave...');
-          setTimeout(launchGTKWave, 300);
+          // Load waveform viewer if available, otherwise fall back to GTKWave
+          if (waveformViewer) {
+            try {
+              // Save current state BEFORE loading new VCD so re-run preserves settings
+              saveWaveformState();
+
+              // Make panel visible BEFORE loading data so layout is stable for sizing
+              var wvPanel = document.getElementById('panel-waveform');
+              if (wvPanel) {
+                wvPanel.classList.add('visible');
+                document.body.classList.add('waveform-open');
+              }
+
+              var vcdContent = fs.readFileSync(vcdPath, 'utf8');
+
+              // Use rAF to ensure the grid layout has settled before sizing canvases
+              requestAnimationFrame(function () {
+                waveformViewer.loadVCD(vcdContent);
+                // Restore saved colors, visibility, zoom, markers, signal order
+                var savedState = loadWaveformState();
+                if (savedState) {
+                  waveformViewer.applyState(savedState);
+                }
+                waveformViewer.resize();
+              });
+
+              showOk('Simulation done \u2014 waveform loaded.');
+            } catch (loadErr) {
+              console.error('Failed to load VCD:', loadErr);
+              showOk('Simulation done \u2014 opening GTKWave...');
+              setTimeout(launchGTKWave, 300);
+            }
+          } else {
+            showOk('Simulation done \u2014 opening GTKWave...');
+            setTimeout(launchGTKWave, 300);
+          }
         } else {
           vcdPath = '';
           showOk('Simulation done (no VCD file generated).');
@@ -1098,6 +1163,14 @@ window.onload = function () {
     gtkBtn.disabled = true;
   }
 
+  // Initialize waveform viewer (testbench mode only)
+  if (mode === 'testbench' && typeof WaveformViewer === 'function') {
+    var wvContainer = document.getElementById('waveform-viewer');
+    if (wvContainer) {
+      waveformViewer = new WaveformViewer(wvContainer, { theme: theme });
+    }
+  }
+
   // Restore last position/size, then track changes
   var win = nw.Window.get();
   _restoreGeometry(win);
@@ -1106,6 +1179,9 @@ window.onload = function () {
   });
   win.on('resize', function () {
     _scheduleGeoSave(win);
+    if (waveformViewer) {
+      waveformViewer.resize();
+    }
   });
 
   // Auto-save all work when the window is closed
@@ -1137,6 +1213,8 @@ window.onload = function () {
     if (testbenchEditor) {
       saveBlockFile('testbench.v', testbenchEditor.getValue());
     }
+    // Persist waveform viewer state (colors, zoom, markers)
+    saveWaveformState();
 
     // Async: push code change to main window, then close
     // Fallback: close after 1 s if main window doesn't respond
