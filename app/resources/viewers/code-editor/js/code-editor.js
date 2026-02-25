@@ -190,11 +190,38 @@ function initAceEditors() {
     testbenchEditor.session.setMode('ace/mode/verilog');
     testbenchEditor.setHighlightActiveLine(true);
     testbenchEditor.$blockScrolling = Infinity;
-    // Load saved testbench if it exists, otherwise auto-generate
+    // Load saved testbench, updating module name references if the
+    // module was renamed (e.g. user changed the label). Custom test
+    // code is preserved — only the DUT name references are patched.
     var savedTb = readBlockFile('testbench.v');
-    testbenchEditor.session.setValue(
-      savedTb !== null ? savedTb : generateTestbench()
-    );
+    var moduleName = config.moduleName || 'dut';
+    var tbContent;
+    if (savedTb !== null) {
+      if (savedTb.indexOf(moduleName + ' dut') !== -1) {
+        // Module name matches — use saved testbench as-is
+        tbContent = savedTb;
+      } else {
+        // Extract old module name from DUT instantiation: "<old> dut ("
+        var nameMatch = savedTb.match(/^\s*(\w+)\s+dut\s*\(/m);
+        if (nameMatch) {
+          var oldName = nameMatch[1];
+          tbContent = savedTb
+            .replace(
+              new RegExp('\\b' + oldName + '(\\s+dut\\b)'),
+              moduleName + '$1'
+            )
+            .replace(
+              new RegExp('\\btb_' + oldName + '\\b', 'g'),
+              'tb_' + moduleName
+            );
+        } else {
+          tbContent = generateTestbench();
+        }
+      }
+    } else {
+      tbContent = generateTestbench();
+    }
+    testbenchEditor.session.setValue(tbContent);
   }
 }
 
@@ -606,6 +633,70 @@ function renderMarkdown(md) {
     return 'MERMAID_BLOCK_' + idx + '_END';
   });
 
+  // 2. Extract markdown tables into placeholders so the \n→<br> step can't
+  //    corrupt them. Cell content is HTML-escaped here.
+  var tableBlocks = [];
+  md = md.replace(/((?:^\|.+\|[ \t]*\r?\n?)+)/gm, function (block) {
+    var lines = block.split(/\r?\n/).filter(function (l) {
+      return l.trim();
+    });
+    if (lines.length < 1) {
+      return block;
+    }
+
+    function escHtml(s) {
+      return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+    function isSep(line) {
+      return /^\|[\s\-:|]+\|$/.test(line.trim());
+    }
+    function parseCells(line, tag) {
+      var inner = line.replace(/^\s*\|/, '').replace(/\|\s*$/, '');
+      return (
+        '<tr>' +
+        inner
+          .split('|')
+          .map(function (c) {
+            var content = escHtml(c.trim());
+            // Strip inline markdown markers inside cells (same as outside tables)
+            content = content.replace(/`([^`]+)`/g, '$1');
+            content = content.replace(/\*\*(.+?)\*\*/g, '$1');
+            content = content.replace(/\*(.+?)\*/g, '$1');
+            return '<' + tag + '>' + content + '</' + tag + '>';
+          })
+          .join('') +
+        '</tr>'
+      );
+    }
+
+    var hasSep = lines.length >= 2 && isSep(lines[1]);
+    var bodyLines = (hasSep ? lines.slice(2) : lines.slice(1)).filter(
+      function (l) {
+        return !isSep(l);
+      }
+    );
+
+    var tableHtml = '<table><thead>' + parseCells(lines[0], 'th') + '</thead>';
+    if (bodyLines.length > 0) {
+      tableHtml +=
+        '<tbody>' +
+        bodyLines
+          .map(function (l) {
+            return parseCells(l, 'td');
+          })
+          .join('') +
+        '</tbody>';
+    }
+    tableHtml += '</table>';
+
+    var tIdx = tableBlocks.length;
+    tableBlocks.push(tableHtml);
+    return 'TABLE_BLOCK_' + tIdx + '_END\n';
+  });
+
   var html = md
     // Escape HTML special chars first
     .replace(/&/g, '&amp;')
@@ -613,39 +704,22 @@ function renderMarkdown(md) {
     .replace(/>/g, '&gt;')
     // Code blocks (``` ... ```) — non-mermaid
     .replace(/```[\w]*\n([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // Inline code — strip backticks, show plain text
+    .replace(/`([^`]+)`/g, '$1')
     // Headers
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    // Bold
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    // Italic
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Bold — strip markers, show plain text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    // Italic — strip markers, show plain text
+    .replace(/\*(.+?)\*/g, '$1')
     // Horizontal rule
     .replace(/^---$/gm, '<hr>')
     // Unordered list items
     .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
-    // Table rows (simplified)
-    .replace(/^\|(.+)\|$/gm, function (_, row) {
-      var cells = row.split('|').map(function (c) {
-        return c.trim();
-      });
-      return (
-        '<tr>' +
-        cells
-          .map(function (c) {
-            return c ? '<td>' + c + '</td>' : '';
-          })
-          .join('') +
-        '</tr>'
-      );
-    })
     // Wrap consecutive <li> in <ul>
     .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-    // Wrap consecutive <tr> in <table>
-    .replace(/(<tr>.*<\/tr>\n?)+/g, '<table>$&</table>')
     // Paragraphs (double newlines)
     .replace(/\n\n+/g, '</p><p>')
     // Single newlines
@@ -657,6 +731,13 @@ function renderMarkdown(md) {
       'MERMAID_BLOCK_' + idx + '_END',
       '<div class="mermaid">' + content + '</div>'
     );
+  });
+
+  // 4. Restore table blocks — handle both 'placeholder<br>' and bare 'placeholder'
+  tableBlocks.forEach(function (tableHtml, idx) {
+    var key = 'TABLE_BLOCK_' + idx + '_END';
+    html = html.split(key + '<br>').join(tableHtml);
+    html = html.split(key).join(tableHtml);
   });
 
   return '<p>' + html + '</p>';

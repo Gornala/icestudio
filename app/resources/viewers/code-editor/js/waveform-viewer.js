@@ -1415,24 +1415,15 @@ window.WaveformViewer = function (containerEl, options) {
       ctx.moveTo(x1, y);
       ctx.lineTo(Math.min(x2, ((viewEnd - viewStart) / range) * w), y);
 
-      // X/U hatched fill
-      if (val === 'x') {
+      // X/U hatched fill — bright red, clearly visible
+      if (val === 'x' || val === 'u' || val === 'z') {
         fillHatched(
           ctx,
           x1,
           yHigh,
           x2 - x1,
           yLow - yHigh,
-          'rgba(255,183,77,0.3)'
-        );
-      } else if (val === 'u' || val === 'z') {
-        fillHatched(
-          ctx,
-          x1,
-          yHigh,
-          x2 - x1,
-          yLow - yHigh,
-          'rgba(229,115,115,0.3)'
+          'rgba(210,30,30,0.5)'
         );
       }
 
@@ -1472,13 +1463,9 @@ window.WaveformViewer = function (containerEl, options) {
       // Check for X/U
       var hasX = ch.value.indexOf('x') >= 0 || ch.value.indexOf('X') >= 0;
       var hasU = ch.value.indexOf('u') >= 0 || ch.value.indexOf('U') >= 0;
+      var isUnknown = hasX || hasU;
 
-      // Parallelogram fill
-      ctx.fillStyle = hasX
-        ? 'rgba(255,183,77,0.25)'
-        : hasU
-          ? 'rgba(229,115,115,0.25)'
-          : hexToRgba(s.color, 0.2);
+      // Build parallelogram path (reused for fill, clip, and stroke)
       ctx.beginPath();
       ctx.moveTo(x1 + diagW, yTop);
       ctx.lineTo(x2 - diagW, yTop);
@@ -1487,10 +1474,28 @@ window.WaveformViewer = function (containerEl, options) {
       ctx.lineTo(x1 + diagW, yBot);
       ctx.lineTo(x1, yMid);
       ctx.closePath();
-      ctx.fill();
 
-      // Parallelogram outline
-      ctx.strokeStyle = s.color;
+      if (isUnknown) {
+        // Clip to parallelogram and fill with the same red hatch as 1-bit X/U
+        ctx.save();
+        ctx.clip();
+        fillHatched(ctx, x1, yTop, pixW, yBot - yTop, 'rgba(210,30,30,0.5)');
+        ctx.restore();
+        // Redraw path for stroke (clip was released by restore)
+        ctx.beginPath();
+        ctx.moveTo(x1 + diagW, yTop);
+        ctx.lineTo(x2 - diagW, yTop);
+        ctx.lineTo(x2, yMid);
+        ctx.lineTo(x2 - diagW, yBot);
+        ctx.lineTo(x1 + diagW, yBot);
+        ctx.lineTo(x1, yMid);
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(210,30,30,0.9)';
+      } else {
+        ctx.fillStyle = hexToRgba(s.color, 0.2);
+        ctx.fill();
+        ctx.strokeStyle = s.color;
+      }
       ctx.lineWidth = 1;
       ctx.stroke();
 
@@ -1913,10 +1918,10 @@ window.WaveformViewer = function (containerEl, options) {
     ctx.save();
     ctx.fillStyle = color;
     ctx.fillRect(x, y, w, h);
-    // Diagonal hatch lines
-    ctx.strokeStyle = color.replace(/[\d.]+\)$/, '0.5)');
-    ctx.lineWidth = 1;
-    var step = 6;
+    // Diagonal hatch lines — full opacity dark red, dense step
+    ctx.strokeStyle = color.replace(/[\d.]+\)$/, '0.9)');
+    ctx.lineWidth = 1.5;
+    var step = 5;
     ctx.beginPath();
     for (var i2 = -h; i2 < w; i2 += step) {
       ctx.moveTo(x + i2, y + h);
