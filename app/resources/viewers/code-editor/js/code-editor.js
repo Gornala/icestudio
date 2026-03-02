@@ -20,6 +20,29 @@ var toolchainBinDir = config.toolchainBinDir || '';
 var isWin32 = config.isWin32 || false;
 var formalVerifyPyPath = config.formalVerifyPyPath || '';
 var pythonCmd = config.pythonCmd || 'python';
+var sourcePath = config.sourcePath || '';
+
+// ============================================================
+// Block status persistence (V/F/T/B badges in collection panel)
+// ============================================================
+var _statusFile = path.join(nw.App.dataPath, 'block-status.json');
+var writeBlockStatus = function (field, value) {
+  var key = sourcePath || blockId;
+  if (!key) {
+    return;
+  }
+  var st = {};
+  try {
+    st = JSON.parse(fs.readFileSync(_statusFile, 'utf8'));
+  } catch (e) {}
+  if (!st[key]) {
+    st[key] = { V: null, F: null, T: null, B: null };
+  }
+  st[key][field] = value;
+  try {
+    fs.writeFileSync(_statusFile, JSON.stringify(st, null, 2));
+  } catch (e) {}
+};
 
 // ============================================================
 // Toolchain binary helper — uses apio-managed bin dir
@@ -216,6 +239,24 @@ function initAceEditors() {
             );
         } else {
           tbContent = generateTestbench();
+        }
+      }
+    } else if (config.testbench) {
+      // Use testbench from block data (e.g. collection block)
+      tbContent = config.testbench;
+      if (tbContent.indexOf(moduleName + ' dut') === -1) {
+        var nameMatch2 = tbContent.match(/^\s*(\w+)\s+dut\s*\(/m);
+        if (nameMatch2) {
+          var oldName2 = nameMatch2[1];
+          tbContent = tbContent
+            .replace(
+              new RegExp('\\b' + oldName2 + '(\\s+dut\\b)'),
+              moduleName + '$1'
+            )
+            .replace(
+              new RegExp('\\btb_' + oldName2 + '\\b', 'g'),
+              'tb_' + moduleName
+            );
         }
       }
     } else {
@@ -451,6 +492,8 @@ function verifyCode() {
       codeEditor.session.setAnnotations([]);
     }
 
+    writeBlockStatus('V', ok ? true : false);
+
     if (ok) {
       showOk('Verify OK');
       return;
@@ -598,6 +641,7 @@ function runFormalVerify() {
         mermaid.init(undefined, outputEl.querySelectorAll('.mermaid'));
       } catch (e) {}
     }
+    writeBlockStatus('F', code === 0 ? true : false);
     if (code !== 0) {
       showError(
         'formal_verify.py exited with code ' +
@@ -922,6 +966,7 @@ function runSimulation() {
       logEl.textContent += footer;
       simOutput += footer;
       saveBlockFile('sim_output.txt', simOutput);
+      writeBlockStatus('T', simCode === 0 ? true : false);
       // Find any .vcd produced in simDir (handles any $dumpfile name in the testbench)
       try {
         var vcdFiles = fs.readdirSync(simDir).filter(function (f) {

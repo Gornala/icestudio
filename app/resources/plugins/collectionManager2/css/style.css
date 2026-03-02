@@ -1,11 +1,458 @@
-.wrapper {
+/* ── Container ─────────────────────────────────────── */
+.cm-container {
+  display: flex;
+  flex-direction: column;
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+  background: var(--cm-bg);
+  color: var(--cm-text);
+  font-size: 12px;
+  font-family: sans-serif;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
-.tree-view-root {
+/* ── Toolbar ────────────────────────────────────────── */
+.cm-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  background: var(--cm-bg2);
+  border-bottom: 1px solid var(--cm-border);
+  flex-shrink: 0;
+}
+
+.cm-btn {
+  background: var(--cm-bg3);
+  color: var(--cm-text-btn);
+  border: 1px solid var(--cm-border);
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cm-btn:hover {
+  background: var(--cm-hover);
+}
+
+.cm-btn-add {
+  font-weight: bold;
+}
+
+.cm-view-toggle {
+  display: flex;
+  gap: 2px;
+}
+
+.cm-view-btn {
+  background: var(--cm-bg3);
+  color: var(--cm-text-dim);
+  border: 1px solid var(--cm-border);
+  border-radius: 3px;
+  padding: 3px 7px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.cm-view-btn:hover {
+  color: var(--cm-text);
+}
+
+.cm-view-btn.active {
+  background: var(--cm-accent);
+  color: #fff;
+  border-color: var(--cm-accent);
+}
+
+/* ── Search row ─────────────────────────────────────── */
+.cm-search-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  background: var(--cm-bg2);
+  border-bottom: 1px solid var(--cm-border);
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+#cm-search {
+  flex: 1;
+  min-width: 0;
+  background: var(--cm-bg3);
+  color: var(--cm-text);
+  border: 1px solid var(--cm-border);
+  border-radius: 3px;
+  padding: 3px 5px;
+  font-size: 11px;
+  outline: none;
+}
+
+#cm-search:focus {
+  border-color: var(--cm-accent);
+}
+
+.cm-badge-btn {
+  background: var(--cm-bg3);
+  color: var(--cm-text-dim);
+  border: 1px solid var(--cm-border);
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-size: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.cm-badge-btn:hover {
+  color: var(--cm-text);
+}
+
+.cm-badge-btn.active {
+  background: var(--cm-bg3);
+  border-color: var(--cm-accent);
+  color: var(--cm-text);
+}
+
+/* ── Scrollable content area ────────────────────────── */
+.cm-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0;
+  background: var(--cm-bg2);
+}
+
+.cm-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cm-content::-webkit-scrollbar-track {
+  background: var(--cm-bg2);
+}
+
+.cm-content::-webkit-scrollbar-thumb {
+  background: var(--cm-border);
+  border-radius: 3px;
+}
+
+/* ── Loader ─────────────────────────────────────────── */
+.cm-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: var(--cm-text-dim);
+  font-size: 11px;
+}
+
+.cm-loader--status {
+  margin-top: 8px;
+}
+
+/* lds-grid spinner */
+.lds-grid {
+  display: inline-block;
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.lds-grid div {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cm-border);
+  animation: lds-grid 1.2s linear infinite;
+}
+
+.lds-grid div:nth-child(1) {
+  top: 4px;
+  left: 4px;
+  animation-delay: 0s;
+}
+.lds-grid div:nth-child(2) {
+  top: 4px;
+  left: 16px;
+  animation-delay: -0.4s;
+}
+.lds-grid div:nth-child(3) {
+  top: 4px;
+  left: 28px;
+  animation-delay: -0.8s;
+}
+.lds-grid div:nth-child(4) {
+  top: 16px;
+  left: 4px;
+  animation-delay: -0.4s;
+}
+.lds-grid div:nth-child(5) {
+  top: 16px;
+  left: 16px;
+  animation-delay: -0.8s;
+}
+.lds-grid div:nth-child(6) {
+  top: 16px;
+  left: 28px;
+  animation-delay: -1.2s;
+}
+.lds-grid div:nth-child(7) {
+  top: 28px;
+  left: 4px;
+  animation-delay: -0.8s;
+}
+.lds-grid div:nth-child(8) {
+  top: 28px;
+  left: 16px;
+  animation-delay: -1.2s;
+}
+.lds-grid div:nth-child(9) {
+  top: 28px;
+  left: 28px;
+  animation-delay: 0s;
+}
+
+@keyframes lds-grid {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* ── Tree view ──────────────────────────────────────── */
+
+/* Folder wrapper — block so the header row and children stack vertically */
+.cm-folder {
+  display: block;
+}
+
+/* Header row — the clickable bar with toggle arrow, name, and remove btn */
+.cm-folder-header {
+  display: flex;
+  align-items: center;
+  padding: 2px 4px 2px 8px;
+  cursor: pointer;
+  color: var(--cm-folder-color);
+  user-select: none;
+}
+
+.cm-folder-header:hover {
+  background: var(--cm-hover);
+}
+
+/* Root-level collection folders get distinct colouring */
+.cm-folder.cm-collection-root > .cm-folder-header {
+  padding-left: 6px;
+  font-weight: 600;
+  color: var(--cm-coll-color);
+  border-bottom: 1px solid var(--cm-border);
+}
+
+/* Children are indented under their parent header */
+.cm-folder-children {
+  padding-left: 12px;
+}
+
+/* Toggle arrow span */
+.cm-folder-toggle {
+  margin-right: 4px;
+  font-size: 10px;
+  color: var(--cm-text-dim);
+  flex-shrink: 0;
+}
+
+/* Folder name span */
+.cm-folder-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Leaf — block items that can be dragged onto the canvas */
+.cm-leaf {
+  padding: 2px 4px 2px 8px;
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  color: var(--cm-leaf-color);
+  user-select: none;
+}
+
+.cm-leaf:hover {
+  background: var(--cm-hover);
+}
+
+.cm-leaf:active {
+  cursor: grabbing;
+}
+
+/* Remove button — transparent until the row is hovered */
+.cm-remove-btn {
+  flex-shrink: 0;
+  margin-left: 4px;
+  background: none;
+  border: none;
+  color: transparent;
+  cursor: pointer;
   font-size: 12px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* Show X only when hovering the exact header row or leaf row */
+.cm-folder-header:hover .cm-remove-btn,
+.cm-leaf:hover .cm-remove-btn {
+  color: #c0392b;
+}
+
+.cm-remove-btn:hover {
+  background: rgba(192, 57, 43, 0.2);
+}
+
+/* ── V/F/T/B badges ─────────────────────────────────── */
+.cm-badges {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.cm-badge {
+  font-size: 9px;
+  font-weight: bold;
+  border-radius: 2px;
+  padding: 1px 3px;
+  line-height: 1.4;
+  min-width: 12px;
+  text-align: center;
+}
+
+.cm-badge-pass {
+  color: #4caf50;
+  background: rgba(76, 175, 80, 0.15);
+}
+
+.cm-badge-fail {
+  color: #f44336;
+  background: rgba(244, 67, 54, 0.15);
+}
+
+.cm-badge-unknown {
+  color: var(--cm-text-dim);
+  background: transparent;
+}
+
+/* ── Add dropdown menu ──────────────────────────────── */
+.cm-add-menu {
+  position: absolute;
+  top: 30px;
+  left: 6px;
+  background: var(--cm-bg2);
+  border: 1px solid var(--cm-border);
+  border-radius: 3px;
+  z-index: 100;
+  min-width: 180px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.cm-add-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--cm-text);
+  padding: 6px 12px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cm-add-menu button:hover {
+  background: var(--cm-accent);
+  color: #fff;
+}
+
+.cm-add-menu.hidden {
+  display: none;
+}
+
+/* ── Table view ─────────────────────────────────────── */
+.cm-table-wrapper {
+  overflow-x: auto;
+  padding: 0 2px;
+}
+
+.cm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  color: var(--cm-text);
+}
+
+.cm-table th {
+  background: var(--cm-bg2);
+  color: var(--cm-text-dim);
+  font-weight: 600;
+  padding: 4px 6px;
+  text-align: left;
+  border-bottom: 1px solid var(--cm-border);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+
+.cm-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--cm-bg2);
+  vertical-align: middle;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm-table tr:hover td {
+  background: var(--cm-hover);
+}
+
+.cm-table .cm-remove-btn {
+  color: transparent;
+  cursor: pointer;
+}
+
+.cm-table tr:hover .cm-remove-btn {
+  color: #c0392b;
+}
+
+.cm-table .cm-table-row {
+  cursor: grab;
+}
+
+.cm-table .cm-table-row:active {
+  cursor: grabbing;
+}
+
+.cm-table td.cm-td-badges {
+  white-space: nowrap;
+  padding-right: 2px;
+}
+
+/* Hidden via filter */
+.cm-hidden {
+  display: none !important;
 }

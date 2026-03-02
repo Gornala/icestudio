@@ -1,6 +1,9 @@
 function render(plist) {
   const filtered = plist.filter(function (item) {
-    return item.capability.indexOf('core') === -1;
+    return (
+      item.capability.indexOf('core') === -1 &&
+      item.capability.indexOf('sidebar') === -1
+    );
   });
 
   const html = iceStudio.gui.template.render(pluginViews['plugin-list'].tpl, {

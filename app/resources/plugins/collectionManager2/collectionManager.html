@@ -1,16 +1,54 @@
-<div class="playground">
-  <div id="cm2-root" class="wrapper">
-    <div class="lds-grid">
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
+<div class="cm-container">
+  <div class="cm-toolbar">
+    <button id="cm-btn-add" class="cm-btn cm-btn-add" title="Add...">
+      + Add
+    </button>
+    <div class="cm-view-toggle">
+      <button id="cm-btn-tree" class="cm-view-btn active" title="Tree view">
+        Tree
+      </button>
+      <button id="cm-btn-table" class="cm-view-btn" title="Table view">
+        Table
+      </button>
     </div>
-    <div class="cm-loader--status">Indexing Database</div>
+  </div>
+  <div class="cm-search-row">
+    <input
+      id="cm-search"
+      type="text"
+      placeholder="Search..."
+      autocomplete="off"
+    />
+    <button class="cm-badge-btn" data-badge="V" title="Filter: Verified">
+      V
+    </button>
+    <button class="cm-badge-btn" data-badge="F" title="Filter: Formal">
+      F
+    </button>
+    <button class="cm-badge-btn" data-badge="T" title="Filter: Testbench">
+      T
+    </button>
+    <button class="cm-badge-btn" data-badge="B" title="Filter: Build">B</button>
+  </div>
+  <div id="cm-content" class="cm-content">
+    <div id="cm-loader" class="cm-loader">
+      <div class="lds-grid">
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+      </div>
+      <div class="cm-loader--status">Indexing...</div>
+    </div>
+  </div>
+  <div id="cm-add-menu" class="cm-add-menu hidden">
+    <button data-action="add-zip">Collection (zip)</button>
+    <button data-action="add-folder">Custom collection (folder)</button>
+    <button data-action="add-block">Add block (.ice file)</button>
   </div>
 </div>

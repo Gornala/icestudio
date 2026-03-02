@@ -17,62 +17,59 @@
         </a>
       </p>
 
-      <h1>Icestudio {{ version }} (WIP)</h1>
+      <h1>Icestudio {{ version }} (modded)</h1>
       <hr />
-      <h2>{{ 'Welcome to Icestudio!' | translate }}</h2>
+      <h2>What's new in this build</h2>
 
+      <h3>UI Themes</h3>
       <p>
-        {{ 'You can read the release notes on the' | translate }}
-        <a
-          ng-click="openUrl(
-             'https://github.com/FPGAwars/icestudio/wiki/Release-history',
-              $event)"
-          href="https://github.com/FPGAwars/icestudio/wiki/Release-history"
-        >
-          {{ 'Release History WIKI' | translate }}
-        </a>
+        A custom theme option has been added alongside the existing dark and
+        light themes. Set your own background, sidebar, border, text, and accent
+        colours in the Preferences panel.
       </p>
 
-      <h2>{{ 'Acknowledgment' | translate }}</h2>
-
+      <h3>Custom Board Manager</h3>
       <p>
-        <!-- prettier-ignore -->
-        <span translate>
-          This release has been possible thanks to the great work done
-          by an active, growing, enthusiastic team, the
-        </span>
-        <a
-          ng-click="openUrl('https://groups.google.com/g/fpga-wars-explorando-el-lado-libre', $event)"
-          href="https://groups.google.com/g/fpga-wars-explorando-el-lado-libre"
-        >
-          {{ 'FPGAwars community.' | translate }}
-        </a>
-        {{ 'Thank you very much all!' | translate }}
+        Boards can now be added, edited, and removed directly inside the app.
+        Define your own FPGA target without editing configuration files by hand.
       </p>
 
-      <br />
+      <h3>Code Block — Full Editor &amp; Verification</h3>
+      <p>The code block now opens a full-featured editor with:</p>
+      <ul>
+        <li>
+          <strong>Syntax-highlighted Verilog editor</strong> with port table
+          auto-population
+        </li>
+        <li>
+          <strong>Formal verification</strong> — run a bounded model-check and
+          view a waveform of any counter-example
+        </li>
+        <li>
+          <strong>Testbench runner</strong> — simulate with an .ice testbench
+          and inspect results in the built-in waveform viewer
+        </li>
+        <li>
+          <strong>Waveform viewer</strong> — canvas-based viewer with draggable
+          A/B markers, edge counting, and GTKWave integration
+        </li>
+      </ul>
 
+      <h3>Collection Manager — Reworked</h3>
       <p>
-        {{ 'Icestudio is part of' | translate }}
-        <a
-          ng-click="openUrl('https://fpgawars.github.io', $event)"
-          href="https://fpgawars.github.io"
-        >
-          {{ 'FPGAwars GitHub project' | translate }}
-        </a>
+        The collection panel has been completely redesigned as a permanent
+        sidebar with:
       </p>
-
-      <p>
-        <a
-          ng-click="openUrl('https://fpgawars.github.io', $event)"
-          href="https://fpgawars.github.io"
-        >
-          <img
-            class="img-responsive"
-            src="resources/images/fgpawars-banner.svg"
-          />
-        </a>
-      </p>
+      <ul>
+        <li>Tree and table views with live search filtering</li>
+        <li>
+          V / F / T / B status badges per block (Verified, Formal, Testbench,
+          Build)
+        </li>
+        <li>Add collections from zip, folder, or single .ice file</li>
+        <li>Remove individual blocks or entire collections inline</li>
+        <li>Adapts to the active UI theme automatically</li>
+      </ul>
     </div>
 
     <div class="version-info-tab--options">

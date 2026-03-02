@@ -2383,6 +2383,116 @@ angular.module('icestudio').controller(
         'collectionManager2'
       );
     }
+
+    //----------------------------------------------------
+    //-- Collection Manager 2 bus event handlers
+    //----------------------------------------------------
+
+    iceStudio.bus.events.subscribe(
+      'collectionManager2.removeCollection',
+      function (data) {
+        $scope.removeCollection(data);
+      }
+    );
+
+    iceStudio.bus.events.subscribe(
+      'collectionManager2.removeBlock',
+      function (data) {
+        alertify.confirm(
+          gettextCatalog.getString(
+            'Do you want to remove the block {{name}}?',
+            { name: utils.bold(data.name || data.blockPath) }
+          ),
+          function () {
+            try {
+              fs.unlinkSync(data.blockPath);
+            } catch (e) {
+              console.warn('removeBlock: could not delete', data.blockPath, e);
+            }
+            collections.loadInternalCollections();
+            utils.rootScopeSafeApply();
+          }
+        );
+      }
+    );
+
+    iceStudio.bus.events.subscribe('collectionManager2.addZip', function () {
+      $scope.addCollections();
+    });
+
+    iceStudio.bus.events.subscribe('collectionManager2.addFolder', function () {
+      utils.openDialog('#input-add-collection-folder', function (folderpath) {
+        if (!folderpath) {
+          return;
+        }
+        var name = path.basename(folderpath);
+        var dest = path.join(common.INTERNAL_COLLECTIONS_DIR, name);
+        var copyFolderSync = function (src, dst) {
+          if (!fs.existsSync(dst)) {
+            fs.mkdirSync(dst, { recursive: true });
+          }
+          fs.readdirSync(src).forEach(function (item) {
+            var srcItem = path.join(src, item);
+            var dstItem = path.join(dst, item);
+            if (fs.lstatSync(srcItem).isDirectory()) {
+              copyFolderSync(srcItem, dstItem);
+            } else {
+              fs.copyFileSync(srcItem, dstItem);
+            }
+          });
+        };
+        try {
+          copyFolderSync(folderpath, dest);
+        } catch (e) {
+          alertify.error(
+            gettextCatalog.getString('Could not copy collection: {{msg}}', {
+              msg: e.message,
+            })
+          );
+          return;
+        }
+        collections.loadInternalCollections();
+        utils.rootScopeSafeApply();
+      });
+    });
+
+    iceStudio.bus.events.subscribe(
+      'collectionManager2.addBlock',
+      function (data) {
+        utils.openDialog('#input-add-block-ice', function (filepaths) {
+          var files = filepaths.split(';');
+          files.forEach(function (src) {
+            if (!src) {
+              return;
+            }
+            var targetDir =
+              data && data.targetCollectionPath
+                ? path.join(data.targetCollectionPath, 'blocks')
+                : path.join(
+                    common.INTERNAL_COLLECTIONS_DIR,
+                    'custom',
+                    'blocks'
+                  );
+            try {
+              if (!fs.existsSync(targetDir)) {
+                fs.mkdirSync(targetDir, { recursive: true });
+              }
+              var destFile = path.join(targetDir, path.basename(src));
+              fs.copyFileSync(src, destFile);
+            } catch (e) {
+              alertify.error(
+                gettextCatalog.getString('Could not add block: {{msg}}', {
+                  msg: e.message,
+                })
+              );
+            }
+          });
+          collections.loadInternalCollections();
+          utils.rootScopeSafeApply();
+        });
+      }
+    );
+
     /////////////////////////////////////////////////////
 
     //-----------------------------------------------------------------

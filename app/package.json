@@ -26,8 +26,8 @@
   },
   "window": {
     "title": "iceStudio",
-    "width": 900,
-    "height": 620,
+    "width": 1800,
+    "height": 1240,
     "min_width": 800,
     "min_height": 300,
     "resizable": true,

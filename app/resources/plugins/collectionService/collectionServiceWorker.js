@@ -24,16 +24,16 @@ function setupEnvironment(env) {
       colService = new CollectionService();
       colService.setId(pluginUUID);
       colService.init();
-
-      let dirCols = [tmp];
-      if (pConfig.env.externalCollections.length > 0) {
-        dirCols = dirCols.concat(pConfig.env.externalCollections);
-      }
-      if (pConfig.env.internalCollections.length > 0) {
-        dirCols = dirCols.concat(pConfig.env.internalCollections);
-      }
-      colService.collectionsToTree(dirCols);
     }
+
+    let dirCols = [tmp];
+    if (pConfig.env.externalCollections.length > 0) {
+      dirCols = dirCols.concat(pConfig.env.externalCollections);
+    }
+    if (pConfig.env.internalCollections.length > 0) {
+      dirCols = dirCols.concat(pConfig.env.internalCollections);
+    }
+    colService.collectionsToTree(dirCols);
   }
 }
 

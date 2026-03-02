@@ -959,6 +959,21 @@ angular.module('icestudio').service(
             mode = 'formal';
           } else if (target.matches('.js-codeblock-testbench')) {
             mode = 'testbench';
+          } else if (target.matches('.js-codeblock-push-collection')) {
+            event.stopPropagation();
+            var pushBlockId = target.getAttribute('data-blkid');
+            if (!pushBlockId) {
+              break;
+            }
+            var pushCell = paper.getModelById(pushBlockId);
+            if (!pushCell) {
+              break;
+            }
+            pushCodeBlockToCollection(
+              pushCell.attributes.data || {},
+              pushBlockId
+            );
+            break;
           }
 
           if (mode) {
@@ -986,6 +1001,7 @@ angular.module('icestudio').service(
               code: data.code || '',
               ports: data.ports || { in: [], out: [] },
               params: data.params || [],
+              testbench: data.testbench || '',
               moduleName: moduleName,
               theme: profile.data.uiTheme || 'light',
               customTheme: profile.data.customTheme || null,
@@ -1023,6 +1039,7 @@ angular.module('icestudio').service(
                 nodePath.join('..', 'formal_verify', 'formal_verify.py')
               ),
               pythonCmd: common.PYTHON_ENV || 'python',
+              sourcePath: data.sourcePath || '',
             };
 
             var configParam = encodeURIComponent(JSON.stringify(configObj));
@@ -1648,10 +1665,21 @@ angular.module('icestudio').service(
       this.addingDraggableBlock = true;
       let menuHeight = $('#menu').height();
 
+      // If the mouse is behind a right-side panel, shift the spawn point left
+      // so the block appears on the visible canvas instead of hidden behind the panel.
+      let effectiveMouseX = mousePosition.x;
+      let cmPanel = document.getElementById('collectionManager2');
+      if (cmPanel) {
+        let cmRect = cmPanel.getBoundingClientRect();
+        if (effectiveMouseX >= cmRect.left) {
+          effectiveMouseX = cmRect.left - 100;
+        }
+      }
+
       cell.set('position', {
         x:
           Math.round(
-            ((mousePosition.x - state.pan.x) / state.zoom -
+            ((effectiveMouseX - state.pan.x) / state.zoom -
               cell.get('size').width / 2) /
               gridsize
           ) * gridsize,
@@ -1669,7 +1697,7 @@ angular.module('icestudio').service(
       selection.add(cell);
       selectionView.createSelectionBox(cell, opt);
       selectionView.startAddingSelection({
-        clientX: mousePosition.x,
+        clientX: effectiveMouseX,
         clientY: mousePosition.y,
       });
     };
@@ -1678,11 +1706,21 @@ angular.module('icestudio').service(
       this.addingDraggableBlock = true;
       let menuHeight = $('#menu').height();
       if (cells.length > 0) {
+        // If the mouse is behind a right-side panel, shift the spawn point left.
+        let effectiveMouseX = mousePosition.x;
+        let cmPanel = document.getElementById('collectionManager2');
+        if (cmPanel) {
+          let cmRect = cmPanel.getBoundingClientRect();
+          if (effectiveMouseX >= cmRect.left) {
+            effectiveMouseX = cmRect.left - 100;
+          }
+        }
+
         let firstCell = cells[0];
         let offset = {
           x:
             Math.round(
-              ((mousePosition.x - state.pan.x) / state.zoom -
+              ((effectiveMouseX - state.pan.x) / state.zoom -
                 firstCell.get('size').width / 2) /
                 gridsize
             ) *
@@ -1713,7 +1751,7 @@ angular.module('icestudio').service(
           selectionView.createSelectionBox(cell, opt);
         });
         selectionView.startAddingSelection({
-          clientX: mousePosition.x,
+          clientX: effectiveMouseX,
           clientY: mousePosition.y,
         });
       }
@@ -2529,5 +2567,351 @@ angular.module('icestudio').service(
         }
       });
     });
+
+    //-- Push code block to collection as a reusable .ice block
+    var pushCodeBlockToCollection = function (codeBlockData, blockId) {
+      var nodePath = require('path');
+      var nodeFs = require('fs');
+      var nodeFse = require('fs-extra');
+
+      var ports = codeBlockData.ports || { in: [], out: [] };
+      var params = codeBlockData.params || [];
+      var portsIn = ports.in || [];
+      var portsOut = ports.out || [];
+
+      //-- Read testbench from block directory if it exists
+      var testbenchCode = '';
+      var blockDir = nodePath.join(common.BUILD_DIR, 'blocks', blockId);
+      var tbPath = nodePath.join(blockDir, 'testbench.v');
+      try {
+        if (nodeFs.existsSync(tbPath)) {
+          testbenchCode = nodeFs.readFileSync(tbPath, 'utf8');
+        }
+      } catch (e) {
+        // No testbench file — that's fine
+      }
+
+      //-- Module name for display
+      var moduleName = codeBlockData.label || codeBlockData.name || 'module';
+
+      var codeBlockNewId = joint.util.uuid();
+
+      //-- Build the basic.code block
+      var codeHeight = Math.max(
+        150,
+        (Math.max(portsIn.length, portsOut.length) + params.length) * 40 + 80
+      );
+      var codeBlockObj = {
+        id: codeBlockNewId,
+        type: 'basic.code',
+        data: {
+          label: moduleName,
+          code: codeBlockData.code || '',
+          params: params.map(function (p) {
+            return { name: p.name };
+          }),
+          ports: {
+            in: portsIn.map(function (p) {
+              var obj = { name: p.name };
+              if (p.range) {
+                obj.range = p.range;
+              }
+              return obj;
+            }),
+            out: portsOut.map(function (p) {
+              var obj = { name: p.name };
+              if (p.range) {
+                obj.range = p.range;
+              }
+              return obj;
+            }),
+          },
+        },
+        position: { x: 300, y: 150 },
+        size: { width: 400, height: codeHeight },
+      };
+
+      //-- Store testbench in code block data if available
+      if (testbenchCode) {
+        codeBlockObj.data.testbench = testbenchCode;
+      }
+
+      //-- Build basic.input blocks (one per input port)
+      var allBlocks = [];
+      var allWires = [];
+
+      portsIn.forEach(function (port, idx) {
+        var inputId = joint.util.uuid();
+        var pins = [{ index: '0', name: '', value: '0' }];
+        if (port.range) {
+          var rangeMatch = port.range.match(/\[(\d+):(\d+)\]/);
+          if (rangeMatch) {
+            var hi = parseInt(rangeMatch[1], 10);
+            var lo = parseInt(rangeMatch[2], 10);
+            var width = Math.abs(hi - lo) + 1;
+            pins = [];
+            for (var pi = width - 1; pi >= 0; pi--) {
+              pins.push({ index: String(pi), name: '', value: '0' });
+            }
+          }
+        }
+        var inputData = {
+          name: port.name,
+          pins: pins,
+          virtual: true,
+          clock: false,
+        };
+        if (port.range) {
+          inputData.range = port.range;
+        }
+        allBlocks.push({
+          id: inputId,
+          type: 'basic.input',
+          data: inputData,
+          position: { x: 50, y: 80 + idx * 80 },
+        });
+        allWires.push({
+          source: { block: inputId, port: 'out' },
+          target: { block: codeBlockNewId, port: port.name },
+        });
+      });
+
+      //-- Build basic.output blocks (one per output port)
+      portsOut.forEach(function (port, idx) {
+        var outputId = joint.util.uuid();
+        var pins = [{ index: '0', name: '', value: '0' }];
+        if (port.range) {
+          var rangeMatch = port.range.match(/\[(\d+):(\d+)\]/);
+          if (rangeMatch) {
+            var hi = parseInt(rangeMatch[1], 10);
+            var lo = parseInt(rangeMatch[2], 10);
+            var width = Math.abs(hi - lo) + 1;
+            pins = [];
+            for (var pi = width - 1; pi >= 0; pi--) {
+              pins.push({ index: String(pi), name: '', value: '0' });
+            }
+          }
+        }
+        var outputData = {
+          name: port.name,
+          pins: pins,
+          virtual: true,
+        };
+        if (port.range) {
+          outputData.range = port.range;
+        }
+        allBlocks.push({
+          id: outputId,
+          type: 'basic.output',
+          data: outputData,
+          position: { x: 750, y: 80 + idx * 80 },
+        });
+        allWires.push({
+          source: { block: codeBlockNewId, port: port.name },
+          target: { block: outputId, port: 'in' },
+        });
+      });
+
+      //-- Build basic.constant blocks (one per parameter)
+      params.forEach(function (param, idx) {
+        var constId = joint.util.uuid();
+        allBlocks.push({
+          id: constId,
+          type: 'basic.constant',
+          data: {
+            name: param.name,
+            value: '',
+            local: false,
+          },
+          position: { x: 300 + idx * 150, y: 20 },
+        });
+        allWires.push({
+          source: { block: constId, port: 'constant-out' },
+          target: { block: codeBlockNewId, port: param.name },
+        });
+      });
+
+      allBlocks.push(codeBlockObj);
+
+      //-- Assemble the .ice project
+      var boardName =
+        common.selectedBoard && common.selectedBoard.name
+          ? common.selectedBoard.name
+          : 'alhambra-ii';
+
+      var iceProject = {
+        version: '1.2',
+        package: {
+          name: moduleName,
+          version: '1.0.0',
+          description: '',
+          author: '',
+          image: '',
+        },
+        design: {
+          board: boardName,
+          graph: {
+            blocks: allBlocks,
+            wires: allWires,
+          },
+        },
+        dependencies: {},
+      };
+
+      //-- Show project info dialog (pre-fill with module name)
+      var infoValues = [moduleName, '1.0.0', '', '', ''];
+
+      utils.projectinfoprompt(infoValues, function (evt, newValues) {
+        var projectName = newValues[0] || moduleName || 'Untitled';
+        iceProject.package.name = projectName;
+        iceProject.package.version = newValues[1] || '';
+        iceProject.package.description = newValues[2] || '';
+        iceProject.package.author = newValues[3] || '';
+        iceProject.package.image = newValues[4] || '';
+
+        //-- Prompt for collection name
+        alertify.prompt(
+          gettextCatalog.getString('Collection name'),
+          'Custom',
+          function (evt2, collectionName) {
+            if (!collectionName) {
+              return false;
+            }
+
+            var collDir = nodePath.join(
+              common.INTERNAL_COLLECTIONS_DIR,
+              collectionName
+            );
+            var blocksDir = nodePath.join(collDir, 'blocks');
+
+            //-- Ensure collection structure exists
+            try {
+              nodeFse.mkdirpSync(blocksDir);
+            } catch (e) {
+              alertify.error('Failed to create collection directory: ' + e);
+              return;
+            }
+
+            //-- Create package.json if it doesn't exist
+            var pkgPath = nodePath.join(collDir, 'package.json');
+            if (!nodeFs.existsSync(pkgPath)) {
+              var pkgData = {
+                name: collectionName,
+                version: '1.0.0',
+                description: 'Custom collection',
+                keywords: ['custom', 'collection'],
+                license: 'GPL-2.0',
+              };
+              nodeFs.writeFileSync(pkgPath, JSON.stringify(pkgData, null, 2));
+            }
+
+            //-- Use project name as filename
+            var safeName = projectName
+              .replace(/[^a-zA-Z0-9_\-\s]/g, '_')
+              .trim();
+            if (!safeName) {
+              safeName = 'Untitled';
+            }
+            var filePath = nodePath.join(blocksDir, safeName + '.ice');
+
+            var doSave = function () {
+              try {
+                nodeFs.writeFileSync(
+                  filePath,
+                  JSON.stringify(iceProject, null, 2)
+                );
+                alertify.success(
+                  gettextCatalog.getString('Block saved to collection') +
+                    ': ' +
+                    projectName
+                );
+
+                //-- Store sourcePath on the canvas cell so code editor can
+                //-- write V/F/T/B status keyed by collection file path
+                var savedCell = paper.getModelById(blockId);
+                if (savedCell) {
+                  savedCell.attributes.data.sourcePath = filePath;
+                }
+
+                //-- Write initial F/T status based on existing blockDir files
+                var statusFile = nodePath.join(
+                  nw.App.dataPath,
+                  'block-status.json'
+                );
+                var blockStatus = {};
+                try {
+                  blockStatus = JSON.parse(
+                    nodeFs.readFileSync(statusFile, 'utf8')
+                  );
+                } catch (eRead) {}
+                if (!blockStatus[filePath]) {
+                  blockStatus[filePath] = {
+                    V: null,
+                    F: null,
+                    T: null,
+                    B: null,
+                  };
+                }
+                var hasFormal = nodeFs.existsSync(
+                  nodePath.join(blockDir, 'formal.md')
+                );
+                var hasSim = nodeFs.existsSync(
+                  nodePath.join(blockDir, 'sim.vcd')
+                );
+                if (hasFormal) {
+                  blockStatus[filePath].F = true;
+                }
+                if (hasSim) {
+                  blockStatus[filePath].T = true;
+                }
+                try {
+                  nodeFs.writeFileSync(
+                    statusFile,
+                    JSON.stringify(blockStatus, null, 2)
+                  );
+                } catch (eWrite) {}
+
+                //-- Clear Node require cache for this collection's package.json
+                //-- so loadAllCollections picks up the new/updated data
+                var pkgCachePath = nodePath.resolve(pkgPath);
+                if (require.cache[pkgCachePath]) {
+                  delete require.cache[pkgCachePath];
+                }
+
+                //-- Reload collections so the new block appears
+                var collections = angular
+                  .element(document.body)
+                  .injector()
+                  .get('collections');
+                collections.loadAllCollections();
+                collections.selectCollection(collDir);
+
+                //-- Update plugin sidebar (collection manager)
+                if (typeof ICEpm !== 'undefined') {
+                  ICEpm.setEnvironment(common);
+                }
+              } catch (e) {
+                alertify.error(
+                  gettextCatalog.getString('Failed to save block') + ': ' + e
+                );
+              }
+            };
+
+            if (nodeFs.existsSync(filePath)) {
+              alertify.confirm(
+                gettextCatalog.getString(
+                  'A block named "' + safeName + '" already exists. Overwrite?'
+                ),
+                function () {
+                  doSave();
+                }
+              );
+            } else {
+              doSave();
+            }
+          }
+        );
+      });
+    };
   }
 );

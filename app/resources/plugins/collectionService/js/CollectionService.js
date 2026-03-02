@@ -75,7 +75,10 @@ class CollectionService {
         this.collections
       );
     } else {
-      iceStudio.bus.events.publish('collectionService.collections', this.temp);
+      iceStudio.bus.events.publish(
+        'collectionService.collections',
+        this.temp || this.collections
+      );
     }
   }
 
@@ -279,6 +282,13 @@ class CollectionService {
           root.items.push(
             this.buildTreeBlocks(node.content.blocks[i], node.path)
           );
+          if (root.items[root.items.length - 1].isFolder === false) {
+            this.queueIndexDB({
+              id: this.id,
+              blockId: root.items[root.items.length - 1].id,
+              path: root.items[root.items.length - 1].path,
+            });
+          }
         }
         if (root.items.length > 0) root.hasSubFolders = true;
         return root;

@@ -7,12 +7,12 @@
     "twitter": "@cavearr"
   },
   "version": "1.0",
-  "launchAtStartup": false,
+  "launchAtStartup": true,
   "icon": "icon.svg",
   "multipleInstances": false,
+  "capability": ["sidebar"],
   "gui": {
     "type": "embedded",
-    "windowed": "true",
     "layout": ["collectionManager.html"],
     "style": ["css/style.css"],
     "styleThemed": {
