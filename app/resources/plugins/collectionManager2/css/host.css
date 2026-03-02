@@ -2,6 +2,8 @@
   position: absolute;
   top: var(--sandbox-menu-height);
   right: 0;
-  width: 250px;
+  width: 375px;
   height: var(--sandbox-height);
+  border-left: 1px solid var(--cm-border, #c8c8c8);
+  box-sizing: border-box;
 }

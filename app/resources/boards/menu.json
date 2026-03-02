@@ -5,9 +5,7 @@
       "icezum",
       "go-board",
       "icestick",
-      "iCE40-HX1K-EVB",
-      "54321",
-      "99"
+      "iCE40-HX1K-EVB"
     ]
   },
   {
@@ -105,8 +103,7 @@
       "ColorLight-i9-v7.2_(USB-Blaster)",
       "ColorLight-i9-v7.2_(CMSIS-DAP)",
       "Cynthion-r1.4",
-      "mimas-ecp5-mini",
-      "66"
+      "mimas-ecp5-mini"
     ]
   }
 ]

@@ -1925,6 +1925,7 @@ angular
               if (common.selectedCollection.name === name) {
                 collections.selectCollection(name);
               }
+              iceStudio.updateEnv(common);
               utils.rootScopeSafeApply();
               nextzip();
             }
@@ -2036,6 +2037,7 @@ angular
       this.removeCollection = function (collection) {
         utils.deleteFolderRecursive(collection.path);
         collections.loadInternalCollections();
+        iceStudio.updateEnv(common);
         alertify.success(
           gettextCatalog.getString('Collection {{name}} removed', {
             name: utils.bold(collection.name),
@@ -2046,6 +2048,7 @@ angular
       this.removeAllCollections = function () {
         utils.removeCollections();
         collections.loadInternalCollections();
+        iceStudio.updateEnv(common);
         alertify.success(gettextCatalog.getString('All collections removed'));
       };
       this.checkForNewVersion = function () {

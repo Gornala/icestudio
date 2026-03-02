@@ -590,7 +590,7 @@
             </ul>
           </li>
 
-          <!-- SELECT Menu -->
+          <!-- BOARD Menu -->
           <li
             uib-dropdown
             ng-mouseover="showMenu('select')"
@@ -599,13 +599,15 @@
             is-open="status.select"
           >
             <a href uib-dropdown-toggle>
-              {{ 'Select' | translate }}<span class="caret"></span
+              {{ 'Board' | translate }}<span class="caret"></span
             ></a>
 
             <ul uib-dropdown-menu>
               <li class="dropdown-submenu" uib-dropdown>
-                <!-- Select/Board sub-menu -->
-                <a href uib-dropdown-toggle>{{ 'Board' | translate }}</a>
+                <!-- Board/Board Selection sub-menu -->
+                <a href uib-dropdown-toggle
+                  >{{ 'Board Selection' | translate }}</a
+                >
 
                 <ul uib-dropdown-menu class="dropdown-overflow">
                   <li>
@@ -653,11 +655,17 @@
                 </ul>
               </li>
 
-              <!-- Select/Board Collection -->
-              <li class="divider"></li>
+              <!-- Board/Board Collection -->
               <li>
                 <a href ng-click="boardCollection()">
-                  {{ 'Board Collection...' | translate }}
+                  {{ 'Board Collection' | translate }}
+                </a>
+              </li>
+
+              <!-- Board/Board Manager -->
+              <li>
+                <a href ng-click="customBoardManager()">
+                  {{ 'Board Manager' | translate }}
                 </a>
               </li>
             </ul>
@@ -795,13 +803,6 @@
               <!-- Divisor line between sections of the menu -->
               <li class="divider"></li>
 
-              <li class="divider"></li>
-              <li>
-                <a href ng-click="customBoardManager()">
-                  {{ 'Custom Board Manager' | translate }}
-                </a>
-              </li>
-              <li class="divider"></li>
               <li>
                 <a href ng-click="takeSnapshotPNG()">
                   {{ 'Take PNG' | translate }}

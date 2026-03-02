@@ -14,6 +14,10 @@ var cmStatusFile = '';
 var cmOpenFolders = {};
 var cmSearchDebounce = null;
 var cmBlocksRQ = [];
+var cmDescCache = {};
+var cmStatCache = {};
+var cmBlockUsage = {};
+var cmUsageFile = '';
 var preload = false;
 
 // ---- Helpers ----
@@ -40,6 +44,87 @@ function cmClosest(el, cls) {
     el = el.parentNode;
   }
   return null;
+}
+
+function getBlockDescription(path) {
+  if (cmDescCache[path] !== undefined) return cmDescCache[path];
+  try {
+    var fs = require('fs');
+    var data = JSON.parse(fs.readFileSync(path, 'utf8'));
+    var desc = (data && data.package && data.package.description) || '';
+    cmDescCache[path] = desc;
+    return desc;
+  } catch (e) {
+    cmDescCache[path] = '';
+    return '';
+  }
+}
+
+function cmUpdateDescBar(text) {
+  var bars = cmEl('#cm-desc-bar');
+  if (!bars.length) return;
+  bars[0].textContent = text;
+}
+
+function loadBlockUsage() {
+  cmUsageFile = nw.App.dataPath + '/block-usage.json';
+  try {
+    var fs = require('fs');
+    cmBlockUsage = JSON.parse(fs.readFileSync(cmUsageFile, 'utf8'));
+  } catch (e) {
+    cmBlockUsage = {};
+  }
+}
+
+function saveBlockUsage(path) {
+  if (!cmUsageFile) cmUsageFile = nw.App.dataPath + '/block-usage.json';
+  cmBlockUsage[path] = Date.now();
+  try {
+    var fs = require('fs');
+    fs.writeFileSync(cmUsageFile, JSON.stringify(cmBlockUsage), 'utf8');
+  } catch (e) {}
+}
+
+function getFileAddedDate(path) {
+  if (cmStatCache[path] !== undefined) return cmStatCache[path];
+  try {
+    var fs = require('fs');
+    var stat = fs.statSync(path);
+    var dt =
+      stat.birthtime && stat.birthtime.getFullYear() > 1970
+        ? stat.birthtime
+        : stat.mtime;
+    cmStatCache[path] = dt;
+    return dt;
+  } catch (e) {
+    cmStatCache[path] = null;
+    return null;
+  }
+}
+
+var _cmDateMonths = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+function cmFormatDate(val) {
+  if (!val) return '\u2014';
+  var d = val instanceof Date ? val : new Date(val);
+  if (isNaN(d.getTime())) return '\u2014';
+  var yr = d.getFullYear();
+  var mon = _cmDateMonths[d.getMonth()];
+  var day = d.getDate();
+  if (yr === new Date().getFullYear()) return mon + '\u00a0' + day;
+  return mon + '\u00a0' + day + '\u00a0\u2019' + String(yr).slice(2);
 }
 
 // ---- Status file (block-status.json) ----
@@ -152,6 +237,7 @@ function collectionsRender(tree) {
     return node.name !== 'Default collection';
   });
   loadBlockStatus();
+  loadBlockUsage();
   var loaderEls = cmEl('#cm-loader');
   if (loaderEls.length) loaderEls[0].style.display = 'none';
   cmRender();
@@ -269,6 +355,7 @@ function buildLeafHTML(node, collectionPath) {
     '">';
 
   html +=
+    '<img class="cm-leaf-icon" src="/resources/plugins/collectionManager2/img/chip.svg" aria-hidden="true">' +
     '<span class="cm-leaf-name">' +
     htmlEsc(node.name.replace(/\.ice$/, '')) +
     '</span>';
@@ -308,8 +395,9 @@ function buildBadgeHTML(letter, value) {
 function buildTableHTML(tree) {
   var leaves = flattenLeaves(tree);
   var html =
-    '<table class="cm-table"><thead><tr>' +
-    '<th>Name</th><th>Collection</th><th>V</th><th>F</th><th>T</th><th>B</th><th></th>' +
+    '<div class="cm-table-wrapper"><table class="cm-table"><thead><tr>' +
+    '<th>Name</th><th>Collection</th><th>V</th><th>F</th><th>T</th><th>B</th>' +
+    '<th>Last Used</th><th>Added</th><th>Description</th><th></th>' +
     '</tr></thead><tbody>';
 
   for (var i = 0; i < leaves.length; i++) {
@@ -327,6 +415,7 @@ function buildTableHTML(tree) {
       '">';
     html +=
       '<td class="cm-table-name">' +
+      '<img class="cm-leaf-icon" src="/resources/plugins/collectionManager2/img/chip.svg" aria-hidden="true">' +
       htmlEsc(leaf.name.replace(/\.ice$/, '')) +
       '</td>';
     html +=
@@ -336,6 +425,20 @@ function buildTableHTML(tree) {
     html += '<td>' + buildBadgeHTML('T', status.T) + '</td>';
     html += '<td>' + buildBadgeHTML('B', status.B) + '</td>';
     html +=
+      '<td class="cm-table-date cm-table-lastused" data-path="' +
+      htmlEsc(leaf.path) +
+      '">' +
+      cmFormatDate(cmBlockUsage[leaf.path]) +
+      '</td>';
+    html +=
+      '<td class="cm-table-date">' +
+      cmFormatDate(getFileAddedDate(leaf.path)) +
+      '</td>';
+    html +=
+      '<td class="cm-table-desc">' +
+      htmlEsc(getBlockDescription(leaf.path)) +
+      '</td>';
+    html +=
       '<td><button class="cm-remove-btn cm-remove-block" data-path="' +
       htmlEsc(leaf.path) +
       '" data-collection="' +
@@ -343,7 +446,7 @@ function buildTableHTML(tree) {
       '" title="Remove">&#x2715;</button></td>';
     html += '</tr>';
   }
-  html += '</tbody></table>';
+  html += '</tbody></table></div>';
   return html;
 }
 
@@ -509,6 +612,13 @@ function cmToggleFolder(nodeId) {
 function blockRetrieved(item) {
   for (var i = 0; i < cmBlocksRQ.length; i++) {
     if (cmBlocksRQ[i].id === item.id) {
+      saveBlockUsage(item.path);
+      var luCells = cmEl('.cm-table-lastused');
+      for (var j = 0; j < luCells.length; j++) {
+        if (luCells[j].dataset.path === item.path) {
+          luCells[j].textContent = cmFormatDate(cmBlockUsage[item.path]);
+        }
+      }
       iceStudio.bus.events.publish('block.addFromFile', item.path);
       cmBlocksRQ.splice(i, 1);
       return;
@@ -580,6 +690,19 @@ function attachContentListeners(content) {
     }
   });
 
+  // Mouseover a leaf / table-row shows the description in the bar at the bottom.
+  content.addEventListener('mouseover', function (e) {
+    var leaf = cmClosest(e.target, 'cm-leaf');
+    if (leaf && leaf.dataset.path) {
+      cmUpdateDescBar(getBlockDescription(leaf.dataset.path));
+      return;
+    }
+    var row = cmClosest(e.target, 'cm-table-row');
+    if (row && row.dataset.path) {
+      cmUpdateDescBar(getBlockDescription(row.dataset.path));
+    }
+  });
+
   // Mousedown on a leaf / table-row starts the "drag to canvas" flow.
   // Using mousedown (not click) means:
   //   - The block attaches to the cursor immediately when you press.
@@ -610,9 +733,65 @@ function attachContentListeners(content) {
   });
 }
 
+// ---- Resize handle ----
+
+function setupResizeHandle() {
+  var handleEls = cmEl('#cm-resize-handle');
+  if (!handleEls.length) return;
+  var handle = handleEls[0];
+
+  var container = document.getElementById('collectionManager2');
+  if (!container) return;
+
+  // Restore persisted width
+  var saved = localStorage.getItem('cm-panel-width');
+  if (saved) {
+    var w = parseInt(saved, 10);
+    if (w >= 200 && w <= 700) container.style.width = w + 'px';
+  }
+
+  var dragStartX = 0;
+  var dragStartWidth = 0;
+
+  var onDrag = function (e) {
+    var dx = dragStartX - e.clientX;
+    var newWidth = Math.max(200, Math.min(700, dragStartWidth + dx));
+    container.style.width = newWidth + 'px';
+  };
+
+  var onDragEnd = function () {
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', onDragEnd);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    document.body.style.webkitUserSelect = '';
+    handle.classList.remove('cm-resize-dragging');
+    localStorage.setItem('cm-panel-width', container.offsetWidth);
+  };
+
+  handle.addEventListener('mousedown', function (e) {
+    e.preventDefault();
+    dragStartX = e.clientX;
+    dragStartWidth = container.offsetWidth;
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', onDragEnd);
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+    handle.classList.add('cm-resize-dragging');
+  });
+}
+
 // ---- Toolbar & search (set up once after DOM is ready) ----
 
 function setupToolbarEvents() {
+  setupResizeHandle();
+
+  // Clear description bar when the mouse leaves the whole panel.
+  pluginHost.addEventListener('mouseleave', function () {
+    cmUpdateDescBar('');
+  });
+
   var addBtnEls = cmEl('#cm-btn-add');
   var addMenuEls = cmEl('#cm-add-menu');
 

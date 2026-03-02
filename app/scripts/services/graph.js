@@ -2814,6 +2814,9 @@ angular.module('icestudio').service(
             }
             var filePath = nodePath.join(blocksDir, safeName + '.ice');
 
+            //-- Capture sourcePath BEFORE doSave mutates codeBlockData.sourcePath
+            var priorSourcePath = codeBlockData.sourcePath || '';
+
             var doSave = function () {
               try {
                 nodeFs.writeFileSync(
@@ -2833,7 +2836,9 @@ angular.module('icestudio').service(
                   savedCell.attributes.data.sourcePath = filePath;
                 }
 
-                //-- Write initial F/T status based on existing blockDir files
+                //-- Transfer V/F/T/B status to the new collection file path.
+                //-- The code editor writes status keyed by sourcePath (if the block
+                //-- was already in a collection) or by blockId (new block).
                 var statusFile = nodePath.join(
                   nw.App.dataPath,
                   'block-status.json'
@@ -2852,17 +2857,34 @@ angular.module('icestudio').service(
                     B: null,
                   };
                 }
-                var hasFormal = nodeFs.existsSync(
-                  nodePath.join(blockDir, 'formal.md')
-                );
-                var hasSim = nodeFs.existsSync(
-                  nodePath.join(blockDir, 'sim.vcd')
-                );
-                if (hasFormal) {
+                //-- Find the best source for existing status:
+                //-- prefer priorSourcePath (block already in a collection),
+                //-- then blockId key (block not yet exported).
+                //-- NOTE: codeBlockData.sourcePath was already mutated to filePath
+                //-- above, so we use priorSourcePath captured before doSave.
+                var srcStatus =
+                  (priorSourcePath && blockStatus[priorSourcePath]) ||
+                  blockStatus[blockId] ||
+                  {};
+                if (srcStatus.V !== null && srcStatus.V !== undefined) {
+                  blockStatus[filePath].V = srcStatus.V;
+                }
+                if (srcStatus.F !== null && srcStatus.F !== undefined) {
+                  blockStatus[filePath].F = srcStatus.F;
+                } else if (
+                  nodeFs.existsSync(nodePath.join(blockDir, 'formal.md'))
+                ) {
                   blockStatus[filePath].F = true;
                 }
-                if (hasSim) {
+                if (srcStatus.T !== null && srcStatus.T !== undefined) {
+                  blockStatus[filePath].T = srcStatus.T;
+                } else if (
+                  nodeFs.existsSync(nodePath.join(blockDir, 'sim.vcd'))
+                ) {
                   blockStatus[filePath].T = true;
+                }
+                if (srcStatus.B !== null && srcStatus.B !== undefined) {
+                  blockStatus[filePath].B = srcStatus.B;
                 }
                 try {
                   nodeFs.writeFileSync(
@@ -2887,9 +2909,7 @@ angular.module('icestudio').service(
                 collections.selectCollection(collDir);
 
                 //-- Update plugin sidebar (collection manager)
-                if (typeof ICEpm !== 'undefined') {
-                  ICEpm.setEnvironment(common);
-                }
+                iceStudio.updateEnv(common);
               } catch (e) {
                 alertify.error(
                   gettextCatalog.getString('Failed to save block') + ': ' + e

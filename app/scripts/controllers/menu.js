@@ -447,11 +447,14 @@ angular.module('icestudio').controller(
 
     function reloadCollectionsIfRequired(filepath) {
       var selected = common.selectedCollection.name;
+      var collectionsChanged = false;
       if (filepath.startsWith(common.INTERNAL_COLLECTIONS_DIR)) {
         collections.loadInternalCollections();
+        collectionsChanged = true;
       }
       if (filepath.startsWith(profile.get('externalCollections'))) {
         collections.loadExternalCollections();
+        collectionsChanged = true;
       }
       if (
         (selected &&
@@ -463,6 +466,9 @@ angular.module('icestudio').controller(
         )
       ) {
         collections.selectCollection(common.selectedCollection.path);
+      }
+      if (collectionsChanged) {
+        iceStudio.updateEnv(common);
       }
     }
 
@@ -716,6 +722,12 @@ angular.module('icestudio').controller(
       //-- Close the current window
       //-----------------------------
       function _exit() {
+        if ($scope._customThemeWin) {
+          try {
+            $scope._customThemeWin.close(true);
+          } catch (e) {}
+          $scope._customThemeWin = null;
+        }
         win.close(true);
       }
     }
@@ -1493,7 +1505,9 @@ angular.module('icestudio').controller(
           icon: 'resources/images/icestudio-logo.png',
         },
         function (newWin) {
+          $scope._customThemeWin = newWin;
           newWin.on('closed', function () {
+            $scope._customThemeWin = null;
             //-- Reload profile to apply new custom theme colors
             profile.load(null);
           });
@@ -2410,6 +2424,7 @@ angular.module('icestudio').controller(
               console.warn('removeBlock: could not delete', data.blockPath, e);
             }
             collections.loadInternalCollections();
+            iceStudio.updateEnv(common);
             utils.rootScopeSafeApply();
           }
         );
@@ -2452,6 +2467,7 @@ angular.module('icestudio').controller(
           return;
         }
         collections.loadInternalCollections();
+        iceStudio.updateEnv(common);
         utils.rootScopeSafeApply();
       });
     });
@@ -2488,6 +2504,7 @@ angular.module('icestudio').controller(
             }
           });
           collections.loadInternalCollections();
+          iceStudio.updateEnv(common);
           utils.rootScopeSafeApply();
         });
       }
