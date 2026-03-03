@@ -29,43 +29,226 @@
         <button id="btn-gtkwave" class="btn btn-secondary">
           &#128200; GTKWave
         </button>
+        <button id="btn-claude" class="btn btn-secondary btn-claude-toggle">
+          &#9889; Claude
+        </button>
       </div>
     </div>
 
-    <!-- Panels container -->
-    <div id="panels">
-      <!-- Mode: full — single panel -->
-      <div id="panel-full-editor" class="panel">
-        <div class="panel-label">Code</div>
-        <div id="ace-code" class="ace-container"></div>
-      </div>
+    <!-- Main area: panels + Claude sidebar -->
+    <div id="main-area">
+      <!-- Panels container -->
+      <div id="panels">
+        <!-- Mode: full — single panel -->
+        <div id="panel-full-editor" class="panel">
+          <div class="panel-label">Code</div>
+          <div id="ace-code" class="ace-container"></div>
+        </div>
 
-      <!-- Mode: formal — right markdown panel -->
-      <div id="panel-formal-output" class="panel">
-        <div class="panel-label">Formal Verification Report</div>
-        <div id="formal-output" class="output-area">
-          <em>Run Verify to generate the formal report.</em>
+        <!-- Mode: formal — right markdown panel -->
+        <div id="panel-formal-output" class="panel">
+          <div class="panel-label">Formal Verification Report</div>
+          <div id="formal-output" class="output-area">
+            <em>Run Verify to generate the formal report.</em>
+          </div>
+        </div>
+
+        <!-- Mode: testbench — left sim log panel -->
+        <div id="panel-sim-log" class="panel">
+          <div class="panel-label">Simulation Output</div>
+          <div id="sim-log" class="output-area mono">
+            <em>Press "Run Sim" to simulate.</em>
+          </div>
+        </div>
+
+        <!-- Mode: testbench — middle testbench editor -->
+        <div id="panel-testbench" class="panel">
+          <div class="panel-label">Testbench</div>
+          <div id="ace-testbench" class="ace-container"></div>
+        </div>
+
+        <!-- Mode: testbench — bottom waveform viewer panel -->
+        <div id="panel-waveform" class="panel">
+          <div class="panel-label">Waveform Viewer</div>
+          <div id="waveform-viewer"></div>
         </div>
       </div>
 
-      <!-- Mode: testbench — left sim log panel -->
-      <div id="panel-sim-log" class="panel">
-        <div class="panel-label">Simulation Output</div>
-        <div id="sim-log" class="output-area mono">
-          <em>Press "Run Sim" to simulate.</em>
+      <!-- Claude AI Panel (hidden by default, toggled via toolbar button) -->
+      <div id="panel-claude" class="cp-hidden">
+        <!-- Header -->
+        <div class="cp-header">
+          <span class="cp-header-title">&#9889; Claude AI</span>
+          <span id="cp-context-bar" class="cp-context-bar"
+            >loading context…</span
+          >
+          <button
+            id="cp-settings-btn"
+            class="cp-icon-btn"
+            title="API key &amp; model settings"
+          >
+            &#9881;
+          </button>
         </div>
-      </div>
 
-      <!-- Mode: testbench — middle testbench editor -->
-      <div id="panel-testbench" class="panel">
-        <div class="panel-label">Testbench</div>
-        <div id="ace-testbench" class="ace-container"></div>
-      </div>
+        <!-- Action buttons -->
+        <div class="cp-actions">
+          <button
+            id="cp-action-design"
+            class="cp-action-btn"
+            title="Generate a complete module implementation"
+          >
+            Design Module
+          </button>
+          <button
+            id="cp-action-testbench"
+            class="cp-action-btn"
+            title="Write a comprehensive testbench"
+          >
+            Testbench
+          </button>
+          <button
+            id="cp-action-explain"
+            class="cp-action-btn cp-action-warn"
+            title="Explain current errors"
+          >
+            Explain Errors
+          </button>
+          <button
+            id="cp-action-review"
+            class="cp-action-btn"
+            title="Review code for issues"
+          >
+            Review
+          </button>
+          <button
+            id="cp-action-clear"
+            class="cp-action-btn cp-action-clear"
+            title="Clear conversation"
+          >
+            Clear
+          </button>
+        </div>
 
-      <!-- Mode: testbench — bottom waveform viewer panel -->
-      <div id="panel-waveform" class="panel">
-        <div class="panel-label">Waveform Viewer</div>
-        <div id="waveform-viewer"></div>
+        <!-- Reference docs section -->
+        <div class="cp-docs-bar">
+          <button
+            id="cp-docs-toggle"
+            class="cp-docs-toggle-btn"
+            title="Show/hide reference documents"
+          >
+            &#128196; Docs <span id="cp-docs-count"></span>
+          </button>
+          <button
+            id="cp-add-doc-btn"
+            class="cp-add-doc-btn"
+            title="Add a reference document (datasheet, manual, notes)"
+          >
+            + Add
+          </button>
+        </div>
+        <div id="cp-docs-drawer" class="cp-docs-drawer">
+          <div id="cp-doc-list" class="cp-doc-list"></div>
+        </div>
+
+        <!-- Chat messages -->
+        <div id="cp-messages" class="cp-messages"></div>
+
+        <!-- Input area -->
+        <div class="cp-input-area">
+          <textarea
+            id="cp-input"
+            class="cp-input"
+            placeholder="Ask about your design, request code, explain errors… (Enter to send, Shift+Enter for newline)"
+            rows="3"
+          ></textarea>
+          <button id="cp-send" class="cp-send-btn">Send</button>
+        </div>
+
+        <!-- Settings modal (overlays the panel) -->
+        <div id="cp-settings-modal" class="cp-modal" style="display: none">
+          <div class="cp-modal-box">
+            <div class="cp-modal-title">Claude Settings</div>
+
+            <label class="cp-modal-label">Anthropic API Key</label>
+            <input
+              type="password"
+              id="cp-settings-key"
+              class="cp-modal-input"
+              placeholder="sk-ant-api03-..."
+              autocomplete="off"
+            />
+            <div id="cp-key-status" class="cp-key-status"></div>
+            <p class="cp-modal-hint">
+              Get your key at
+              <strong>console.anthropic.com</strong>. The key is stored locally
+              in your NW.js app data folder — it is never sent anywhere except
+              directly to api.anthropic.com.
+            </p>
+
+            <label class="cp-modal-label">Model</label>
+            <select id="cp-settings-model" class="cp-modal-input">
+              <option value="claude-sonnet-4-6">
+                claude-sonnet-4-6 (recommended — capable &amp; fast)
+              </option>
+              <option value="claude-opus-4-6">
+                claude-opus-4-6 (most capable, slower)
+              </option>
+              <option value="claude-haiku-4-5-20251001">
+                claude-haiku-4-5-20251001 (fastest, cheapest)
+              </option>
+            </select>
+
+            <div class="cp-modal-buttons">
+              <button id="cp-settings-cancel" class="btn btn-secondary">
+                Cancel
+              </button>
+              <button id="cp-settings-save" class="btn btn-primary">
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add document modal (overlays the panel) -->
+        <div id="cp-doc-modal" class="cp-modal" style="display: none">
+          <div class="cp-modal-box">
+            <div class="cp-modal-title">Add Reference Document</div>
+            <p class="cp-modal-hint">
+              Add datasheets, application notes, Verilog references, or any
+              text. Claude will search these when answering your questions.
+            </p>
+
+            <label class="cp-modal-label">Document name</label>
+            <input
+              type="text"
+              id="cp-doc-modal-name"
+              class="cp-modal-input"
+              placeholder="e.g. ICE40 Family Datasheet"
+            />
+
+            <label class="cp-modal-label"
+              >Content (paste text or import file)</label
+            >
+            <textarea
+              id="cp-doc-modal-content"
+              class="cp-modal-textarea"
+              placeholder="Paste relevant text here…"
+            ></textarea>
+
+            <div class="cp-modal-buttons">
+              <button id="cp-doc-import-btn" class="btn btn-secondary">
+                &#128196; Import file…
+              </button>
+              <button id="cp-doc-modal-cancel" class="btn btn-secondary">
+                Cancel
+              </button>
+              <button id="cp-doc-modal-save" class="btn btn-primary">
+                Save Document
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -80,6 +263,9 @@
     <!-- Waveform viewer -->
     <script src="js/vcd-parser.js"></script>
     <script src="js/waveform-viewer.js"></script>
+    <!-- Claude AI panel -->
+    <script src="js/doc-manager.js"></script>
+    <script src="js/claude-panel.js"></script>
     <script src="js/code-editor.js"></script>
   </body>
 </html>

@@ -158,6 +158,550 @@ body {
   border-top: 1px solid var(--ce-ok-text);
 }
 
+/* ---- Main area (panels + Claude sidebar, side by side) ---- */
+#main-area {
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#panels {
+  /* already has flex:1 via the rule below — keep min-width:0 for flex shrink */
+  min-width: 0;
+}
+
+/* ============================================================
+   Claude AI Panel
+   ============================================================ */
+
+#panel-claude {
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  min-width: 280px;
+  max-width: 480px;
+  flex-shrink: 0;
+  border-left: 2px solid var(--ce-accent);
+  background: var(--ce-bg);
+  overflow: hidden;
+  position: relative;
+}
+
+#panel-claude.cp-hidden {
+  display: none;
+}
+
+/* Active state for toolbar toggle button */
+.btn-claude-toggle.btn-active {
+  background: var(--ce-accent);
+  color: #fff;
+  border-color: var(--ce-accent);
+}
+
+/* ---- Header ---- */
+.cp-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--ce-toolbar);
+  border-bottom: 1px solid var(--ce-border);
+  flex-shrink: 0;
+}
+
+.cp-header-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--ce-accent);
+  flex-shrink: 0;
+}
+
+.cp-context-bar {
+  font-size: 10px;
+  color: var(--ce-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--ce-muted);
+  padding: 2px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.cp-icon-btn:hover {
+  color: var(--ce-text);
+  background: var(--ce-border);
+}
+
+/* ---- Action buttons row ---- */
+.cp-actions {
+  display: flex;
+  gap: 4px;
+  padding: 5px 6px;
+  background: var(--ce-toolbar);
+  border-bottom: 1px solid var(--ce-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.cp-action-btn {
+  padding: 3px 8px;
+  border: 1px solid var(--ce-border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  background: var(--ce-bg2);
+  color: var(--ce-text);
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.cp-action-btn:hover {
+  background: var(--ce-accent);
+  color: #fff;
+  border-color: var(--ce-accent);
+}
+.cp-action-btn.cp-action-warn:hover {
+  background: #c0392b;
+  border-color: #c0392b;
+}
+.cp-action-btn.cp-action-clear {
+  margin-left: auto;
+  color: var(--ce-muted);
+}
+.cp-action-btn.cp-action-clear:hover {
+  background: var(--ce-border);
+  color: var(--ce-text);
+}
+
+/* ---- Docs section ---- */
+.cp-docs-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  background: var(--ce-toolbar);
+  border-bottom: 1px solid var(--ce-border);
+  flex-shrink: 0;
+}
+
+.cp-docs-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--ce-muted);
+  padding: 2px 4px;
+  border-radius: 3px;
+  flex: 1;
+  text-align: left;
+}
+.cp-docs-toggle-btn:hover,
+.cp-docs-toggle-btn.cp-active {
+  color: var(--ce-text);
+  background: var(--ce-border);
+}
+
+.cp-add-doc-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--ce-border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  background: var(--ce-bg2);
+  color: var(--ce-text);
+}
+.cp-add-doc-btn:hover {
+  background: var(--ce-border);
+}
+
+.cp-docs-drawer {
+  display: none;
+  flex-direction: column;
+  background: var(--ce-bg2);
+  border-bottom: 1px solid var(--ce-border);
+  max-height: 140px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.cp-docs-drawer.cp-open {
+  display: flex;
+}
+
+.cp-doc-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-doc-empty {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--ce-muted);
+  font-style: italic;
+}
+
+.cp-doc-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--ce-border);
+  gap: 4px;
+}
+.cp-doc-row:last-child {
+  border-bottom: none;
+}
+
+.cp-doc-name {
+  flex: 1;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ce-text);
+  cursor: default;
+}
+
+.cp-doc-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--ce-muted);
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.cp-doc-remove:hover {
+  color: var(--ce-error-text);
+}
+
+/* ---- Messages ---- */
+.cp-messages {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--ce-bg);
+}
+
+.cp-msg {
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.55;
+  max-width: 100%;
+  word-wrap: break-word;
+}
+
+.cp-msg-user {
+  background: var(--ce-accent);
+  color: #fff;
+  align-self: flex-end;
+  border-radius: 6px 6px 2px 6px;
+  max-width: 90%;
+  white-space: pre-wrap;
+}
+
+.cp-msg-assistant {
+  background: var(--ce-bg2);
+  border: 1px solid var(--ce-border);
+  align-self: flex-start;
+  border-radius: 2px 6px 6px 6px;
+  width: 100%;
+}
+
+.cp-msg-system {
+  background: var(--ce-toolbar);
+  border: 1px dashed var(--ce-border);
+  color: var(--ce-muted);
+  font-size: 11px;
+  text-align: center;
+  align-self: stretch;
+  border-radius: 4px;
+}
+
+/* Streaming cursor */
+.cp-streaming .cp-cursor {
+  display: inline-block;
+  animation: cp-blink 0.8s step-end infinite;
+  color: var(--ce-accent);
+}
+@keyframes cp-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Error state */
+.cp-error {
+  color: var(--ce-error-text);
+}
+
+/* ---- Markdown output inside assistant messages ---- */
+.cp-msg-assistant h2,
+.cp-msg-assistant h3,
+.cp-msg-assistant h4 {
+  color: var(--ce-accent);
+  margin: 8px 0 4px;
+  font-size: 12px;
+}
+.cp-msg-assistant p {
+  margin: 2px 0;
+}
+.cp-msg-assistant ul {
+  padding-left: 18px;
+  margin: 4px 0;
+}
+.cp-msg-assistant li {
+  margin: 1px 0;
+}
+.cp-msg-assistant br {
+  display: block;
+  margin: 2px 0;
+}
+.cp-msg-assistant hr {
+  border: none;
+  border-top: 1px solid var(--ce-border);
+  margin: 6px 0;
+}
+.cp-msg-assistant strong {
+  font-weight: 700;
+}
+.cp-msg-assistant em {
+  font-style: italic;
+}
+
+/* Inline code */
+.cp-inline-code {
+  background: var(--ce-toolbar);
+  border: 1px solid var(--ce-border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--ce-accent);
+}
+
+/* Code blocks */
+.cp-code-wrap {
+  margin: 6px 0;
+}
+
+.cp-code-block {
+  background: var(--ce-bg);
+  border: 1px solid var(--ce-border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  margin: 0;
+  position: relative;
+}
+
+.cp-code-lang {
+  display: block;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ce-muted);
+  margin-bottom: 4px;
+  font-style: normal;
+  font-family: -apple-system, sans-serif;
+}
+
+.cp-code-block code {
+  display: block;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre;
+  color: var(--ce-text);
+}
+
+.cp-code-actions {
+  display: flex;
+  gap: 4px;
+  padding: 3px 0 0;
+}
+
+.cp-apply-code,
+.cp-apply-tb {
+  padding: 2px 8px;
+  border: 1px solid var(--ce-border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 10px;
+  background: var(--ce-bg2);
+  color: var(--ce-muted);
+}
+.cp-apply-code:hover {
+  background: var(--ce-ok-bg);
+  color: var(--ce-ok-text);
+  border-color: var(--ce-ok-text);
+}
+.cp-apply-tb:hover {
+  background: var(--ce-accent);
+  color: #fff;
+  border-color: var(--ce-accent);
+}
+
+/* ---- Input area ---- */
+.cp-input-area {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--ce-toolbar);
+  border-top: 1px solid var(--ce-border);
+  flex-shrink: 0;
+}
+
+.cp-input {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--ce-border);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--ce-bg2);
+  color: var(--ce-text);
+  resize: none;
+  line-height: 1.4;
+  min-height: 48px;
+}
+.cp-input:focus {
+  outline: none;
+  border-color: var(--ce-accent);
+}
+.cp-input:disabled {
+  opacity: 0.5;
+}
+
+.cp-send-btn {
+  align-self: flex-end;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--ce-accent);
+  color: #fff;
+  flex-shrink: 0;
+}
+.cp-send-btn:hover {
+  background: var(--ce-accent-hover);
+}
+.cp-send-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---- Modals (overlay inside the Claude panel) ---- */
+.cp-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 12px;
+}
+
+.cp-modal-box {
+  background: var(--ce-bg2);
+  border: 1px solid var(--ce-border);
+  border-radius: 6px;
+  padding: 16px;
+  width: 100%;
+  max-width: 380px;
+  max-height: 90%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cp-modal-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ce-accent);
+  margin-bottom: 4px;
+}
+
+.cp-modal-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ce-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.cp-modal-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--ce-border);
+  border-radius: 4px;
+  font-size: 12px;
+  background: var(--ce-bg);
+  color: var(--ce-text);
+}
+.cp-modal-input:focus {
+  outline: none;
+  border-color: var(--ce-accent);
+}
+
+.cp-modal-textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--ce-border);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  background: var(--ce-bg);
+  color: var(--ce-text);
+  resize: vertical;
+  min-height: 160px;
+  line-height: 1.4;
+}
+.cp-modal-textarea:focus {
+  outline: none;
+  border-color: var(--ce-accent);
+}
+
+.cp-modal-hint {
+  font-size: 11px;
+  color: var(--ce-muted);
+  line-height: 1.5;
+}
+
+.cp-modal-buttons {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.cp-key-status {
+  font-size: 11px;
+  min-height: 14px;
+}
+
 /* ---- Mode: full ---- */
 body.mode-full #panel-full-editor {
   flex: 1;

@@ -1040,6 +1040,16 @@ angular.module('icestudio').service(
               ),
               pythonCmd: common.PYTHON_ENV || 'python',
               sourcePath: data.sourcePath || '',
+              // Board context for Claude AI panel
+              boardInfo: common.selectedBoard
+                ? {
+                    name: common.selectedBoard.name || '',
+                    info: common.selectedBoard.info || {},
+                  }
+                : null,
+              boardPinout: common.selectedBoard
+                ? common.selectedBoard.pinout || []
+                : [],
             };
 
             var configParam = encodeURIComponent(JSON.stringify(configObj));

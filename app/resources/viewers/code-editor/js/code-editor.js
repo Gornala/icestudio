@@ -22,6 +22,10 @@ var formalVerifyPyPath = config.formalVerifyPyPath || '';
 var pythonCmd = config.pythonCmd || 'python';
 var sourcePath = config.sourcePath || '';
 
+// Board context for Claude panel (passed in config from graph.js)
+var boardInfo = config.boardInfo || null;
+var boardPinout = config.boardPinout || [];
+
 // ============================================================
 // Block status persistence (V/F/T/B badges in collection panel)
 // ============================================================
@@ -457,6 +461,16 @@ function showError(msg) {
   var bar = document.getElementById('error-bar');
   bar.className = 'err';
   bar.textContent = msg;
+  // Forward errors to Claude panel so it has context for "Explain Errors"
+  if (typeof ClaudePanel !== 'undefined') {
+    ClaudePanel.setErrors(
+      msg
+        ? msg.split('\n').filter(function (l) {
+            return l.trim();
+          })
+        : []
+    );
+  }
 }
 
 function showOk(msg) {
@@ -1295,6 +1309,12 @@ window.onload = function () {
     if (wvContainer) {
       waveformViewer = new WaveformViewer(wvContainer, { theme: theme });
     }
+  }
+
+  // Initialize Claude AI panel (available in all modes)
+  if (typeof DocManager !== 'undefined' && typeof ClaudePanel !== 'undefined') {
+    DocManager.init();
+    ClaudePanel.init(boardInfo, boardPinout, DocManager);
   }
 
   // Restore last position/size, then track changes
