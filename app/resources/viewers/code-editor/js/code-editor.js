@@ -380,6 +380,9 @@ function saveCode() {
   findMainWindow(function (mainWin) {
     if (mainWin) {
       mainWin.icestudioReceiveCodeSave(blockId, newCode);
+      if (typeof mainWin.icestudioSaveProject === 'function') {
+        mainWin.icestudioSaveProject();
+      }
     }
   });
   // Persist assembled module to per-block directory

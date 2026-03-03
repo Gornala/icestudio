@@ -12,7 +12,7 @@
 var ClaudePanel = (function () {
   // ---- state ----
   var _settingsFile = null;
-  var _settings = { apiKey: '', model: 'claude-sonnet-4-6' };
+  var _settings = { apiKey: '', model: 'claude-sonnet-4-6', panelWidth: 340 };
   var _messages = []; // conversation history [{role, content}]
   var _isStreaming = false;
   var _lastErrors = [];
@@ -40,6 +40,7 @@ var ClaudePanel = (function () {
     _settingsFile = path.join(nw.App.dataPath, 'claude-settings.json');
     _loadSettings();
     _bindDom();
+    _applyPanelWidth();
     _updateContextBar();
     _renderWelcome();
   }
@@ -181,6 +182,12 @@ var ClaudePanel = (function () {
         }
       });
 
+    // Resize handle
+    var resizeHandle = document.getElementById('cp-resize-handle');
+    if (resizeHandle) {
+      resizeHandle.addEventListener('mousedown', _onResizeStart);
+    }
+
     // Apply code to editors (event delegation on message area)
     _messagesEl.addEventListener('click', function (e) {
       var target = e.target;
@@ -208,6 +215,10 @@ var ClaudePanel = (function () {
     document
       .getElementById('btn-claude')
       .classList.toggle('btn-active', !hidden);
+    var handle = document.getElementById('cp-resize-handle');
+    if (handle) {
+      handle.classList.toggle('cp-hidden', hidden);
+    }
     if (!hidden) {
       _inputEl.focus();
     }
@@ -234,6 +245,51 @@ var ClaudePanel = (function () {
     _saveSettings();
     _hideSettings();
     _appendSystemMsg('Settings saved.');
+  }
+
+  // ============================================================
+  // Panel resize
+  // ============================================================
+
+  function _applyPanelWidth() {
+    if (_panelEl && _settings.panelWidth) {
+      _panelEl.style.width = _settings.panelWidth + 'px';
+    }
+  }
+
+  function _onResizeStart(e) {
+    e.preventDefault();
+    var handle = document.getElementById('cp-resize-handle');
+    var startX = e.clientX;
+    var startWidth = _panelEl ? _panelEl.offsetWidth : 340;
+    if (handle) {
+      handle.classList.add('cp-dragging');
+    }
+
+    var onMove = function (ev) {
+      if (!_panelEl) {
+        return;
+      }
+      // dragging handle left → panel grows; right → panel shrinks
+      var dx = startX - ev.clientX;
+      var newWidth = Math.max(260, Math.min(700, startWidth + dx));
+      _panelEl.style.width = newWidth + 'px';
+    };
+
+    var onUp = function () {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      if (handle) {
+        handle.classList.remove('cp-dragging');
+      }
+      if (_panelEl) {
+        _settings.panelWidth = _panelEl.offsetWidth;
+        _saveSettings();
+      }
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
   }
 
   function _testApiKey() {

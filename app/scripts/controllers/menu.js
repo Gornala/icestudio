@@ -394,6 +394,13 @@ angular.module('icestudio').controller(
       }
     };
 
+    // Expose global so popup code-editor windows can trigger a project save
+    nw.Window.get().window.icestudioSaveProject = function () {
+      $timeout(function () {
+        $scope.saveProject();
+      }, 0);
+    };
+
     $scope.doSaveProjectAs = function (localCallback) {
       utils.saveDialog('#input-save-project', '.ice', function (filepath) {
         updateWorkingdir(filepath);

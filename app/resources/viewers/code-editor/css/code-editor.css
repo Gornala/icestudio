@@ -193,6 +193,48 @@ body {
   display: none;
 }
 
+/* ---- Claude panel resize handle ---- */
+#cp-resize-handle {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: var(--ce-border);
+  position: relative;
+  transition: background 0.12s;
+  z-index: 10;
+}
+
+#cp-resize-handle.cp-hidden {
+  display: none;
+}
+
+#cp-resize-handle:hover,
+#cp-resize-handle.cp-dragging {
+  background: var(--ce-accent);
+}
+
+#cp-resize-handle::after {
+  content: '\2194'; /* ↔ */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--ce-accent);
+  color: #fff;
+  border-radius: 10px;
+  padding: 2px 5px;
+  font-size: 11px;
+  line-height: 16px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#cp-resize-handle:hover::after {
+  opacity: 1;
+}
+
 /* Active state for toolbar toggle button */
 .btn-claude-toggle.btn-active {
   background: var(--ce-accent);
