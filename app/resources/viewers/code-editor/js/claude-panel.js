@@ -251,9 +251,14 @@ var ClaudePanel = (function () {
   // Panel resize
   // ============================================================
 
+  function _maxPanelWidth() {
+    return Math.floor(window.innerWidth * 0.5);
+  }
+
   function _applyPanelWidth() {
     if (_panelEl && _settings.panelWidth) {
-      _panelEl.style.width = _settings.panelWidth + 'px';
+      var w = Math.min(_settings.panelWidth, _maxPanelWidth());
+      _panelEl.style.width = w + 'px';
     }
   }
 
@@ -272,7 +277,7 @@ var ClaudePanel = (function () {
       }
       // dragging handle left → panel grows; right → panel shrinks
       var dx = startX - ev.clientX;
-      var newWidth = Math.max(260, Math.min(700, startWidth + dx));
+      var newWidth = Math.max(260, Math.min(_maxPanelWidth(), startWidth + dx));
       _panelEl.style.width = newWidth + 'px';
     };
 
