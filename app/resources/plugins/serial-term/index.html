@@ -159,6 +159,7 @@
               <button class="fmt-btn active" data-fmt="ascii">ASCII</button>
               <button class="fmt-btn" data-fmt="hex">HEX</button>
               <button class="fmt-btn" data-fmt="bin">BIN</button>
+              <button class="fmt-btn" data-fmt="multi">MULTI</button>
             </div>
             <label
               style="
@@ -194,6 +195,7 @@
             spellcheck="false"
             placeholder="Received data will appear here…"
           ></textarea>
+          <div id="rx-multi" class="hidden"></div>
         </div>
 
         <!-- RX/TX resize handle -->
@@ -223,14 +225,23 @@
           ></textarea>
           <div id="send-bar">
             <label
-              >Line end:
+              >Terminator:
               <select id="sel-lineend">
-                <option value="crlf">CRLF</option>
-                <option value="cr">CR</option>
-                <option value="lf">LF</option>
+                <option value="crlf">CRLF (\r\n)</option>
+                <option value="cr">CR (\r)</option>
+                <option value="lf">LF (\n)</option>
+                <option value="tab">Tab (\t)</option>
                 <option value="none">None</option>
+                <option value="custom">Custom…</option>
               </select>
             </label>
+            <input
+              type="text"
+              id="inp-custom-term"
+              placeholder="\n\r or \x0D"
+              title="Escape sequences: \n \r \t \0 \xHH"
+              style="display: none"
+            />
             <label><input type="checkbox" id="chk-echo" checked /> Echo</label>
             <label
               ><input type="checkbox" id="chk-hextrigger" /> Break on:

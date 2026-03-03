@@ -21,7 +21,12 @@ function registerEvents() {
 
 function setupEnvironment(data) {
   appEnv = data;
-  applyTheme(data.uiTheme || 'dark', data.customTheme || null);
+  // data.profile is always populated (set in profile.js); data.uiTheme only if
+  // initializePluginManager was called first, so prefer profile as source of truth.
+  var profile = data.profile || {};
+  var theme = data.uiTheme || profile.uiTheme || 'dark';
+  var ct = data.customTheme || profile.customTheme || null;
+  applyTheme(theme, ct);
 }
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
@@ -63,6 +68,7 @@ var state = {
   hexTrigger: false,
   hexTriggerByte: 0x0a,
   lineEnd: 'crlf',
+  customTerm: '',
   maxBufBytes: 102400,
   connectedAt: null,
   autoRefreshId: null,
@@ -96,7 +102,9 @@ var elChkDtr = $('chk-dtr');
 var elChkRts = $('chk-rts');
 
 var elRxOutput = $('rx-output');
+var elRxMulti = $('rx-multi');
 var elTxInput = $('tx-input');
+var elInpCustomTerm = $('inp-custom-term');
 var elBtnRxClear = $('btn-rx-clear');
 var elBtnRxSave = $('btn-rx-save');
 var elBtnTxLoad = $('btn-tx-load');
@@ -165,11 +173,49 @@ function fromDisplay(text, fmt) {
   return new TextEncoder().encode(text);
 }
 
+function parseTerminator(str) {
+  var bytes = [];
+  var i = 0;
+  while (i < str.length) {
+    if (str[i] === '\\' && i + 1 < str.length) {
+      i++;
+      if (str[i] === 'n') {
+        bytes.push(0x0a);
+        i++;
+      } else if (str[i] === 'r') {
+        bytes.push(0x0d);
+        i++;
+      } else if (str[i] === 't') {
+        bytes.push(0x09);
+        i++;
+      } else if (str[i] === '0') {
+        bytes.push(0x00);
+        i++;
+      } else if (str[i] === '\\') {
+        bytes.push(0x5c);
+        i++;
+      } else if (str[i] === 'x' && i + 2 < str.length) {
+        bytes.push(parseInt(str.substr(i + 1, 2), 16) & 0xff);
+        i += 3;
+      } else {
+        bytes.push(str.charCodeAt(i));
+        i++;
+      }
+    } else {
+      bytes.push(str.charCodeAt(i));
+      i++;
+    }
+  }
+  return new Uint8Array(bytes);
+}
+
 function lineEndBytes() {
   var le = state.lineEnd;
   if (le === 'crlf') return new Uint8Array([0x0d, 0x0a]);
   if (le === 'cr') return new Uint8Array([0x0d]);
   if (le === 'lf') return new Uint8Array([0x0a]);
+  if (le === 'tab') return new Uint8Array([0x09]);
+  if (le === 'custom') return parseTerminator(state.customTerm || '');
   return new Uint8Array([]);
 }
 
@@ -199,11 +245,21 @@ function trimRxBuffer() {
   }
 }
 
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function rerenderRx() {
+  if (state.rxFmt === 'multi') {
+    rerenderMulti();
+    return;
+  }
+  elRxMulti.classList.add('hidden');
+  elRxOutput.classList.remove('hidden');
+
   var all = getAllRxBytes();
   var text;
   if (state.hexTrigger) {
-    // Insert newlines at trigger byte boundaries
     var lines = [];
     var cur = [];
     for (var i = 0; i < all.length; i++) {
@@ -224,10 +280,40 @@ function rerenderRx() {
   } else {
     text = toDisplay(all, state.rxFmt);
   }
-  // Add timestamps by re-splitting text at newlines if timestamp enabled
   elRxOutput.value = text;
   if (state.autoScroll) {
     elRxOutput.scrollTop = elRxOutput.scrollHeight;
+  }
+}
+
+function rerenderMulti() {
+  elRxOutput.classList.add('hidden');
+  elRxMulti.classList.remove('hidden');
+
+  var all = getAllRxBytes();
+  var html = '';
+  for (var i = 0; i < all.length; i++) {
+    var b = all[i];
+    var printable = b >= 32 && b < 127;
+    var ascii = printable ? escapeHtml(String.fromCharCode(b)) : '.';
+    var hex = '0x' + b.toString(16).toUpperCase().padStart(2, '0');
+    var bin = '0b' + b.toString(2).padStart(8, '0');
+    html +=
+      '<span class="byte-cell">' +
+      '<span class="bc-ascii">(' +
+      ascii +
+      ')</span>' +
+      '<span class="bc-hex">' +
+      hex +
+      '</span>' +
+      '<span class="bc-bin">' +
+      bin +
+      '</span>' +
+      '</span>';
+  }
+  elRxMulti.innerHTML = html;
+  if (state.autoScroll) {
+    elRxMulti.scrollTop = elRxMulti.scrollHeight;
   }
 }
 
@@ -666,6 +752,7 @@ elBtnRxClear.addEventListener('click', function () {
   state.rxBytes = [];
   state.rxByteCount = 0;
   elRxOutput.value = '';
+  elRxMulti.innerHTML = '';
   updateStatusBar();
 });
 
@@ -693,6 +780,12 @@ elSelHexTrig.addEventListener('change', function () {
 
 elSelLineend.addEventListener('change', function () {
   state.lineEnd = elSelLineend.value;
+  elInpCustomTerm.style.display =
+    state.lineEnd === 'custom' ? 'inline-block' : 'none';
+});
+
+elInpCustomTerm.addEventListener('input', function () {
+  state.customTerm = elInpCustomTerm.value;
 });
 
 elChkFlushEnter.addEventListener('change', function () {

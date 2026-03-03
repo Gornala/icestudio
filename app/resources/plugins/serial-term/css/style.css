@@ -393,6 +393,47 @@ body {
   white-space: pre-wrap;
 }
 
+/* ---- Multi-format byte display ---- */
+#rx-multi {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--st-rx-bg);
+  padding: 6px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 3px;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+}
+
+.byte-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px 5px;
+  border: 1px solid var(--st-border);
+  border-radius: 3px;
+  background: var(--st-bg2);
+  min-width: 72px;
+  line-height: 1.3;
+}
+
+.bc-ascii {
+  color: var(--st-text);
+  font-size: 12px;
+}
+
+.bc-hex {
+  color: var(--st-accent);
+  font-size: 10px;
+}
+
+.bc-bin {
+  color: var(--st-muted);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+
 #tx-input {
   flex: 1;
   resize: none;
@@ -473,6 +514,22 @@ body {
 
 #send-bar-spacer {
   flex: 1;
+}
+
+#inp-custom-term {
+  background: var(--st-input-bg);
+  color: var(--st-text);
+  border: 1px solid var(--st-border);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  width: 90px;
+  outline: none;
+}
+
+#inp-custom-term:focus {
+  border-color: var(--st-accent);
 }
 
 /* ---- Status bar ---- */
