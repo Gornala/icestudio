@@ -86,6 +86,9 @@ window.WaveformViewer = function (containerEl, options) {
     signalCol.appendChild(signalListEl);
     body.appendChild(signalCol);
 
+    var wvHandleLeft = el('div', 'resize-handle resize-handle-v');
+    body.appendChild(wvHandleLeft);
+
     // Canvas column
     canvasCol = el('div', 'wv-canvas-col');
 
@@ -105,6 +108,9 @@ window.WaveformViewer = function (containerEl, options) {
     canvasCol.appendChild(timeAxisCanvas);
 
     body.appendChild(canvasCol);
+
+    var wvHandleRight = el('div', 'resize-handle resize-handle-v');
+    body.appendChild(wvHandleRight);
 
     // Measurement panel — marker info at top (fixed), edge rows below (scrollable)
     var measCol = el('div', 'wv-meas-col');
@@ -145,6 +151,36 @@ window.WaveformViewer = function (containerEl, options) {
     measurementEl.addEventListener('scroll', function () {
       signalListEl.scrollTop = measurementEl.scrollTop;
       render();
+    });
+
+    // Column resize handles
+    _bindWvHandle(wvHandleLeft, signalCol, 1, 80, 500);
+    _bindWvHandle(wvHandleRight, measCol, -1, 100, 500);
+  }
+
+  function _bindWvHandle(handle, targetCol, dir, minW, maxW) {
+    handle.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      handle.classList.add('dragging');
+      var lastX = e.clientX;
+      var onMove = function (ev) {
+        var dx = (ev.clientX - lastX) * dir;
+        lastX = ev.clientX;
+        if (dx === 0) {
+          return;
+        }
+        var newW = Math.max(minW, Math.min(maxW, targetCol.offsetWidth + dx));
+        targetCol.style.width = newW + 'px';
+        self.resize();
+      };
+      var onUp = function () {
+        handle.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
     });
   }
 
