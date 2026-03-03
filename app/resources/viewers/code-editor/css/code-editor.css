@@ -179,9 +179,9 @@ body {
 #panel-claude {
   display: flex;
   flex-direction: column;
-  width: 340px;
+  width: 50%;
   min-width: 280px;
-  max-width: 480px;
+  max-width: 50%;
   flex-shrink: 0;
   border-left: 2px solid var(--ce-accent);
   background: var(--ce-bg);

@@ -12,7 +12,7 @@
 var ClaudePanel = (function () {
   // ---- state ----
   var _settingsFile = null;
-  var _settings = { apiKey: '', model: 'claude-sonnet-4-6', panelWidth: 340 };
+  var _settings = { apiKey: '', model: 'claude-sonnet-4-6', panelWidth: null };
   var _messages = []; // conversation history [{role, content}]
   var _isStreaming = false;
   var _lastErrors = [];
@@ -256,10 +256,13 @@ var ClaudePanel = (function () {
   }
 
   function _applyPanelWidth() {
-    if (_panelEl && _settings.panelWidth) {
-      var w = Math.min(_settings.panelWidth, _maxPanelWidth());
-      _panelEl.style.width = w + 'px';
+    if (!_panelEl) {
+      return;
     }
+    var w = _settings.panelWidth
+      ? Math.min(_settings.panelWidth, _maxPanelWidth())
+      : _maxPanelWidth();
+    _panelEl.style.width = w + 'px';
   }
 
   function _onResizeStart(e) {
