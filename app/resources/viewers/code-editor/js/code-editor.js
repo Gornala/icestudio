@@ -1235,6 +1235,117 @@ function _spawnGTKWave(gtkwave, gtkwaveDir) {
 }
 
 // ============================================================
+// Panel resize handles
+// ============================================================
+function _makeColResizer(handle, onDrag) {
+  handle.addEventListener('mousedown', function (e) {
+    e.preventDefault();
+    handle.classList.add('dragging');
+    var lastX = e.clientX;
+    var onMove = function (ev) {
+      var dx = ev.clientX - lastX;
+      lastX = ev.clientX;
+      if (dx !== 0) {
+        onDrag(dx);
+      }
+    };
+    var onUp = function () {
+      handle.classList.remove('dragging');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function _makeRowResizer(handle, onDrag) {
+  handle.addEventListener('mousedown', function (e) {
+    e.preventDefault();
+    handle.classList.add('dragging');
+    var lastY = e.clientY;
+    var onMove = function (ev) {
+      var dy = ev.clientY - lastY;
+      lastY = ev.clientY;
+      if (dy !== 0) {
+        onDrag(dy);
+      }
+    };
+    var onUp = function () {
+      handle.classList.remove('dragging');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function _initResizeHandles() {
+  var panelsEl = document.getElementById('panels');
+
+  // ---- Formal mode: vertical handle between code and formal output ----
+  if (mode === 'formal') {
+    var formalHandle = document.getElementById('formal-resize-handle');
+    var panelCode = document.getElementById('panel-full-editor');
+    if (formalHandle && panelCode) {
+      _makeColResizer(formalHandle, function (dx) {
+        var currentW = panelCode.offsetWidth;
+        var totalW = panelsEl.offsetWidth;
+        var newW = Math.max(100, Math.min(totalW - 105, currentW + dx));
+        panelCode.style.flex = 'none';
+        panelCode.style.width = newW + 'px';
+      });
+    }
+  }
+
+  // ---- Testbench mode: column and row handles ----
+  if (mode === 'testbench') {
+    var tbHandle1 = document.getElementById('tb-handle-1');
+    var tbHandle2 = document.getElementById('tb-handle-2');
+    var tbHandleWv = document.getElementById('tb-handle-wv');
+
+    var col1W = Math.round(panelsEl.offsetWidth * 0.35);
+    var col5W = Math.round(panelsEl.offsetWidth * 0.25);
+
+    var updateTbCols = function () {
+      var total = panelsEl.offsetWidth;
+      col1W = Math.max(80, Math.min(total - col5W - 100, col1W));
+      col5W = Math.max(80, Math.min(total - col1W - 100, col5W));
+      panelsEl.style.gridTemplateColumns =
+        col1W + 'px 5px 1fr 5px ' + col5W + 'px';
+    };
+
+    if (tbHandle1) {
+      _makeColResizer(tbHandle1, function (dx) {
+        col1W += dx;
+        updateTbCols();
+      });
+    }
+
+    if (tbHandle2) {
+      _makeColResizer(tbHandle2, function (dx) {
+        col5W -= dx;
+        updateTbCols();
+      });
+    }
+
+    var topH = -1;
+    if (tbHandleWv) {
+      _makeRowResizer(tbHandleWv, function (dy) {
+        if (topH < 0) {
+          topH = Math.round(panelsEl.offsetHeight / 2);
+        }
+        topH += dy;
+        var total = panelsEl.offsetHeight;
+        topH = Math.max(60, Math.min(total - 65, topH));
+        panelsEl.style.gridTemplateRows = topH + 'px 5px 1fr';
+      });
+    }
+  }
+}
+
+// ============================================================
 // Init
 // ============================================================
 window.onload = function () {
@@ -1319,6 +1430,9 @@ window.onload = function () {
     DocManager.init();
     ClaudePanel.init(boardInfo, boardPinout, DocManager);
   }
+
+  // Initialize panel resize handles
+  _initResizeHandles();
 
   // Restore last position/size, then track changes
   var win = nw.Window.get();

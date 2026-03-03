@@ -193,27 +193,26 @@ body {
   display: none;
 }
 
-/* ---- Claude panel resize handle ---- */
-#cp-resize-handle {
-  width: 5px;
+/* ---- Shared resize handles ---- */
+.resize-handle {
   flex-shrink: 0;
-  cursor: col-resize;
-  background: var(--ce-border);
   position: relative;
   transition: background 0.12s;
   z-index: 10;
 }
 
-#cp-resize-handle.cp-hidden {
-  display: none;
+/* Vertical (column-split) handle */
+.resize-handle-v {
+  width: 5px;
+  cursor: col-resize;
+  background: var(--ce-border);
 }
-
-#cp-resize-handle:hover,
-#cp-resize-handle.cp-dragging {
+.resize-handle-v:hover,
+.resize-handle-v.dragging,
+.resize-handle-v.cp-dragging {
   background: var(--ce-accent);
 }
-
-#cp-resize-handle::after {
+.resize-handle-v::after {
   content: '\2194'; /* ↔ */
   position: absolute;
   top: 50%;
@@ -230,9 +229,57 @@ body {
   pointer-events: none;
   white-space: nowrap;
 }
-
-#cp-resize-handle:hover::after {
+.resize-handle-v:hover::after {
   opacity: 1;
+}
+
+/* Horizontal (row-split) handle */
+.resize-handle-h {
+  height: 5px;
+  cursor: row-resize;
+  background: var(--ce-border);
+}
+.resize-handle-h:hover,
+.resize-handle-h.dragging {
+  background: var(--ce-accent);
+}
+.resize-handle-h::after {
+  content: '\2195'; /* ↕ */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--ce-accent);
+  color: #fff;
+  border-radius: 10px;
+  padding: 2px 5px;
+  font-size: 11px;
+  line-height: 16px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.resize-handle-h:hover::after {
+  opacity: 1;
+}
+
+/* Claude panel handle: hidden when panel is closed */
+#cp-resize-handle.cp-hidden {
+  display: none;
+}
+
+/* Formal + testbench handles: hidden by default, shown per-mode */
+#formal-resize-handle {
+  display: none;
+}
+#tb-handle-1,
+#tb-handle-2,
+#tb-handle-wv {
+  display: none;
+}
+body.mode-formal #formal-resize-handle {
+  display: block;
 }
 
 /* Active state for toolbar toggle button */
@@ -783,27 +830,41 @@ body.mode-formal #btn-gtkwave {
 /* ---- Mode: testbench (CSS grid: editors top, waveform bottom) ---- */
 body.mode-testbench #panels {
   display: grid;
-  grid-template-columns: 35% 40% 25%;
+  grid-template-columns: 35% 5px 1fr 5px 25%;
   grid-template-rows: 1fr;
 }
 body.mode-testbench #panel-full-editor {
   grid-column: 1;
   grid-row: 1;
 }
-body.mode-testbench #panel-testbench {
+body.mode-testbench #tb-handle-1 {
   grid-column: 2;
   grid-row: 1;
+  display: block;
+}
+body.mode-testbench #panel-testbench {
+  grid-column: 3;
+  grid-row: 1;
+}
+body.mode-testbench #tb-handle-2 {
+  grid-column: 4;
+  grid-row: 1;
+  display: block;
 }
 body.mode-testbench #panel-sim-log {
-  grid-column: 3;
+  grid-column: 5;
   grid-row: 1;
 }
 body.mode-testbench #panel-formal-output {
   display: none;
 }
-body.mode-testbench #panel-waveform {
+body.mode-testbench #tb-handle-wv {
   grid-column: 1 / -1;
   grid-row: 2;
+}
+body.mode-testbench #panel-waveform {
+  grid-column: 1 / -1;
+  grid-row: 3;
   display: none;
   border-top: 2px solid var(--ce-accent);
   border-right: none;
@@ -813,7 +874,10 @@ body.mode-testbench #panel-waveform.visible {
   display: flex;
 }
 body.mode-testbench.waveform-open #panels {
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: 1fr 5px 1fr;
+}
+body.mode-testbench.waveform-open #tb-handle-wv {
+  display: block;
 }
 body.mode-testbench #btn-verify {
   display: none;

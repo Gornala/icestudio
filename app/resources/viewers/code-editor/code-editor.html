@@ -45,6 +45,12 @@
           <div id="ace-code" class="ace-container"></div>
         </div>
 
+        <!-- Formal mode: resize handle between code and formal output -->
+        <div
+          id="formal-resize-handle"
+          class="resize-handle resize-handle-v"
+        ></div>
+
         <!-- Mode: formal — right markdown panel -->
         <div id="panel-formal-output" class="panel">
           <div class="panel-label">Formal Verification Report</div>
@@ -72,10 +78,19 @@
           <div class="panel-label">Waveform Viewer</div>
           <div id="waveform-viewer"></div>
         </div>
+
+        <!-- Testbench mode: column resize handles -->
+        <div id="tb-handle-1" class="resize-handle resize-handle-v"></div>
+        <div id="tb-handle-2" class="resize-handle resize-handle-v"></div>
+        <!-- Testbench mode: horizontal resize handle above waveform -->
+        <div id="tb-handle-wv" class="resize-handle resize-handle-h"></div>
       </div>
 
       <!-- Drag handle to resize Claude panel (hidden when panel is closed) -->
-      <div id="cp-resize-handle" class="cp-hidden"></div>
+      <div
+        id="cp-resize-handle"
+        class="resize-handle resize-handle-v cp-hidden"
+      ></div>
 
       <!-- Claude AI Panel (hidden by default, toggled via toolbar button) -->
       <div id="panel-claude" class="cp-hidden">
