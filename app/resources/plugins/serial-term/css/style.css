@@ -65,7 +65,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--st-muted);
+  color: var(--st-text);
   border-bottom: 1px solid var(--st-border);
   background: var(--st-bg);
 }
@@ -157,7 +157,7 @@ body {
 
 .settings-row label {
   font-size: 11px;
-  color: var(--st-muted);
+  color: var(--st-text);
   width: 68px;
   flex-shrink: 0;
 }
@@ -223,7 +223,7 @@ body {
 
 .st-btn-primary {
   background: var(--st-accent);
-  color: #000;
+  color: #fff;
   border-color: var(--st-accent);
 }
 .st-btn-primary:hover {
@@ -232,7 +232,7 @@ body {
 
 .st-btn-danger {
   background: var(--st-red);
-  color: #000;
+  color: #fff;
   border-color: var(--st-red);
 }
 .st-btn-danger:hover {
@@ -249,7 +249,7 @@ body {
 
 .st-btn.active {
   background: var(--st-accent);
-  color: #000;
+  color: #fff;
   border-color: var(--st-accent);
 }
 
@@ -323,7 +323,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--st-muted);
+  color: var(--st-text);
   margin-right: 4px;
 }
 
@@ -337,7 +337,7 @@ body {
   border-radius: 3px;
   border: 1px solid var(--st-border);
   background: transparent;
-  color: var(--st-muted);
+  color: var(--st-text);
   cursor: pointer;
   font-size: 10px;
   font-family: 'Cascadia Code', 'Consolas', monospace;
@@ -350,7 +350,7 @@ body {
 }
 .fmt-btn.active {
   background: var(--st-accent);
-  color: #000;
+  color: #fff;
   border-color: var(--st-accent);
 }
 
@@ -479,7 +479,7 @@ body {
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: var(--st-muted);
+  color: var(--st-text);
   white-space: nowrap;
 }
 
@@ -523,7 +523,7 @@ body {
   background: var(--st-bg);
   border-top: 1px solid var(--st-border);
   font-size: 11px;
-  color: var(--st-muted);
+  color: var(--st-text);
   flex-shrink: 0;
 }
 
