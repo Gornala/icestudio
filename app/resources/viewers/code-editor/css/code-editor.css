@@ -702,6 +702,12 @@ body {
   min-height: 14px;
 }
 
+.cp-test-key-btn {
+  margin-top: 6px;
+  font-size: 11px;
+  padding: 3px 10px;
+}
+
 /* ---- Mode: full ---- */
 body.mode-full #panel-full-editor {
   flex: 1;

@@ -159,6 +159,11 @@ var ClaudePanel = (function () {
     document
       .getElementById('cp-settings-save')
       .addEventListener('click', _saveSettingsFromForm);
+    var testKeyBtn = document.getElementById('cp-test-key-btn');
+    if (testKeyBtn) {
+      testKeyBtn.addEventListener('click', _testApiKey);
+    }
+
     document
       .getElementById('cp-settings-key')
       .addEventListener('input', function () {
@@ -229,6 +234,89 @@ var ClaudePanel = (function () {
     _saveSettings();
     _hideSettings();
     _appendSystemMsg('Settings saved.');
+  }
+
+  function _testApiKey() {
+    var keyInput = document.getElementById('cp-settings-key');
+    var status = document.getElementById('cp-key-status');
+    var testBtn = document.getElementById('cp-test-key-btn');
+    var key = (keyInput ? keyInput.value : '').trim();
+
+    if (!key) {
+      if (status) {
+        status.textContent = 'Enter a key first.';
+        status.style.color = 'var(--ce-muted)';
+      }
+      return;
+    }
+
+    if (status) {
+      status.textContent = 'Testing…';
+      status.style.color = 'var(--ce-muted)';
+    }
+    if (testBtn) {
+      testBtn.disabled = true;
+    }
+
+    var https = require('https');
+    var body = JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 5,
+      messages: [{ role: 'user', content: 'Hi' }],
+    });
+
+    var options = {
+      hostname: 'api.anthropic.com',
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+
+    var req = https.request(options, function (res) {
+      var data = '';
+      res.on('data', function (chunk) {
+        data += chunk.toString();
+      });
+      res.on('end', function () {
+        if (testBtn) {
+          testBtn.disabled = false;
+        }
+        if (res.statusCode === 200) {
+          if (status) {
+            status.textContent = '✓ Connection OK — key is valid!';
+            status.style.color = 'var(--ce-ok-text)';
+          }
+        } else {
+          var msg = 'HTTP ' + res.statusCode;
+          try {
+            var parsed = JSON.parse(data);
+            msg = (parsed.error && parsed.error.message) || msg;
+          } catch (e) {}
+          if (status) {
+            status.textContent = '✗ ' + msg;
+            status.style.color = '#e57373';
+          }
+        }
+      });
+    });
+
+    req.on('error', function (e) {
+      if (testBtn) {
+        testBtn.disabled = false;
+      }
+      if (status) {
+        status.textContent = '✗ Network error: ' + e.message;
+        status.style.color = '#e57373';
+      }
+    });
+
+    req.write(body);
+    req.end();
   }
 
   // ============================================================
@@ -504,6 +592,26 @@ var ClaudePanel = (function () {
     var done = false;
 
     var req = https.request(options, function (res) {
+      // Non-200: body is plain JSON error, not SSE
+      if (res.statusCode !== 200) {
+        var errData = '';
+        res.on('data', function (chunk) {
+          errData += chunk.toString();
+        });
+        res.on('end', function () {
+          if (!done) {
+            done = true;
+            var msg = 'HTTP ' + res.statusCode;
+            try {
+              var parsed = JSON.parse(errData);
+              msg = (parsed.error && parsed.error.message) || msg;
+            } catch (e) {}
+            onError(new Error(msg));
+          }
+        });
+        return;
+      }
+
       var buf = '';
 
       res.on('data', function (chunk) {
