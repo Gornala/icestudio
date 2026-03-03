@@ -854,6 +854,16 @@ body.mode-formal #btn-run-sim,
 body.mode-formal #btn-gtkwave {
   display: none;
 }
+/* Panels fill the handle gap — handle renders on top (z-index 10) */
+body.mode-formal .panel {
+  border-right: none;
+}
+body.mode-formal #panel-full-editor {
+  margin-right: -4px;
+}
+body.mode-formal #panel-formal-output {
+  margin-left: -4px;
+}
 
 /* ---- Mode: testbench (CSS grid: editors top, waveform bottom) ---- */
 body.mode-testbench #panels {
@@ -894,7 +904,7 @@ body.mode-testbench #panel-waveform {
   grid-column: 1 / -1;
   grid-row: 3;
   display: none;
-  border-top: 2px solid var(--ce-accent);
+  border-top: none;
   border-right: none;
   min-height: 0;
 }
@@ -909,6 +919,31 @@ body.mode-testbench.waveform-open #tb-handle-wv {
 }
 body.mode-testbench #btn-verify {
   display: none;
+}
+/* Panels fill the handle gaps — handles render on top (z-index 10) */
+body.mode-testbench .panel {
+  border-right: none;
+}
+body.mode-testbench #panel-full-editor {
+  margin-right: -4px;
+}
+body.mode-testbench #panel-testbench {
+  margin-left: -4px;
+  margin-right: -4px;
+}
+body.mode-testbench #panel-sim-log {
+  margin-left: -4px;
+}
+/* Extend row-1 items into waveform handle row */
+body.mode-testbench.waveform-open #panel-full-editor,
+body.mode-testbench.waveform-open #panel-testbench,
+body.mode-testbench.waveform-open #panel-sim-log,
+body.mode-testbench.waveform-open #tb-handle-1,
+body.mode-testbench.waveform-open #tb-handle-2 {
+  margin-bottom: -4px;
+}
+body.mode-testbench.waveform-open #panel-waveform {
+  margin-top: -4px;
 }
 /* Hide waveform panel in non-testbench modes */
 body.mode-full #panel-waveform,
@@ -1015,9 +1050,9 @@ body.mode-formal #panel-waveform {
   width: 180px;
   min-width: 120px;
   flex-shrink: 0;
-  border-right: 1px solid var(--ce-border);
   background: var(--ce-bg);
   overflow: hidden;
+  margin-right: -4px;
 }
 .wv-signal-spacer {
   background: var(--ce-bg);
@@ -1174,6 +1209,8 @@ body.mode-formal #panel-waveform {
   flex-direction: column;
   flex: 1;
   overflow: hidden;
+  margin-left: -4px;
+  margin-right: -4px;
 }
 .wv-canvas-col canvas {
   display: block;
@@ -1310,9 +1347,9 @@ canvas.wv-timeaxis {
   width: 200px;
   min-width: 140px;
   flex-shrink: 0;
-  border-left: 1px solid var(--ce-border);
   background: var(--ce-bg);
   overflow: hidden;
+  margin-left: -4px;
 }
 .wv-measurement {
   flex: 1;
