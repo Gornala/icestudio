@@ -136,7 +136,7 @@ body {
 
 #port-empty {
   padding: 10px;
-  color: var(--st-muted);
+  color: var(--st-text);
   font-size: 11px;
   text-align: center;
 }

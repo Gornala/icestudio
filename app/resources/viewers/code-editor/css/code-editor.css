@@ -341,7 +341,7 @@ body.mode-formal #formal-resize-handle {
 
 .cp-context-bar {
   font-size: 10px;
-  color: var(--ce-muted);
+  color: var(--ce-text);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -546,7 +546,7 @@ body.mode-formal #formal-resize-handle {
 .cp-msg-system {
   background: var(--ce-toolbar);
   border: 1px dashed var(--ce-border);
-  color: var(--ce-muted);
+  color: var(--ce-text);
   font-size: 11px;
   text-align: center;
   align-self: stretch;
