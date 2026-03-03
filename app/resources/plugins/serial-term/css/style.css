@@ -1,39 +1,20 @@
-/* Serial Terminal — theme-aware CSS variables */
+/* Serial Terminal — aliases to shared --app-* variables (set by shared/theme.js) */
 :root {
-  --st-bg: #1e1e2e;
-  --st-bg2: #2a2a3d;
-  --st-sidebar: #252535;
-  --st-text: #cdd6f4;
-  --st-muted: #6c7086;
-  --st-border: #45475a;
-  --st-accent: #89b4fa;
-  --st-green: #a6e3a1;
-  --st-red: #f38ba8;
-  --st-yellow: #f9e2af;
-  --st-rx-bg: #1a1a2a;
-  --st-tx-bg: #1e2a1e;
-  --st-input-bg: #2a2a3d;
-  --st-btn-bg: #313244;
-  --st-btn-hover: #45475a;
-}
-
-/* ---- Light theme overrides ---- */
-body.theme-light {
-  --st-bg: #f5f6f7;
-  --st-bg2: #ffffff;
-  --st-sidebar: #e8e9eb;
-  --st-text: #2c2c3a;
-  --st-muted: #7f8096;
-  --st-border: #c8c9d0;
-  --st-accent: #3b82f6;
-  --st-green: #16a34a;
-  --st-red: #dc2626;
-  --st-yellow: #d97706;
-  --st-rx-bg: #f0f4ff;
-  --st-tx-bg: #f0fff4;
-  --st-input-bg: #ffffff;
-  --st-btn-bg: #e2e4e9;
-  --st-btn-hover: #d0d2d9;
+  --st-bg: var(--app-bg);
+  --st-bg2: var(--app-bg2);
+  --st-sidebar: var(--app-sidebar);
+  --st-text: var(--app-text);
+  --st-muted: var(--app-muted);
+  --st-border: var(--app-border);
+  --st-accent: var(--app-accent);
+  --st-green: var(--app-success);
+  --st-red: var(--app-danger);
+  --st-yellow: var(--app-warning);
+  --st-rx-bg: var(--app-bg);
+  --st-tx-bg: var(--app-bg2);
+  --st-input-bg: var(--app-input-bg);
+  --st-btn-bg: var(--app-btn-bg);
+  --st-btn-hover: var(--app-btn-hover);
 }
 
 /* ---- Reset / Base ---- */

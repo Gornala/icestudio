@@ -2,21 +2,21 @@
    Code Editor Viewer — CSS
    ============================================================ */
 
-/* ---- CSS Variables (light defaults) ---- */
+/* ---- CSS Variables — aliases to shared --app-* (set by shared/theme.js) ---- */
 :root {
-  --ce-bg: #f5f6f7;
-  --ce-bg2: #ffffff;
-  --ce-toolbar: #e8eaec;
-  --ce-border: #d5dadd;
-  --ce-text: #333333;
-  --ce-muted: #888888;
-  --ce-accent: #63afcf;
-  --ce-accent-hover: #4a9bbf;
-  --ce-error-bg: #fde8e8;
-  --ce-error-text: #c0392b;
-  --ce-ok-bg: #e8f8e8;
-  --ce-ok-text: #27ae60;
-  --ce-panel-label: #63afcf;
+  --ce-bg: var(--app-bg);
+  --ce-bg2: var(--app-bg2);
+  --ce-toolbar: var(--app-sidebar);
+  --ce-border: var(--app-border);
+  --ce-text: var(--app-text);
+  --ce-muted: var(--app-muted);
+  --ce-accent: var(--app-accent);
+  --ce-accent-hover: var(--app-accent-hover);
+  --ce-error-bg: var(--app-err-bg);
+  --ce-error-text: var(--app-err-text);
+  --ce-ok-bg: var(--app-ok-bg);
+  --ce-ok-text: var(--app-ok-text);
+  --ce-panel-label: var(--app-accent);
 }
 
 /* ---- Base ---- */

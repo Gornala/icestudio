@@ -36,7 +36,6 @@ var icestudioAllBoards = []; // [{family, name, label, dir}] — all boards from
 // Initialization
 // ============================================================
 window.onload = function () {
-  applyTheme();
   loadApioResources();
   loadCustomBoards();
   loadIcestudioBoards();
@@ -45,92 +44,7 @@ window.onload = function () {
   renderBoardList();
 };
 
-// ============================================================
-// Apply theme via CSS variable overrides
-// ============================================================
-function applyTheme() {
-  var theme = config.theme || 'light';
-  var customTheme = config.customTheme || null;
-  var css = '';
-
-  if (theme === 'dark') {
-    css =
-      ':root {' +
-      '--cb-bg: #2e2e2e;' +
-      '--cb-bg2: #3a3a3a;' +
-      '--cb-sidebar: #252525;' +
-      '--cb-border: #555;' +
-      '--cb-text: #ddd;' +
-      '--cb-text-label: #bbb;' +
-      '--cb-muted: #999;' +
-      '--cb-accent: #63afcf;' +
-      '--cb-accent-hover: #4a9bbf;' +
-      '--cb-hover: #3d3d3d;' +
-      '--cb-active: #2a4a5a;' +
-      '--cb-sub-bg: #1e3a4a;' +
-      '--cb-sub-border: #2a5a7a;' +
-      '--cb-ok-bg: #1e3d0a;' +
-      '--cb-ok-border: #3a6a1a;' +
-      '--cb-ok-text: #a0e060;' +
-      '--cb-err-bg: #3d1a1a;' +
-      '--cb-err-border: #7a2020;' +
-      '--cb-err-text: #e08080;' +
-      '--cb-step-bg: #2a2a2a;' +
-      '--cb-nav-bg: #2a2a2a;' +
-      '--cb-input-bg: #3a3a3a;' +
-      '--cb-preview-bg: #3a3a3a;' +
-      '}';
-  } else if (theme === 'custom' && customTheme) {
-    css =
-      ':root {' +
-      '--cb-bg: ' +
-      customTheme.bg +
-      ';' +
-      '--cb-bg2: ' +
-      (customTheme.bg2 || customTheme.bg) +
-      ';' +
-      '--cb-sidebar: ' +
-      (customTheme.sidebar || customTheme.bg) +
-      ';' +
-      '--cb-border: ' +
-      customTheme.border +
-      ';' +
-      '--cb-text: ' +
-      customTheme.text +
-      ';' +
-      '--cb-text-label: ' +
-      customTheme.text +
-      ';' +
-      '--cb-muted: ' +
-      customTheme.text +
-      ';' +
-      '--cb-accent: ' +
-      customTheme.accent +
-      ';' +
-      '--cb-accent-hover: ' +
-      customTheme.accent +
-      ';' +
-      '--cb-input-bg: ' +
-      (customTheme.bg2 || customTheme.bg) +
-      ';' +
-      '--cb-preview-bg: ' +
-      (customTheme.bg2 || customTheme.bg) +
-      ';' +
-      '--cb-step-bg: ' +
-      customTheme.bg +
-      ';' +
-      '--cb-nav-bg: ' +
-      customTheme.bg +
-      ';' +
-      '}';
-  }
-
-  if (css) {
-    var style = document.createElement('style');
-    style.textContent = css;
-    document.head.appendChild(style);
-  }
-}
+// Theme is handled by shared/theme.js (loaded in custom-board.html)
 
 // ============================================================
 // Load apio data for comboboxes

@@ -12,8 +12,7 @@ var config = JSON.parse(decodeURIComponent(urlParams.get('config')));
 
 var mode = config.mode || 'full';
 var blockId = config.blockId;
-var theme = config.theme || 'light';
-var customTheme = config.customTheme || null;
+var theme = config.theme || 'light'; // used for ACE editor highlight theme (monokai/chrome)
 var buildDir = config.buildDir || '';
 var blockDir = config.blockDir || '';
 var toolchainBinDir = config.toolchainBinDir || '';
@@ -138,57 +137,22 @@ function _scheduleGeoSave(win) {
 }
 
 // ============================================================
-// Apply theme CSS variables
+// Apply theme — CSS vars handled by shared/theme.js loaded in HTML.
+// This function only switches the ACE editor syntax-highlight theme.
 // ============================================================
-function applyTheme() {
-  var style = document.createElement('style');
-  if (theme === 'dark') {
-    style.textContent =
-      ':root {' +
-      '--ce-bg: #2e2e2e;' +
-      '--ce-bg2: #3a3a3a;' +
-      '--ce-toolbar: #252525;' +
-      '--ce-border: #555;' +
-      '--ce-text: #ddd;' +
-      '--ce-muted: #999;' +
-      '--ce-accent: #63afcf;' +
-      '--ce-accent-hover: #4a9bbf;' +
-      '--ce-error-bg: #3d1010;' +
-      '--ce-error-text: #e07070;' +
-      '--ce-ok-bg: #1a3d1a;' +
-      '--ce-ok-text: #70c070;' +
-      '--ce-panel-label: #63afcf;' +
-      '}';
-  } else if (theme === 'custom' && customTheme) {
-    style.textContent =
-      ':root {' +
-      '--ce-bg: ' +
-      customTheme.bg +
-      ';' +
-      '--ce-bg2: ' +
-      (customTheme.bg2 || customTheme.bg) +
-      ';' +
-      '--ce-toolbar: ' +
-      (customTheme.sidebar || customTheme.bg) +
-      ';' +
-      '--ce-border: ' +
-      customTheme.border +
-      ';' +
-      '--ce-text: ' +
-      customTheme.text +
-      ';' +
-      '--ce-accent: ' +
-      customTheme.accent +
-      ';' +
-      '--ce-accent-hover: ' +
-      customTheme.accent +
-      ';' +
-      '}';
+function applyAceTheme(themeVal) {
+  var aceThemeStr =
+    themeVal === 'dark' ? 'ace/theme/monokai' : 'ace/theme/chrome';
+  if (codeEditor) {
+    codeEditor.setTheme(aceThemeStr);
   }
-  if (style.textContent) {
-    document.head.appendChild(style);
+  if (testbenchEditor) {
+    testbenchEditor.setTheme(aceThemeStr);
   }
 }
+
+// Keep applyTheme as a no-op alias so the window.onload call below still works
+var applyTheme = function () {};
 
 // ============================================================
 // Ace editors
@@ -197,10 +161,10 @@ var codeEditor = null;
 var testbenchEditor = null;
 
 function initAceEditors() {
-  var aceTheme = theme === 'dark' ? 'ace/theme/monokai' : 'ace/theme/chrome';
-
   codeEditor = ace.edit('ace-code');
-  codeEditor.setTheme(aceTheme);
+  codeEditor.setTheme(
+    theme === 'dark' ? 'ace/theme/monokai' : 'ace/theme/chrome'
+  );
   codeEditor.session.setMode('ace/mode/verilog');
   codeEditor.setHighlightActiveLine(true);
   codeEditor.session.setValue(config.code || '');
@@ -213,7 +177,9 @@ function initAceEditors() {
 
   if (mode === 'testbench') {
     testbenchEditor = ace.edit('ace-testbench');
-    testbenchEditor.setTheme(aceTheme);
+    testbenchEditor.setTheme(
+      theme === 'dark' ? 'ace/theme/monokai' : 'ace/theme/chrome'
+    );
     testbenchEditor.session.setMode('ace/mode/verilog');
     testbenchEditor.setHighlightActiveLine(true);
     testbenchEditor.$blockScrolling = Infinity;
@@ -1375,6 +1341,11 @@ window.onload = function () {
     titles[mode] || 'Code Editor';
 
   initAceEditors();
+
+  // Keep ACE syntax-highlight theme in sync with live theme changes from shared/theme.js
+  if (window.AppTheme) {
+    window.AppTheme.onChange(applyAceTheme);
+  }
 
   // Wire up buttons
   document.getElementById('btn-load').addEventListener('click', loadCode);

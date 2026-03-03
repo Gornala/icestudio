@@ -1,10 +1,11 @@
 'use strict';
 
 // ─── Node.js modules (available in NW.js) ────────────────────────────────────
+// nodePath is NOT needed here (used in shared/theme.js which is loaded first)
 var nodeFs = require('fs');
-var nodePath = require('path');
 
 // ─── Plugin boilerplate ──────────────────────────────────────────────────────
+// Theme is handled by shared/theme.js (loaded before this script in index.html)
 var pluginUUID = 'serialTermV2UUID';
 var appEnv = null;
 
@@ -25,66 +26,7 @@ function registerEvents() {
 
 function setupEnvironment(data) {
   appEnv = data;
-  // Always read from disk — the event bus has race conditions and theme changes
-  // in menu.js don't trigger updateEnv on open plugin windows.
-  readAndApplyTheme();
-}
-
-// ─── Theme ───────────────────────────────────────────────────────────────────
-var ST_CUSTOM_PROPS = [
-  '--st-bg',
-  '--st-bg2',
-  '--st-sidebar',
-  '--st-text',
-  '--st-muted',
-  '--st-border',
-  '--st-accent',
-  '--st-input-bg',
-  '--st-btn-bg',
-  '--st-btn-hover',
-  '--st-rx-bg',
-  '--st-tx-bg',
-];
-
-function applyTheme(theme, ct) {
-  var root = document.documentElement;
-  // Always clear previously-applied inline custom props so switching themes is clean
-  ST_CUSTOM_PROPS.forEach(function (p) {
-    root.style.removeProperty(p);
-  });
-  document.body.classList.remove('theme-light');
-
-  if (theme === 'light') {
-    document.body.classList.add('theme-light');
-  } else if (theme === 'custom' && ct) {
-    if (ct.bg) root.style.setProperty('--st-bg', ct.bg);
-    if (ct.bg2) root.style.setProperty('--st-bg2', ct.bg2);
-    if (ct.text) root.style.setProperty('--st-text', ct.text);
-    if (ct.border) root.style.setProperty('--st-border', ct.border);
-    if (ct.sidebar) root.style.setProperty('--st-sidebar', ct.sidebar);
-    if (ct.accent) root.style.setProperty('--st-accent', ct.accent);
-    // derive panel backgrounds from bg2 when available
-    var panelBg = ct.bg2 || ct.bg;
-    if (panelBg) {
-      root.style.setProperty('--st-input-bg', panelBg);
-      root.style.setProperty('--st-rx-bg', panelBg);
-      root.style.setProperty('--st-tx-bg', panelBg);
-      root.style.setProperty('--st-btn-bg', panelBg);
-    }
-  }
-  // dark is the CSS :root default — no inline styles needed
-}
-
-// Read profile.json directly from disk and apply theme — bypasses event timing
-// issues and theme-change notification gaps in menu.js.
-function readAndApplyTheme() {
-  try {
-    var profilePath = nodePath.join(nw.App.dataPath, 'profile.json');
-    var pd = JSON.parse(nodeFs.readFileSync(profilePath, 'utf8'));
-    applyTheme(pd.uiTheme || 'dark', pd.customTheme || null);
-  } catch (e) {
-    // If profile can't be read, leave CSS defaults (dark) in place
-  }
+  // Theme is managed by shared/theme.js; no per-window theme code needed here.
 }
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -913,21 +855,4 @@ function loadSettings() {
 loadSettings();
 refreshPorts();
 registerEvents();
-
-// Apply theme immediately from disk (bypasses pluginManager.env race condition)
-readAndApplyTheme();
-
-// Watch profile.json for live theme changes while the terminal is open.
-// persistent:false means this watcher won't keep Node alive unnecessarily.
-(function () {
-  try {
-    var watchPath = nodePath.join(nw.App.dataPath, 'profile.json');
-    nodeFs.watchFile(
-      watchPath,
-      { interval: 800, persistent: false },
-      function () {
-        readAndApplyTheme();
-      }
-    );
-  } catch (e) {}
-})();
+// Theme is applied by shared/theme.js which runs before this script.

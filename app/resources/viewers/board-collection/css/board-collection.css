@@ -2,20 +2,21 @@
    Board Collection — styles using CSS variables for theming
    ============================================================ */
 
+/* Aliases to shared --app-* variables (set by shared/theme.js) */
 :root {
-  --cb-bg: #f5f6f7;
-  --cb-bg2: #fff;
-  --cb-sidebar: #f5f6f7;
-  --cb-border: #d5dadd;
-  --cb-text: #333;
-  --cb-muted: #888;
-  --cb-accent: #63afcf;
-  --cb-accent-hover: #4a9bbf;
-  --cb-hover: #e8ecef;
-  --cb-active: #d8eef8;
-  --cb-ok-bg: #d4ffad;
-  --cb-ok-border: #a9cc8a;
-  --cb-ok-text: #2d5a1b;
+  --cb-bg: var(--app-bg);
+  --cb-bg2: var(--app-bg2);
+  --cb-sidebar: var(--app-sidebar);
+  --cb-border: var(--app-border);
+  --cb-text: var(--app-text);
+  --cb-muted: var(--app-muted);
+  --cb-accent: var(--app-accent);
+  --cb-accent-hover: var(--app-accent-hover);
+  --cb-hover: var(--app-btn-hover);
+  --cb-active: var(--app-active);
+  --cb-ok-bg: var(--app-ok-bg);
+  --cb-ok-border: var(--app-border);
+  --cb-ok-text: var(--app-ok-text);
 }
 
 * {

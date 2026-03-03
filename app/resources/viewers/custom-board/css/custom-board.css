@@ -1,32 +1,32 @@
 /* ============================================================
-   Custom Board Manager — CSS variables for theming
-   Light defaults; dark/custom overridden via JS-injected <style>
+   Custom Board Manager — aliases to shared --app-* variables
+   set by shared/theme.js; no per-window JS overrides needed.
    ============================================================ */
 
 :root {
-  --cb-bg: #f5f6f7;
-  --cb-bg2: #fff;
-  --cb-sidebar: #f5f6f7;
-  --cb-border: #d5dadd;
-  --cb-text: #333;
-  --cb-text-label: #555;
-  --cb-muted: #888;
-  --cb-accent: #63afcf;
-  --cb-accent-hover: #4a9bbf;
-  --cb-hover: #e8ecef;
-  --cb-active: #d8eef8;
-  --cb-sub-bg: #edf6fb;
-  --cb-sub-border: #b3d9ed;
-  --cb-ok-bg: #d4ffad;
-  --cb-ok-border: #a9cc8a;
-  --cb-ok-text: #2d5a1b;
-  --cb-err-bg: #ffb3b6;
-  --cb-err-border: #ff8084;
-  --cb-err-text: #5a1b1b;
-  --cb-step-bg: #fff;
-  --cb-nav-bg: #fff;
-  --cb-input-bg: #fff;
-  --cb-preview-bg: #fff;
+  --cb-bg: var(--app-bg);
+  --cb-bg2: var(--app-bg2);
+  --cb-sidebar: var(--app-sidebar);
+  --cb-border: var(--app-border);
+  --cb-text: var(--app-text);
+  --cb-text-label: var(--app-muted);
+  --cb-muted: var(--app-muted);
+  --cb-accent: var(--app-accent);
+  --cb-accent-hover: var(--app-accent-hover);
+  --cb-hover: var(--app-btn-hover);
+  --cb-active: var(--app-active);
+  --cb-sub-bg: var(--app-bg2);
+  --cb-sub-border: var(--app-border);
+  --cb-ok-bg: var(--app-ok-bg);
+  --cb-ok-border: var(--app-border);
+  --cb-ok-text: var(--app-ok-text);
+  --cb-err-bg: var(--app-err-bg);
+  --cb-err-border: var(--app-border);
+  --cb-err-text: var(--app-err-text);
+  --cb-step-bg: var(--app-bg2);
+  --cb-nav-bg: var(--app-sidebar);
+  --cb-input-bg: var(--app-input-bg);
+  --cb-preview-bg: var(--app-bg2);
 }
 
 * {

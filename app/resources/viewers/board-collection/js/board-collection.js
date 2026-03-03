@@ -13,61 +13,7 @@ var icestudioMenuJsonPath = config.icestudioMenuJson;
 var icestudioBoardsDir = config.icestudioBoardsDir;
 var profilePath = config.profilePath;
 var ownedBoards = config.ownedBoards || []; // array of board names currently owned
-var theme = config.theme || 'light';
-var customTheme = config.customTheme || null;
-
-// ============================================================
-// Apply theme CSS variables
-// ============================================================
-function applyTheme() {
-  var style = document.createElement('style');
-  if (theme === 'dark') {
-    style.textContent =
-      ':root {' +
-      '--cb-bg: #2e2e2e;' +
-      '--cb-bg2: #3a3a3a;' +
-      '--cb-sidebar: #252525;' +
-      '--cb-border: #555;' +
-      '--cb-text: #ddd;' +
-      '--cb-muted: #999;' +
-      '--cb-accent: #63afcf;' +
-      '--cb-accent-hover: #4a9bbf;' +
-      '--cb-hover: #3d3d3d;' +
-      '--cb-active: #2a4a5a;' +
-      '--cb-ok-bg: #1e3d0a;' +
-      '--cb-ok-border: #3a6a1a;' +
-      '--cb-ok-text: #a0e060;' +
-      '}';
-  } else if (theme === 'custom' && customTheme) {
-    style.textContent =
-      ':root {' +
-      '--cb-bg: ' +
-      customTheme.bg +
-      ';' +
-      '--cb-bg2: ' +
-      customTheme.bg2 +
-      ';' +
-      '--cb-sidebar: ' +
-      (customTheme.sidebar || customTheme.bg) +
-      ';' +
-      '--cb-border: ' +
-      customTheme.border +
-      ';' +
-      '--cb-text: ' +
-      customTheme.text +
-      ';' +
-      '--cb-accent: ' +
-      customTheme.accent +
-      ';' +
-      '--cb-accent-hover: ' +
-      customTheme.accent +
-      ';' +
-      '}';
-  }
-  if (style.textContent) {
-    document.head.appendChild(style);
-  }
-}
+// Theme is handled by shared/theme.js (loaded in board-collection.html)
 
 // ============================================================
 // Load and render board list
@@ -247,7 +193,6 @@ function showStatus(msg, type) {
 // Init
 // ============================================================
 window.onload = function () {
-  applyTheme();
   loadBoards();
   renderBoardList();
 
