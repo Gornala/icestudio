@@ -4,29 +4,29 @@
    ============================================================ */
 
 :root {
-  --cb-bg: var(--app-bg);
-  --cb-bg2: var(--app-bg2);
-  --cb-sidebar: var(--app-sidebar);
-  --cb-border: var(--app-border);
-  --cb-text: var(--app-text);
-  --cb-text-label: var(--app-muted);
-  --cb-muted: var(--app-muted);
-  --cb-accent: var(--app-accent);
-  --cb-accent-hover: var(--app-accent-hover);
-  --cb-hover: var(--app-btn-hover);
-  --cb-active: var(--app-active);
-  --cb-sub-bg: var(--app-bg2);
-  --cb-sub-border: var(--app-border);
-  --cb-ok-bg: var(--app-ok-bg);
-  --cb-ok-border: var(--app-border);
-  --cb-ok-text: var(--app-ok-text);
-  --cb-err-bg: var(--app-err-bg);
-  --cb-err-border: var(--app-border);
-  --cb-err-text: var(--app-err-text);
-  --cb-step-bg: var(--app-bg2);
-  --cb-nav-bg: var(--app-sidebar);
-  --cb-input-bg: var(--app-input-bg);
-  --cb-preview-bg: var(--app-bg2);
+  --cb-bg: var(--app-bg, #2e2e2e);
+  --cb-bg2: var(--app-bg2, #3a3a3a);
+  --cb-sidebar: var(--app-sidebar, #252525);
+  --cb-border: var(--app-border, #555555);
+  --cb-text: var(--app-text, #dddddd);
+  --cb-text-label: var(--app-muted, #999999);
+  --cb-muted: var(--app-muted, #999999);
+  --cb-accent: var(--app-accent, #63afcf);
+  --cb-accent-hover: var(--app-accent-hover, #4a9bbf);
+  --cb-hover: var(--app-btn-hover, #4a4a4a);
+  --cb-active: var(--app-active, #2a4a5a);
+  --cb-sub-bg: var(--app-bg2, #3a3a3a);
+  --cb-sub-border: var(--app-border, #555555);
+  --cb-ok-bg: var(--app-ok-bg, #1e3d0a);
+  --cb-ok-border: var(--app-border, #555555);
+  --cb-ok-text: var(--app-ok-text, #a0e060);
+  --cb-err-bg: var(--app-err-bg, #3d1010);
+  --cb-err-border: var(--app-border, #555555);
+  --cb-err-text: var(--app-err-text, #e07070);
+  --cb-step-bg: var(--app-bg2, #3a3a3a);
+  --cb-nav-bg: var(--app-sidebar, #252525);
+  --cb-input-bg: var(--app-input-bg, #3a3a3a);
+  --cb-preview-bg: var(--app-bg2, #3a3a3a);
 }
 
 * {

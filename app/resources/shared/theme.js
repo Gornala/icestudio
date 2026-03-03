@@ -118,11 +118,20 @@
     }
   }
 
+  // ── Profile path (mirrors common.js logic) ──────────────────────────────────
+  var _icestudioHome =
+    process.platform === 'win32' && process.arch === 'ia32'
+      ? 'icestudio_home'
+      : '.icestudio';
+  var _baseDir = process.env.HOME || process.env.USERPROFILE;
+  var _icestudioDir =
+    process.env.ICESTUDIO_DIR || nodePath.join(_baseDir, _icestudioHome);
+  var PROFILE_PATH = nodePath.join(_icestudioDir, 'profile.json');
+
   // ── Read from disk ──────────────────────────────────────────────────────────
   function readAndApplyTheme() {
     try {
-      var profilePath = nodePath.join(nw.App.dataPath, 'profile.json');
-      var pd = JSON.parse(nodeFs.readFileSync(profilePath, 'utf8'));
+      var pd = JSON.parse(nodeFs.readFileSync(PROFILE_PATH, 'utf8'));
       applyTheme(pd.uiTheme || 'dark', pd.customTheme || null);
     } catch (e) {
       // If profile can't be read fall back to dark (CSS :root defaults cover it)
@@ -134,9 +143,8 @@
 
   // Watch for live changes while the window is open
   try {
-    var watchPath = nodePath.join(nw.App.dataPath, 'profile.json');
     nodeFs.watchFile(
-      watchPath,
+      PROFILE_PATH,
       { interval: 800, persistent: false },
       function () {
         readAndApplyTheme();

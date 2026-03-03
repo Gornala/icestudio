@@ -4,19 +4,25 @@
 
 /* Aliases to shared --app-* variables (set by shared/theme.js) */
 :root {
-  --cb-bg: var(--app-bg);
-  --cb-bg2: var(--app-bg2);
-  --cb-sidebar: var(--app-sidebar);
-  --cb-border: var(--app-border);
-  --cb-text: var(--app-text);
-  --cb-muted: var(--app-muted);
-  --cb-accent: var(--app-accent);
-  --cb-accent-hover: var(--app-accent-hover);
-  --cb-hover: var(--app-btn-hover);
-  --cb-active: var(--app-active);
-  --cb-ok-bg: var(--app-ok-bg);
-  --cb-ok-border: var(--app-border);
-  --cb-ok-text: var(--app-ok-text);
+  --cb-bg: var(--app-bg, #2e2e2e);
+  --cb-bg2: var(--app-bg2, #3a3a3a);
+  --cb-sidebar: var(--app-sidebar, #252525);
+  --cb-border: var(--app-border, #555555);
+  --cb-text: var(--app-text, #dddddd);
+  --cb-muted: var(--app-muted, #999999);
+  --cb-accent: var(--app-accent, #63afcf);
+  --cb-accent-hover: var(--app-accent-hover, #4a9bbf);
+  --cb-input-bg: var(--app-input-bg, #3a3a3a);
+  --cb-btn-bg: var(--app-btn-bg, #3a3a3a);
+  --cb-hover: var(--app-btn-hover, #4a4a4a);
+  --cb-active: var(--app-active, #2a4a5a);
+  --cb-danger: var(--app-danger, #e08080);
+  --cb-ok-bg: var(--app-ok-bg, #1e3d0a);
+  --cb-ok-border: var(--app-border, #555555);
+  --cb-ok-text: var(--app-ok-text, #a0e060);
+  --cb-err-bg: var(--app-err-bg, #3d1010);
+  --cb-err-border: var(--app-border, #555555);
+  --cb-err-text: var(--app-err-text, #e07070);
 }
 
 * {
@@ -190,9 +196,9 @@ body {
 }
 
 #status-bar.status-err {
-  background: #ffb3b6;
-  border-bottom: 1px solid #ff8084;
-  color: #5a1b1b;
+  background: var(--cb-err-bg);
+  border-bottom: 1px solid var(--cb-err-border);
+  color: var(--cb-err-text);
 }
 
 /* ============================================================
@@ -211,35 +217,34 @@ body {
   font-weight: 500;
   cursor: pointer;
   border: 1px solid var(--cb-border);
-  background: var(--cb-bg2);
+  background: var(--cb-btn-bg);
   color: var(--cb-text);
 }
 
 .btn:hover {
   background: var(--cb-hover);
-  border-color: #b5bfc8;
+  border-color: var(--cb-border);
 }
 
 .btn-primary {
-  background: #337ab7;
-  border-color: #2e6da4;
+  background: var(--cb-accent);
+  border-color: var(--cb-accent-hover);
   color: #fff;
 }
 
 .btn-primary:hover {
-  background: #286090;
-  border-color: #204d74;
+  background: var(--cb-accent-hover);
+  border-color: var(--cb-accent-hover);
 }
 
 .btn-danger {
-  background: #d9534f;
-  border-color: #c9302c;
+  background: var(--cb-danger);
+  border-color: var(--cb-danger);
   color: #fff;
 }
 
 .btn-danger:hover {
-  background: #c9302c;
-  border-color: #ac2925;
+  opacity: 0.85;
 }
 
 /* ============================================================
@@ -260,4 +265,27 @@ body {
   font-size: 11px;
   font-weight: 700;
   font-style: normal;
+}
+
+/* ============================================================
+   Search / filter input
+   ============================================================ */
+#board-search {
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
+  background: var(--cb-input-bg);
+  color: var(--cb-text);
+  border: 1px solid var(--cb-border);
+  border-radius: 3px;
+  outline: none;
+}
+
+#board-search::placeholder {
+  color: var(--cb-muted);
+}
+
+#board-search:focus {
+  border-color: var(--cb-accent);
 }

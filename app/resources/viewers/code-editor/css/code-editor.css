@@ -4,19 +4,19 @@
 
 /* ---- CSS Variables — aliases to shared --app-* (set by shared/theme.js) ---- */
 :root {
-  --ce-bg: var(--app-bg);
-  --ce-bg2: var(--app-bg2);
-  --ce-toolbar: var(--app-sidebar);
-  --ce-border: var(--app-border);
-  --ce-text: var(--app-text);
-  --ce-muted: var(--app-muted);
-  --ce-accent: var(--app-accent);
-  --ce-accent-hover: var(--app-accent-hover);
-  --ce-error-bg: var(--app-err-bg);
-  --ce-error-text: var(--app-err-text);
-  --ce-ok-bg: var(--app-ok-bg);
-  --ce-ok-text: var(--app-ok-text);
-  --ce-panel-label: var(--app-accent);
+  --ce-bg: var(--app-bg, #2e2e2e);
+  --ce-bg2: var(--app-bg2, #3a3a3a);
+  --ce-toolbar: var(--app-sidebar, #252525);
+  --ce-border: var(--app-border, #555555);
+  --ce-text: var(--app-text, #dddddd);
+  --ce-muted: var(--app-muted, #999999);
+  --ce-accent: var(--app-accent, #63afcf);
+  --ce-accent-hover: var(--app-accent-hover, #4a9bbf);
+  --ce-error-bg: var(--app-err-bg, #3d1010);
+  --ce-error-text: var(--app-err-text, #e07070);
+  --ce-ok-bg: var(--app-ok-bg, #1e3d0a);
+  --ce-ok-text: var(--app-ok-text, #a0e060);
+  --ce-panel-label: var(--app-accent, #63afcf);
 }
 
 /* ---- Base ---- */

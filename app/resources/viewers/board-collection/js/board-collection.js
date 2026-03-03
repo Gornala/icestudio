@@ -190,12 +190,46 @@ function showStatus(msg, type) {
 }
 
 // ============================================================
+// Search / filter
+// ============================================================
+var filterBoards = function () {
+  var q = document.getElementById('board-search').value.trim().toLowerCase();
+  var items = document.getElementById('board-list').children;
+  var currentFamily = null;
+  var familyHasVisible = false;
+
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    if (item.classList.contains('family-header')) {
+      // Flush previous family visibility
+      if (currentFamily) {
+        currentFamily.style.display = familyHasVisible ? '' : 'none';
+      }
+      currentFamily = item;
+      familyHasVisible = false;
+    } else if (item.classList.contains('board-row')) {
+      var text = (item.querySelector('label') || {}).textContent || '';
+      var visible = !q || text.toLowerCase().indexOf(q) !== -1;
+      item.style.display = visible ? '' : 'none';
+      if (visible) familyHasVisible = true;
+    }
+  }
+  // Flush last family
+  if (currentFamily) {
+    currentFamily.style.display = familyHasVisible ? '' : 'none';
+  }
+};
+
+// ============================================================
 // Init
 // ============================================================
 window.onload = function () {
   loadBoards();
   renderBoardList();
 
+  document
+    .getElementById('board-search')
+    .addEventListener('input', filterBoards);
   document.getElementById('btn-save').addEventListener('click', saveCollection);
   document.getElementById('btn-clear').addEventListener('click', clearAll);
 };
