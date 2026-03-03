@@ -201,15 +201,29 @@ body {
   z-index: 10;
 }
 
-/* Vertical (column-split) handle */
+/* Vertical (column-split) handle — 9px grab zone, 1px visual line */
 .resize-handle-v {
-  width: 1px;
+  width: 9px;
   cursor: col-resize;
-  background: var(--ce-border);
+  background: transparent;
 }
-.resize-handle-v:hover,
-.resize-handle-v.dragging,
-.resize-handle-v.cp-dragging {
+.resize-handle-v::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  background: var(--ce-border);
+  transition:
+    width 0.12s,
+    background 0.12s;
+}
+.resize-handle-v:hover::before,
+.resize-handle-v.dragging::before,
+.resize-handle-v.cp-dragging::before {
+  width: 4px;
   background: var(--ce-accent);
 }
 .resize-handle-v::after {
@@ -233,14 +247,28 @@ body {
   opacity: 1;
 }
 
-/* Horizontal (row-split) handle */
+/* Horizontal (row-split) handle — 9px grab zone, 1px visual line */
 .resize-handle-h {
-  height: 1px;
+  height: 9px;
   cursor: row-resize;
-  background: var(--ce-border);
+  background: transparent;
 }
-.resize-handle-h:hover,
-.resize-handle-h.dragging {
+.resize-handle-h::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 1px;
+  background: var(--ce-border);
+  transition:
+    height 0.12s,
+    background 0.12s;
+}
+.resize-handle-h:hover::before,
+.resize-handle-h.dragging::before {
+  height: 4px;
   background: var(--ce-accent);
 }
 .resize-handle-h::after {
@@ -830,7 +858,7 @@ body.mode-formal #btn-gtkwave {
 /* ---- Mode: testbench (CSS grid: editors top, waveform bottom) ---- */
 body.mode-testbench #panels {
   display: grid;
-  grid-template-columns: 35% 1px 1fr 1px 25%;
+  grid-template-columns: 35% 9px 1fr 9px 25%;
   grid-template-rows: 1fr;
 }
 body.mode-testbench #panel-full-editor {
@@ -874,7 +902,7 @@ body.mode-testbench #panel-waveform.visible {
   display: flex;
 }
 body.mode-testbench.waveform-open #panels {
-  grid-template-rows: 1fr 1px 1fr;
+  grid-template-rows: 1fr 9px 1fr;
 }
 body.mode-testbench.waveform-open #tb-handle-wv {
   display: block;
