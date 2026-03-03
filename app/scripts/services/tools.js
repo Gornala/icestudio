@@ -2112,6 +2112,8 @@ angular
 
       this.initializePluginManager = function (callbackOnRun) {
         if (typeof ICEpm !== 'undefined') {
+          common.uiTheme = profile.get('uiTheme') || 'light';
+          common.customTheme = profile.get('customTheme') || null;
           ICEpm.setEnvironment(common);
           ICEpm.setPluginDir(common.DEFAULT_PLUGIN_DIR, function () {
             let plist = ICEpm.getAll();

@@ -1,38 +1,533 @@
-/* Style for the Serial Terminal */
-
-body {
-  padding: 30px;
-  background: #222;
+/* Serial Terminal — theme-aware CSS variables */
+:root {
+  --st-bg: #1e1e2e;
+  --st-bg2: #2a2a3d;
+  --st-sidebar: #252535;
+  --st-text: #cdd6f4;
+  --st-muted: #6c7086;
+  --st-border: #45475a;
+  --st-accent: #89b4fa;
+  --st-green: #a6e3a1;
+  --st-red: #f38ba8;
+  --st-yellow: #f9e2af;
+  --st-rx-bg: #1a1a2a;
+  --st-tx-bg: #1e2a1e;
+  --st-input-bg: #2a2a3d;
+  --st-btn-bg: #313244;
+  --st-btn-hover: #45475a;
 }
-select {
-  color: black;
+
+/* ---- Light theme overrides ---- */
+body.theme-light {
+  --st-bg: #f5f6f7;
+  --st-bg2: #ffffff;
+  --st-sidebar: #e8e9eb;
+  --st-text: #2c2c3a;
+  --st-muted: #7f8096;
+  --st-border: #c8c9d0;
+  --st-accent: #3b82f6;
+  --st-green: #16a34a;
+  --st-red: #dc2626;
+  --st-yellow: #d97706;
+  --st-rx-bg: #f0f4ff;
+  --st-tx-bg: #f0fff4;
+  --st-input-bg: #ffffff;
+  --st-btn-bg: #e2e4e9;
+  --st-btn-hover: #d0d2d9;
 }
 
-div id='terminal' {
-  height: 50px;
-  width: 50px;
-  background-color: powderblue;
-}
-
-textarea {
-  display: inline-block;
+/* ---- Reset / Base ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
   margin: 0;
-  padding: 0.2em;
-  width: auto;
-  min-width: 30em;
-  /* The max-width "100%" value fixes a weird issue where width is too wide by default and extends beyond 100% of the parent in some agents. */
-  max-width: 100%;
-  /* Height "auto" will allow the text area to expand vertically in size with a horizontal scrollbar if pre-existing content is added to the box before rendering. Remove this if you want a pre-set height. Use "em" to match the font size set in the website. */
-  height: auto;
-  /* Use "em" to define the height based on the text size set in your website and the text rows in the box, not a static pixel value. */
-  min-height: 10em;
-  /* Do not use "border" in textareas unless you want to remove the 3D box most browsers assign and flatten the box design. */
-  /*border: 1px solid black;*/
-  cursor: text;
-  /* Some textareas have a light gray background by default anyway. */
-  background-color: #2f3131;
-  /* Overflow "auto" allows the box to start with no scrollbars but add them as content fills the box. */
-  overflow: auto;
-  /* Resize creates a tab in the lower right corner of textarea for most modern browsers and allows users to resize the box manually. Note: Resize isn't supported by most older agents and IE. */
-  resize: both;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  background: var(--st-bg);
+  color: var(--st-text);
+}
+
+/* ---- App layout ---- */
+#app {
+  display: flex;
+  height: calc(100vh - 24px); /* leave room for status bar */
+  overflow: hidden;
+}
+
+/* ---- Sidebar ---- */
+#sidebar {
+  width: 220px;
+  min-width: 160px;
+  max-width: 340px;
+  background: var(--st-sidebar);
+  border-right: 1px solid var(--st-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-muted);
+  border-bottom: 1px solid var(--st-border);
+  background: var(--st-bg);
+}
+
+.section-header span {
+  flex: 1;
+}
+
+/* ---- Port list ---- */
+#port-section {
+  border-bottom: 1px solid var(--st-border);
+}
+
+#port-list {
+  list-style: none;
+  overflow-y: auto;
+  max-height: 160px;
+  padding: 4px 0;
+}
+
+#port-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 2px 4px;
+  transition: background 0.12s;
+}
+
+#port-list li:hover {
+  background: var(--st-btn-hover);
+}
+
+#port-list li.selected {
+  background: var(--st-btn-bg);
+}
+
+.port-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--st-muted);
+}
+.port-dot.free {
+  background: var(--st-green);
+}
+.port-dot.busy {
+  background: var(--st-red);
+}
+.port-dot.unknown {
+  background: var(--st-yellow);
+}
+.port-dot.active {
+  background: var(--st-accent);
+}
+
+.port-name {
+  flex: 1;
+  font-size: 12px;
+}
+
+.port-radio {
+  display: none;
+}
+
+#port-empty {
+  padding: 10px;
+  color: var(--st-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+/* ---- Settings ---- */
+#settings-section {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  gap: 6px;
+  border-bottom: 1px solid var(--st-border);
+}
+
+.settings-row label {
+  font-size: 11px;
+  color: var(--st-muted);
+  width: 68px;
+  flex-shrink: 0;
+}
+
+.settings-row select,
+.settings-row input[type='text'] {
+  flex: 1;
+  background: var(--st-input-bg);
+  color: var(--st-text);
+  border: 1px solid var(--st-border);
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-size: 12px;
+  outline: none;
+}
+
+.settings-row select:focus,
+.settings-row input[type='text']:focus {
+  border-color: var(--st-accent);
+}
+
+/* ---- Connect buttons ---- */
+#connect-btns {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---- DTR/RTS toggle row ---- */
+#signals-row {
+  padding: 6px 10px;
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--st-border);
+}
+
+/* ---- Buttons ---- */
+.st-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--st-border);
+  background: var(--st-btn-bg);
+  color: var(--st-text);
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+
+.st-btn:hover {
+  background: var(--st-btn-hover);
+}
+.st-btn:active {
+  opacity: 0.8;
+}
+
+.st-btn-primary {
+  background: var(--st-accent);
+  color: #000;
+  border-color: var(--st-accent);
+}
+.st-btn-primary:hover {
+  opacity: 0.85;
+}
+
+.st-btn-danger {
+  background: var(--st-red);
+  color: #000;
+  border-color: var(--st-red);
+}
+.st-btn-danger:hover {
+  opacity: 0.85;
+}
+
+.st-btn-sm {
+  padding: 2px 7px;
+  font-size: 11px;
+}
+.st-btn-full {
+  width: 100%;
+}
+
+.st-btn.active {
+  background: var(--st-accent);
+  color: #000;
+  border-color: var(--st-accent);
+}
+
+/* ---- Sidebar vertical resize handle ---- */
+#sidebar-handle {
+  position: relative;
+  width: 9px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+#sidebar-handle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  background: var(--st-border);
+  transition:
+    width 0.12s,
+    background 0.12s;
+}
+
+#sidebar-handle:hover::before,
+#sidebar-handle.dragging::before {
+  width: 4px;
+  background: var(--st-accent);
+}
+
+/* ---- Main area ---- */
+#main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ---- Data panels (RX / TX) ---- */
+.data-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 80px;
+}
+
+#rx-panel {
+  flex: 1;
+}
+#tx-panel {
+  flex: 1;
+}
+
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  background: var(--st-bg2);
+  border-bottom: 1px solid var(--st-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.panel-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-muted);
+  margin-right: 4px;
+}
+
+.fmt-btns {
+  display: flex;
+  gap: 2px;
+}
+
+.fmt-btn {
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--st-border);
+  background: transparent;
+  color: var(--st-muted);
+  cursor: pointer;
+  font-size: 10px;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  transition: background 0.1s;
+}
+
+.fmt-btn:hover {
+  background: var(--st-btn-hover);
+  color: var(--st-text);
+}
+.fmt-btn.active {
+  background: var(--st-accent);
+  color: #000;
+  border-color: var(--st-accent);
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+/* ---- RX/TX textareas ---- */
+#rx-output {
+  flex: 1;
+  resize: none;
+  background: var(--st-rx-bg);
+  color: var(--st-text);
+  border: none;
+  outline: none;
+  padding: 6px 8px;
+  font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+#tx-input {
+  flex: 1;
+  resize: none;
+  background: var(--st-tx-bg);
+  color: var(--st-text);
+  border: none;
+  outline: none;
+  padding: 6px 8px;
+  font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#tx-input::placeholder {
+  color: var(--st-muted);
+}
+
+/* ---- RX/TX resize handle ---- */
+#rxtx-handle {
+  position: relative;
+  height: 9px;
+  cursor: row-resize;
+  background: transparent;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+#rxtx-handle::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 1px;
+  background: var(--st-border);
+  transition:
+    height 0.12s,
+    background 0.12s;
+}
+
+#rxtx-handle:hover::before,
+#rxtx-handle.dragging::before {
+  height: 4px;
+  background: var(--st-accent);
+}
+
+/* ---- Send bar ---- */
+#send-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--st-bg2);
+  border-top: 1px solid var(--st-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+#send-bar label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--st-muted);
+  white-space: nowrap;
+}
+
+#send-bar select {
+  background: var(--st-input-bg);
+  color: var(--st-text);
+  border: 1px solid var(--st-border);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 11px;
+  outline: none;
+}
+
+#send-bar-spacer {
+  flex: 1;
+}
+
+/* ---- Status bar ---- */
+#status-bar {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: var(--st-bg);
+  border-top: 1px solid var(--st-border);
+  font-size: 11px;
+  color: var(--st-muted);
+  flex-shrink: 0;
+}
+
+#status-bar .st-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--st-muted);
+  flex-shrink: 0;
+}
+#status-bar .st-indicator.connected {
+  background: var(--st-green);
+}
+
+#st-port {
+  color: var(--st-text);
+  font-weight: 600;
+}
+
+/* ---- Checkbox ---- */
+input[type='checkbox'] {
+  accent-color: var(--st-accent);
+  cursor: pointer;
+}
+
+/* ---- Scrollbar styling ---- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--st-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--st-muted);
+}
+
+/* ---- Utility ---- */
+.hidden {
+  display: none !important;
 }
