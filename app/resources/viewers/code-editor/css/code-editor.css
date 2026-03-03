@@ -203,7 +203,7 @@ body {
 
 /* Vertical (column-split) handle */
 .resize-handle-v {
-  width: 5px;
+  width: 1px;
   cursor: col-resize;
   background: var(--ce-border);
 }
@@ -235,7 +235,7 @@ body {
 
 /* Horizontal (row-split) handle */
 .resize-handle-h {
-  height: 5px;
+  height: 1px;
   cursor: row-resize;
   background: var(--ce-border);
 }
@@ -830,7 +830,7 @@ body.mode-formal #btn-gtkwave {
 /* ---- Mode: testbench (CSS grid: editors top, waveform bottom) ---- */
 body.mode-testbench #panels {
   display: grid;
-  grid-template-columns: 35% 5px 1fr 5px 25%;
+  grid-template-columns: 35% 1px 1fr 1px 25%;
   grid-template-rows: 1fr;
 }
 body.mode-testbench #panel-full-editor {
@@ -874,7 +874,7 @@ body.mode-testbench #panel-waveform.visible {
   display: flex;
 }
 body.mode-testbench.waveform-open #panels {
-  grid-template-rows: 1fr 5px 1fr;
+  grid-template-rows: 1fr 1px 1fr;
 }
 body.mode-testbench.waveform-open #tb-handle-wv {
   display: block;

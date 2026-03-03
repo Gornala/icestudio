@@ -1313,7 +1313,7 @@ function _initResizeHandles() {
       col1W = Math.max(80, Math.min(total - col5W - 100, col1W));
       col5W = Math.max(80, Math.min(total - col1W - 100, col5W));
       panelsEl.style.gridTemplateColumns =
-        col1W + 'px 5px 1fr 5px ' + col5W + 'px';
+        col1W + 'px 1px 1fr 1px ' + col5W + 'px';
     };
 
     if (tbHandle1) {
@@ -1339,7 +1339,7 @@ function _initResizeHandles() {
         topH += dy;
         var total = panelsEl.offsetHeight;
         topH = Math.max(60, Math.min(total - 65, topH));
-        panelsEl.style.gridTemplateRows = topH + 'px 5px 1fr';
+        panelsEl.style.gridTemplateRows = topH + 'px 1px 1fr';
       });
     }
   }
