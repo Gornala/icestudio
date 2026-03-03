@@ -296,15 +296,6 @@ body {
 #cp-resize-handle.cp-hidden {
   display: none;
 }
-/* Claude handle uses accent color always (replaces the old border-left) */
-#cp-resize-handle::before {
-  background: var(--ce-accent);
-  width: 2px;
-}
-#cp-resize-handle:hover::before,
-#cp-resize-handle.cp-dragging::before {
-  width: 4px;
-}
 /* Extend #panels into handle gap when Claude is open */
 #main-area:has(#cp-resize-handle:not(.cp-hidden)) #panels {
   margin-right: -4px;
