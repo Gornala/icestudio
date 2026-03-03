@@ -808,6 +808,22 @@ angular.module('icestudio').controller(
       showCollectionManager();
     };
 
+    $scope.launchIceRok = function () {
+      iceStudio.bus.events.publish('pluginManager.launch', 'icerok');
+    };
+
+    $scope.launchSerialTerminal = function () {
+      iceStudio.bus.events.publish('pluginManager.launch', 'serial-term');
+    };
+
+    $scope.launchZConfigurator = function () {
+      iceStudio.bus.events.publish('pluginManager.launch', 'zconfigurator');
+    };
+
+    $scope.launchPluginExample = function () {
+      iceStudio.bus.events.publish('pluginManager.launch', 'example-plugin');
+    };
+
     /* redundant: patched via $scope - @mgesteiro
       function removeSelected() {
         project.removeSelected();  // <- this is justa a wrapper of graph.removeSelected()

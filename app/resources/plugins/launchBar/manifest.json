@@ -3,7 +3,7 @@
   "id": "launchBar",
   "name": "Launch bar for plugins",
   "icon": "img/icestudio-logo.png",
-  "launchAtStartup": true,
+  "launchAtStartup": false,
   "gui": {
     "type": "embedded",
     "layout": ["mainBar.html"],
