@@ -650,6 +650,7 @@ angular.module('icestudio').service(
             disableSelected();
 
             __updateWiresOnObstacles();
+            $('body').trigger('Graph::lpRefresh');
           } else {
             // Toggle selected cell
             if (utils.hasShift(evt)) {
@@ -1164,6 +1165,76 @@ angular.module('icestudio').service(
       paper.on('blank:pointerup', function (/*cellView, evt*/) {
         self.panAndZoom.disablePan();
       });
+
+      paper.on('blank:pointerclick', function () {
+        $('body').trigger('Graph::blankClick');
+      });
+
+      paper.on('blank:pointerdown', function () {
+        $('body').trigger('Graph::blankClick');
+      });
+
+      // Wire group sync: when a label cell's data changes, apply same
+      // name/color to all other label cells that share the original name
+      var LP_WIRE_TYPES_SYNC = new Set([
+        'basic.inputLabel',
+        'basic.outputLabel',
+        'basic.pairedLabel',
+      ]);
+      var _lpSyncingWire = false;
+      var lpSyncWireGroup = function (cell) {
+        if (_lpSyncingWire) {
+          return;
+        }
+        var bt = cell.get('blockType') || '';
+        if (!LP_WIRE_TYPES_SYNC.has(bt)) {
+          return;
+        }
+
+        var prevData = cell.previous('data') || {};
+        var newData = cell.get('data') || {};
+        var prevName = prevData.name || prevData.label || '';
+        if (!prevName) {
+          return;
+        }
+
+        _lpSyncingWire = true;
+        graph.getCells().forEach(function (other) {
+          if (other.id === cell.id || other.isLink()) {
+            return;
+          }
+          if (!LP_WIRE_TYPES_SYNC.has(other.get('blockType') || '')) {
+            return;
+          }
+          var od = other.get('data') || {};
+          var otherName = od.name || od.label || '';
+          if (otherName !== prevName) {
+            return;
+          }
+
+          var nd = JSON.parse(JSON.stringify(od));
+          if ('name' in newData) {
+            nd.name = newData.name;
+          }
+          if ('label' in newData) {
+            nd.label = newData.label;
+          }
+          if ('blockColor' in newData) {
+            nd.blockColor = newData.blockColor;
+          }
+          other.set('data', nd);
+        });
+        _lpSyncingWire = false;
+      };
+      graph.off('change:data', lpSyncWireGroup);
+      graph.on('change:data', lpSyncWireGroup);
+
+      // Auto-refresh left panel on data changes (safe: single event only)
+      var lpTriggerAutoRefresh = nodeDebounce(function () {
+        $('body').trigger('Graph::lpRefresh');
+      }, 200);
+      graph.off('change:data', lpTriggerAutoRefresh);
+      graph.on('change:data', lpTriggerAutoRefresh);
 
       paper.on('cell:mouseover', function (cellView, evt) {
         // Move selection to top view if !mousedown
@@ -1780,6 +1851,69 @@ angular.module('icestudio').service(
       blocks.editBasicLabel(cellView, newName, newColor);
     };
 
+    this.triggerDblClick = function (cellId) {
+      var cellView = paper.findViewByModel(cellId);
+      if (cellView) {
+        paper.trigger('cell:pointerdblclick', cellView, {}, 0, 0);
+      }
+    };
+
+    this.lpHighlightCells = function (ids) {
+      ids.forEach(function (id) {
+        var cellView = paper.findViewByModel(id);
+        if (cellView && cellView.$box) {
+          cellView.$box.addClass('lp-highlight');
+        }
+      });
+    };
+
+    this.lpClearHighlight = function () {
+      $('.lp-highlight').removeClass('lp-highlight');
+    };
+
+    this.updateCellData = function (cellId, updates) {
+      var cell = graph.getCell(cellId);
+      if (!cell) {
+        return;
+      }
+      var data = JSON.parse(JSON.stringify(cell.get('data') || {}));
+      Object.keys(updates).forEach(function (k) {
+        data[k] = updates[k];
+      });
+      cell.set('data', data);
+      var cellView = paper.findViewByModel(cellId);
+      if (cellView && typeof cellView.apply === 'function') {
+        cellView.apply();
+      }
+    };
+
+    this.updateCellPin = function (cellId, arrayIdx, pinName, pinValue) {
+      var cell = graph.getCell(cellId);
+      if (!cell) {
+        return;
+      }
+      var data = JSON.parse(JSON.stringify(cell.get('data') || {}));
+      if (data.pins && data.pins[arrayIdx] !== undefined) {
+        data.pins[arrayIdx].name = pinName;
+        data.pins[arrayIdx].value = pinValue;
+        cell.set('data', data);
+        // Directly update the select2 UI — calling apply() would wipe
+        // options via applyChoices() if choices isn't set on the model.
+        var cellView = paper.findViewByModel(cellId);
+        if (cellView && cellView.$box) {
+          var pinFieldIndex = data.pins[arrayIdx].index;
+          var $combo = cellView.$box.find(
+            '#combo' + cellView.id + pinFieldIndex
+          );
+          if ($combo.length) {
+            cellView.updating = true;
+            $combo.val(pinValue).change();
+            cellView.updating = false;
+          }
+        }
+      }
+    };
+
     this.setCells = function (cells) {
       graph.attributes.cells.models = cells;
     };
@@ -2019,6 +2153,7 @@ angular.module('icestudio').service(
         graph.removeCells(selection.models);
         selectionView.cancelSelection();
         this.updateWires();
+        $('body').trigger('Graph::lpRefresh');
       }
     };
 

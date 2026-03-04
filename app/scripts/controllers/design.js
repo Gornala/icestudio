@@ -387,9 +387,14 @@ cells.sort((a, b) => {
         open: false,
         tab: 'modules',
         width: 280,
-        nodes: [],
-        hwPorts: [],
-        wires: [],
+        nodes: [], // generic submodules + code blocks
+        constBlocks: [], // constants + memory
+        infoBlocks: [], // info/comment blocks
+        virtPorts: [], // virtual I/O ports
+        hwPorts: [], // FPGA-assigned pins
+        unusedPins: [], // board pins not assigned to any port
+        wires: [], // label wires
+        pinned: null,
       };
 
       $scope.lp.toggle = function () {
@@ -458,126 +463,281 @@ cells.sort((a, b) => {
         }
       };
 
-      // Hover: highlight canvas cells matching this node's module type
-      $scope.lp.hoverIn = function (node) {
-        if (!node || node.depth > 0) {
-          return;
-        }
+      // Label block types that belong in the Wires tab, not Modules
+      const WIRE_TYPES = new Set([
+        'basic.inputLabel',
+        'basic.outputLabel',
+        'basic.pairedLabel',
+      ]);
+
+      // --- Highlight helpers ---
+      var lpGetCellIds = function (kind, item) {
+        var ids = [];
         graph.getCells().forEach(function (cell) {
           if (cell.isLink()) {
             return;
           }
-          const match =
-            node.cellType === 'generic'
-              ? cell.get('blockType') === node.type
-              : cell.id === node.id;
-          if (match) {
-            $('.paper')
-              .find('[model-id="' + cell.id + '"]')
-              .addClass('lp-highlight');
+          if (kind === 'node' && item.depth === 0) {
+            var match =
+              item.cellType === 'generic'
+                ? (cell.get('blockType') || '') === item.type
+                : cell.id === item.id;
+            if (match) {
+              ids.push(cell.id);
+            }
+          } else if (kind === 'wire') {
+            if (WIRE_TYPES.has(cell.get('blockType') || '')) {
+              var d = cell.get('data') || {};
+              if ((d.label || d.name || d.info || '?') === item.name) {
+                ids.push(cell.id);
+              }
+            }
+          } else if (item && item.id && cell.id === item.id) {
+            // port, constblock, infoblock, virtport — all matched by cell id
+            ids.push(cell.id);
           }
         });
+        return ids;
+      };
+
+      $scope.lp.hoverIn = function (kind, item) {
+        if ($scope.lp.pinned) {
+          return;
+        }
+        graph.lpClearHighlight();
+        graph.lpHighlightCells(lpGetCellIds(kind, item));
       };
 
       $scope.lp.hoverOut = function () {
-        $('.paper').find('[model-id]').removeClass('lp-highlight');
+        if ($scope.lp.pinned) {
+          return;
+        }
+        graph.lpClearHighlight();
       };
 
-      // Label block types that belong in the Wires tab, not Modules
-      const WIRE_TYPES = new Set([
-        'basic.input_label',
-        'basic.output_label',
-        'basic.paired_label',
-      ]);
+      $scope.lp.clickItem = function (kind, item, $event) {
+        $event.stopPropagation();
+        if ($event.detail > 1) {
+          return; // ignore the second click of a dblclick
+        }
+        if ($scope.lp.pinned && $scope.lp.pinned.item === item) {
+          $scope.lp.pinned = null;
+          graph.lpClearHighlight();
+        } else {
+          $scope.lp.pinned = { kind: kind, item: item };
+          graph.lpClearHighlight();
+          graph.lpHighlightCells(lpGetCellIds(kind, item));
+        }
+      };
 
-      // Build node list, hardware port list, and wire list from current graph cells
+      $scope.lp.dblClickItem = function (kind, item, $event) {
+        $event.stopPropagation();
+        var ids = lpGetCellIds(kind, item);
+        if (ids.length > 0) {
+          graph.triggerDblClick(ids[0]);
+        }
+      };
+
+      // Recompute which board pins are not yet assigned to any hw port
+      var refreshUnusedPins = function () {
+        var usedPinValues = new Set();
+        $scope.lp.hwPorts.forEach(function (port) {
+          (port._pins || []).forEach(function (p) {
+            if (p.value) {
+              usedPinValues.add(p.value);
+            }
+          });
+        });
+        var allBoardPins =
+          (common.selectedBoard && common.selectedBoard.pinout) || [];
+        $scope.lp.unusedPins = allBoardPins.filter(function (p) {
+          return p.value && !usedPinValues.has(p.value);
+        });
+      };
+
+      // --- Const inline editing ---
+      $scope.lp.startEditConst = function (cb, $event) {
+        $event.stopPropagation();
+        cb._editing = true;
+        cb._editVal = cb.value;
+        setTimeout(function () {
+          var inputs = document.querySelectorAll('#left-panel .lp-const-input');
+          for (var i = 0; i < inputs.length; i++) {
+            if (inputs[i].getAttribute('data-cbid') === cb.id) {
+              inputs[i].focus();
+              inputs[i].select();
+              break;
+            }
+          }
+        }, 0);
+      };
+
+      $scope.lp.saveConst = function (cb) {
+        if (!cb._editing) {
+          return;
+        }
+        cb._editing = false;
+        if (cb._editVal !== cb.value) {
+          graph.updateCellData(cb.id, { value: cb._editVal });
+          cb.value = cb._editVal;
+        }
+      };
+
+      $scope.lp.constKeydown = function (cb, $event) {
+        if ($event.which === 13) {
+          $event.preventDefault();
+          $scope.lp.saveConst(cb);
+        } else if ($event.which === 27) {
+          cb._editing = false;
+        }
+      };
+
+      // --- HW pin inline change ---
+      $scope.lp.changePin = function (port, pin) {
+        var allPins =
+          (common.selectedBoard && common.selectedBoard.pinout) || [];
+        var found = null;
+        for (var j = 0; j < allPins.length; j++) {
+          if (allPins[j].value === pin.value) {
+            found = allPins[j];
+            break;
+          }
+        }
+        pin.alias = found ? found.name : pin.value;
+        port.pin =
+          port._pins
+            .map(function (p) {
+              return p.alias || p.value || '';
+            })
+            .filter(Boolean)
+            .join(', ') || '–';
+        graph.updateCellPin(port.id, pin.arrayIdx, pin.alias, pin.value);
+        refreshUnusedPins();
+      };
+
+      // Build all panel lists from current graph cells
       $scope.lp.refresh = function () {
+        $scope.lp.pinned = null;
+        graph.lpClearHighlight();
         const cells = graph.getCells().filter((c) => !c.isLink());
         const nodes = [];
+        const constBlocks = [];
+        const infoBlocks = [];
+        const virtPorts = [];
         const hwPorts = [];
-        const wires = [];
+        const wiresMap = new Map();
 
         cells.forEach(function (cell) {
           const cellType = cell.get('type') || '';
           const blockType = cell.get('blockType') || '';
           const data = cell.get('data') || {};
-          let lbl;
 
-          // Label blocks go to Wires tab — skip from Modules list
+          // 1 — Wire labels
           if (WIRE_TYPES.has(blockType)) {
-            let wDir = 'pair';
-            if (blockType === 'basic.input_label') {
-              wDir = 'in';
-            } else if (blockType === 'basic.output_label') {
-              wDir = 'out';
+            const wName = data.label || data.name || data.info || '?';
+            if (!wiresMap.has(wName)) {
+              let wDir = 'pair';
+              if (blockType === 'basic.inputLabel') {
+                wDir = 'in';
+              } else if (blockType === 'basic.outputLabel') {
+                wDir = 'out';
+              }
+              wiresMap.set(wName, { name: wName, dir: wDir });
             }
-            wires.push({
+            return;
+          }
+
+          // 2 — Info/comment blocks
+          if (blockType === 'basic.info') {
+            infoBlocks.push({
               id: cell.id,
-              name: data.label || data.name || data.info || '?',
-              dir: wDir,
+              cellType: 'info',
+              label: data.info || data.text || data.label || '?',
             });
             return;
           }
 
-          // All other blocks go to Modules list
+          // 3 — Constant and memory blocks
+          if (blockType === 'basic.constant' || blockType === 'basic.memory') {
+            constBlocks.push({
+              id: cell.id,
+              cellType: blockType === 'basic.memory' ? 'memory' : 'constant',
+              label: data.name || data.label || blockType.replace('basic.', ''),
+              value: data.value !== undefined ? String(data.value) : '',
+            });
+            return;
+          }
+
+          // 4 — I/O ports: virtual → Ports tab, FPGA-assigned → Pins tab
+          if (blockType === 'basic.input' || blockType === 'basic.output') {
+            const dir = blockType === 'basic.input' ? 'in' : 'out';
+            const name = data.name || data.label || '?';
+            if (data.virtual === true) {
+              virtPorts.push({ id: cell.id, dir: dir, name: name });
+            } else {
+              const pins = data.pins || [];
+              const rawPins = pins.map(function (p, i) {
+                return {
+                  arrayIdx: i,
+                  alias: p.name || '',
+                  value: p.value || '',
+                };
+              });
+              const pinStr = rawPins
+                .map((p) => p.alias || p.value || '')
+                .filter(Boolean)
+                .join(', ');
+              hwPorts.push({
+                id: cell.id,
+                dir: dir,
+                name: name,
+                pin: pinStr || '–',
+                _pins: rawPins,
+              });
+            }
+            return;
+          }
+
+          // 5 — Generic submodules and code blocks → Modules tab
           if (cellType === 'ice.Generic') {
             const dep =
               common.allDependencies && common.allDependencies[blockType];
             const depBlocks =
               dep && dep.design && dep.design.graph && dep.design.graph.blocks;
-            lbl =
-              cell.get('label') ||
-              (dep && dep.package && dep.package.name) ||
-              blockType;
             nodes.push({
               id: cell.id,
               type: blockType,
               cellType: 'generic',
-              label: lbl,
+              label:
+                cell.get('label') ||
+                (dep && dep.package && dep.package.name) ||
+                blockType,
               depth: 0,
               hasChildren: !!(depBlocks && depBlocks.length),
               expanded: false,
               _depBlocks: depBlocks || null,
             });
-          } else {
-            lbl =
-              data.label ||
-              data.name ||
-              data.info ||
-              cellType.replace('ice.', '');
+          } else if (blockType === 'basic.code') {
             nodes.push({
               id: cell.id,
-              type: blockType || cellType,
-              cellType: cellType.replace('ice.', '').toLowerCase(),
-              label: lbl,
+              type: blockType,
+              cellType: 'code',
+              label: data.label || data.name || 'code',
               depth: 0,
               hasChildren: false,
               expanded: false,
               _depBlocks: null,
             });
           }
-
-          // Hardware ports: basic.input / basic.output with FPGA pin assignment
-          if (blockType === 'basic.input' || blockType === 'basic.output') {
-            const pins = data.pins || [];
-            const pinStr = pins
-              .map((p) => p.value || '')
-              .filter(Boolean)
-              .join(', ');
-            hwPorts.push({
-              id: cell.id,
-              name: data.label || data.name || '?',
-              dir: blockType === 'basic.input' ? 'in' : 'out',
-              pin: pinStr || '–',
-              virtual: data.virtual || false,
-              size: data.size || 1,
-            });
-          }
         });
 
         $scope.lp.nodes = nodes;
+        $scope.lp.constBlocks = constBlocks;
+        $scope.lp.infoBlocks = infoBlocks;
+        $scope.lp.virtPorts = virtPorts;
         $scope.lp.hwPorts = hwPorts;
-        $scope.lp.wires = wires;
+        $scope.lp.wires = Array.from(wiresMap.values());
+        refreshUnusedPins();
       };
 
       // Refresh panel after design navigation (submodule in/out)
@@ -591,17 +751,22 @@ cells.sort((a, b) => {
         }
       });
 
-      // Refresh panel when graph changes (blocks added / removed)
-      const lpUpdateWires = function () {
+      // Refresh panel when graph changes (blocks added/removed/data changed)
+      const lpAutoRefresh = function () {
         if ($scope.lp.open) {
           setTimeout(function () {
-            $scope.$apply(function () {
+            if (!$scope.$$phase && !$rootScope.$$phase) {
+              $scope.$apply(function () {
+                $scope.lp.refresh();
+              });
+            } else {
               $scope.lp.refresh();
-            });
-          }, 100);
+            }
+          }, 0);
         }
       };
-      $('body').on('Graph::updateWires', lpUpdateWires);
+      $('body').on('Graph::updateWires', lpAutoRefresh);
+      $('body').on('Graph::lpRefresh', lpAutoRefresh);
 
       // Resize handle drag
       const lpInitResize = function () {
@@ -634,8 +799,21 @@ cells.sort((a, b) => {
       };
       lpInitResize();
 
+      var lpBlankClick = function () {
+        if ($scope.lp.pinned) {
+          $scope.lp.pinned = null;
+          graph.lpClearHighlight();
+          if (!$scope.$$phase && !$rootScope.$$phase) {
+            $scope.$apply();
+          }
+        }
+      };
+      $('body').on('Graph::blankClick', lpBlankClick);
+
       $scope.$on('$destroy', function () {
-        $('body').off('Graph::updateWires', lpUpdateWires);
+        $('body').off('Graph::updateWires', lpAutoRefresh);
+        $('body').off('Graph::lpRefresh', lpAutoRefresh);
+        $('body').off('Graph::blankClick', lpBlankClick);
         $(document).off('.lp');
       });
     }

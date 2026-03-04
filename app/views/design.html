@@ -24,50 +24,78 @@
 
   <!-- Panel body -->
   <div id="left-panel" ng-show="lp.open" ng-style="{'width': lp.width + 'px'}">
-    <!-- Tab bar -->
+    <!-- Tab bar (2 rows) -->
     <div id="lp-tab-bar">
-      <button
-        class="lp-tab-btn"
-        ng-class="{active: lp.tab === 'modules'}"
-        ng-click="lp.setTab('modules')"
-      >
-        Modules
-      </button>
-      <button
-        class="lp-tab-btn"
-        ng-class="{active: lp.tab === 'wires'}"
-        ng-click="lp.setTab('wires')"
-      >
-        Wires
-      </button>
-      <button
-        class="lp-tab-btn"
-        ng-class="{active: lp.tab === 'ports'}"
-        ng-click="lp.setTab('ports')"
-      >
-        Ports
-      </button>
-      <button class="lp-refresh-btn" ng-click="lp.refresh()" title="Refresh">
-        &#8635;
-      </button>
+      <div class="lp-tab-row">
+        <button
+          class="lp-tab-btn"
+          ng-class="{active: lp.tab === 'modules'}"
+          ng-click="lp.setTab('modules')"
+        >
+          Modules
+        </button>
+        <button
+          class="lp-tab-btn"
+          ng-class="{active: lp.tab === 'consts'}"
+          ng-click="lp.setTab('consts')"
+        >
+          Consts
+        </button>
+        <button
+          class="lp-tab-btn"
+          ng-class="{active: lp.tab === 'info'}"
+          ng-click="lp.setTab('info')"
+        >
+          Info
+        </button>
+        <button class="lp-refresh-btn" ng-click="lp.refresh()" title="Refresh">
+          &#8635;
+        </button>
+      </div>
+      <div class="lp-tab-row">
+        <button
+          class="lp-tab-btn"
+          ng-class="{active: lp.tab === 'virtports'}"
+          ng-click="lp.setTab('virtports')"
+        >
+          Ports
+        </button>
+        <button
+          class="lp-tab-btn"
+          ng-class="{active: lp.tab === 'wires'}"
+          ng-click="lp.setTab('wires')"
+        >
+          Wires
+        </button>
+        <button
+          class="lp-tab-btn"
+          ng-class="{active: lp.tab === 'pins'}"
+          ng-click="lp.setTab('pins')"
+        >
+          HW Pins
+        </button>
+      </div>
     </div>
 
-    <!-- Module Explorer -->
-    <div id="lp-modules" class="lp-panel-body" ng-show="lp.tab === 'modules'">
+    <!-- Modules & Code -->
+    <div class="lp-panel-body" ng-show="lp.tab === 'modules'">
       <div class="lp-empty" ng-show="!lp.nodes.length">
-        No modules on canvas
+        No modules or code blocks
       </div>
       <div
         class="lp-node"
         ng-repeat="node in lp.nodes"
         ng-style="{'padding-left': (8 + node.depth * 16) + 'px'}"
-        ng-mouseenter="lp.hoverIn(node)"
+        ng-class="{'lp-pinned': lp.pinned && lp.pinned.item === node}"
+        ng-mouseenter="lp.hoverIn('node', node)"
         ng-mouseleave="lp.hoverOut()"
+        ng-click="lp.clickItem('node', node, $event)"
+        ng-dblclick="lp.dblClickItem('node', node, $event)"
       >
         <span
           class="lp-expand"
           ng-if="node.hasChildren"
-          ng-click="lp.toggleNode(node)"
+          ng-click="lp.toggleNode(node); $event.stopPropagation()"
           >{{ node.expanded ? '▾' : '▸' }}</span
         >
         <span class="lp-expand lp-no-expand" ng-if="!node.hasChildren"></span>
@@ -76,24 +104,145 @@
       </div>
     </div>
 
+    <!-- Constants & Memory -->
+    <div class="lp-panel-body" ng-show="lp.tab === 'consts'">
+      <div class="lp-empty" ng-show="!lp.constBlocks.length">
+        No constants or memory blocks
+      </div>
+      <div
+        class="lp-node"
+        ng-repeat="cb in lp.constBlocks"
+        ng-class="{'lp-pinned': lp.pinned && lp.pinned.item === cb}"
+        ng-mouseenter="lp.hoverIn('constblock', cb)"
+        ng-mouseleave="lp.hoverOut()"
+        ng-click="lp.clickItem('constblock', cb, $event)"
+        ng-dblclick="lp.dblClickItem('constblock', cb, $event)"
+      >
+        <span class="lp-expand lp-no-expand"></span>
+        <span class="lp-dot lp-dot-{{ cb.cellType }}"></span>
+        <span class="lp-label">{{ cb.label }}</span>
+        <span
+          class="lp-value lp-editable"
+          ng-show="!cb._editing"
+          ng-click="lp.startEditConst(cb, $event)"
+          title="Click to edit value"
+          >= {{ cb.value }}</span
+        >
+        <input
+          class="lp-const-input"
+          ng-show="cb._editing"
+          ng-model="cb._editVal"
+          ng-blur="lp.saveConst(cb)"
+          ng-keydown="lp.constKeydown(cb, $event)"
+          ng-click="$event.stopPropagation()"
+          data-cbid="{{ cb.id }}"
+        />
+      </div>
+    </div>
+
+    <!-- Information -->
+    <div class="lp-panel-body" ng-show="lp.tab === 'info'">
+      <div class="lp-empty" ng-show="!lp.infoBlocks.length">
+        No information blocks
+      </div>
+      <div
+        class="lp-node"
+        ng-repeat="ib in lp.infoBlocks"
+        ng-class="{'lp-pinned': lp.pinned && lp.pinned.item === ib}"
+        ng-mouseenter="lp.hoverIn('infoblock', ib)"
+        ng-mouseleave="lp.hoverOut()"
+        ng-click="lp.clickItem('infoblock', ib, $event)"
+        ng-dblclick="lp.dblClickItem('infoblock', ib, $event)"
+      >
+        <span class="lp-expand lp-no-expand"></span>
+        <span class="lp-dot lp-dot-info"></span>
+        <span class="lp-label lp-info-text" title="{{ ib.label }}"
+          >{{ ib.label }}</span
+        >
+      </div>
+    </div>
+
+    <!-- Virtual Ports -->
+    <div class="lp-panel-body" ng-show="lp.tab === 'virtports'">
+      <div class="lp-empty" ng-show="!lp.virtPorts.length">
+        No virtual ports
+      </div>
+      <div
+        class="lp-port-row"
+        ng-repeat="vp in lp.virtPorts"
+        ng-class="{'lp-pinned': lp.pinned && lp.pinned.item === vp}"
+        ng-mouseenter="lp.hoverIn('virtport', vp)"
+        ng-mouseleave="lp.hoverOut()"
+        ng-click="lp.clickItem('virtport', vp, $event)"
+        ng-dblclick="lp.dblClickItem('virtport', vp, $event)"
+      >
+        <span class="lp-dir lp-dir-{{ vp.dir }}">{{ vp.dir }}</span>
+        <span class="lp-pname" title="{{ vp.name }}">{{ vp.name }}</span>
+      </div>
+    </div>
+
     <!-- Wires -->
-    <div id="lp-wires" class="lp-panel-body" ng-show="lp.tab === 'wires'">
+    <div class="lp-panel-body" ng-show="lp.tab === 'wires'">
       <div class="lp-empty" ng-show="!lp.wires.length">
         No label wires on canvas
       </div>
-      <div class="lp-port-row" ng-repeat="wire in lp.wires">
+      <div
+        class="lp-port-row"
+        ng-repeat="wire in lp.wires"
+        ng-class="{'lp-pinned': lp.pinned && lp.pinned.item === wire}"
+        ng-mouseenter="lp.hoverIn('wire', wire)"
+        ng-mouseleave="lp.hoverOut()"
+        ng-click="lp.clickItem('wire', wire, $event)"
+        ng-dblclick="lp.dblClickItem('wire', wire, $event)"
+      >
         <span class="lp-dir lp-dir-{{ wire.dir }}">{{ wire.dir }}</span>
         <span class="lp-pname" title="{{ wire.name }}">{{ wire.name }}</span>
       </div>
     </div>
 
-    <!-- Port Editor -->
-    <div id="lp-ports" class="lp-panel-body" ng-show="lp.tab === 'ports'">
-      <div class="lp-empty" ng-show="!lp.hwPorts.length">No hardware ports</div>
-      <div class="lp-port-row" ng-repeat="port in lp.hwPorts">
+    <!-- HW Pins -->
+    <div class="lp-panel-body" ng-show="lp.tab === 'pins'">
+      <div
+        class="lp-empty"
+        ng-show="!lp.hwPorts.length && !lp.unusedPins.length"
+      >
+        No hardware pins assigned
+      </div>
+
+      <!-- Assigned ports -->
+      <div
+        class="lp-port-row"
+        ng-repeat="port in lp.hwPorts"
+        ng-class="{'lp-pinned': lp.pinned && lp.pinned.item === port}"
+        ng-mouseenter="lp.hoverIn('port', port)"
+        ng-mouseleave="lp.hoverOut()"
+        ng-click="lp.clickItem('port', port, $event)"
+        ng-dblclick="lp.dblClickItem('port', port, $event)"
+      >
         <span class="lp-dir lp-dir-{{ port.dir }}">{{ port.dir }}</span>
         <span class="lp-pname" title="{{ port.name }}">{{ port.name }}</span>
-        <span class="lp-pin">{{ port.pin }}</span>
+        <span class="lp-pins-area">
+          <select
+            class="lp-pin-select"
+            ng-repeat="pin in port._pins"
+            ng-model="pin.value"
+            ng-options="bp.value as bp.name for bp in (common.selectedBoard.pinout || [])"
+            ng-change="lp.changePin(port, pin)"
+            ng-click="$event.stopPropagation()"
+          >
+            <option value="">– none –</option>
+          </select>
+        </span>
+      </div>
+
+      <!-- Unused board pins shown in gray -->
+      <div class="lp-section-header" ng-show="lp.unusedPins.length">
+        Unused pins
+      </div>
+      <div class="lp-port-row lp-unused-pin" ng-repeat="up in lp.unusedPins">
+        <span class="lp-dir lp-dir-io">io</span>
+        <span class="lp-pname">{{ up.name }}</span>
+        <span class="lp-pin lp-pin-num">{{ up.value }}</span>
       </div>
     </div>
   </div>

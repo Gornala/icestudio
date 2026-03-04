@@ -207,11 +207,7 @@ angular
         //-- Read the Field value
         //---------------------------------------------
         read() {
-          //-- Read the value from the form i
-          let value = $($('#form' + this.formId).prop('checked'));
-          value = value[0] || false;
-
-          return value;
+          return $('#form' + this.formId).prop('checked') || false;
         }
       }
 
@@ -1096,7 +1092,12 @@ angular
             }
 
             if (allow) {
-              callback(evt);
+              try {
+                callback(evt);
+              } catch (e) {
+                console.error('[icestudio] Form OK error:', e);
+                evt.cancel = true;
+              }
             } else {
               evt.cancel = true;
             }
@@ -2605,7 +2606,11 @@ angular
 
           //-- Values[0]: Memory names
           //-- Parse the memory names
-          this.names = Form.parseNames(this.values[0].replace(/\s+/g, ''));
+          const rawMemNames =
+            this.values[0] !== null && this.values[0] !== undefined
+              ? String(this.values[0])
+              : '';
+          this.names = Form.parseNames(rawMemNames.replace(/\s+/g, ''));
 
           //-- Values[1] is the combobox value
           this.value = parseInt(this.values[1]);
@@ -2780,8 +2785,12 @@ angular
           this.values = this.readFields();
 
           //-- Values[0]: Constant names
-          //-- Parse the Constant names
-          this.names = Form.parseNames(this.values[0].replace(/\s+/g, ''));
+          //-- Parse the Constant names (guard against undefined if DOM read fails)
+          const rawNames =
+            this.values[0] !== null && this.values[0] !== undefined
+              ? String(this.values[0])
+              : '';
+          this.names = Form.parseNames(rawNames.replace(/\s+/g, ''));
 
           //-- Values[1] is the checkbox that indicates if the memory
           //-- is a local parameter or not
@@ -2800,6 +2809,15 @@ angular
 
           //-- Check all the ports (The user may have include one or more)
           for (let name of this.names) {
+            //-- Reject empty names (e.g. user left the field blank)
+            if (!name) {
+              evt.cancel = true;
+              this.resultAlert = alertify.warning(
+                gettextCatalog.getString('Enter a constant name')
+              );
+              return;
+            }
+
             //-- Get the port Info: port name, size...
             portInfo = Form.parsePortName(name);
 

@@ -1111,28 +1111,38 @@ g {
   color: #333;
 }
 
-/* Tab bar */
+/* Tab bar — two rows */
 #lp-tab-bar {
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
   flex-shrink: 0;
   background: #ebedf0;
   border-bottom: 1px solid #d5dadd;
-  min-height: 30px;
+}
+
+.lp-tab-row {
+  display: flex;
+  align-items: stretch;
+  min-height: 26px;
+  border-bottom: 1px solid #d5dadd;
+}
+
+.lp-tab-row:last-child {
+  border-bottom: none;
 }
 
 .lp-tab-btn {
   flex: 1;
-  padding: 4px 6px;
+  padding: 3px 4px;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: #777;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
 }
 
 .lp-tab-btn:hover {
@@ -1174,6 +1184,7 @@ g {
   display: flex;
   align-items: center;
   gap: 4px;
+  cursor: pointer;
   padding: 3px 8px;
   border-radius: 3px;
   margin: 1px 3px;
@@ -1250,9 +1261,51 @@ g {
   line-height: 1.4;
 }
 
+.lp-value {
+  font-size: 10px;
+  color: #888;
+  white-space: nowrap;
+  margin-left: 2px;
+}
+
+.lp-value.lp-editable {
+  cursor: text;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.lp-value.lp-editable:hover {
+  background: #d5eaf8;
+  color: #1a5276;
+}
+
+.lp-const-input {
+  font-size: 10px;
+  width: 70px;
+  padding: 1px 4px;
+  border: 1px solid #337ab7;
+  border-radius: 3px;
+  outline: none;
+  margin-left: 2px;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.lp-info-text {
+  color: #666;
+  font-style: italic;
+}
+
 /* Highlight canvas cells on hover */
 .lp-highlight {
-  filter: drop-shadow(0 0 5px rgba(51, 122, 183, 0.9));
+  outline: 2px solid rgba(51, 122, 183, 0.9) !important;
+  filter: drop-shadow(0 0 7px rgba(51, 122, 183, 1));
+}
+
+/* Pinned (clicked) panel row */
+.lp-node.lp-pinned,
+.lp-port-row.lp-pinned {
+  background: #c8ddf0;
+  outline: 1px solid #337ab7;
 }
 
 /* Section headers inside Port Editor */
@@ -1288,6 +1341,7 @@ g {
   padding: 3px 8px;
   border-radius: 3px;
   margin: 1px 3px;
+  cursor: pointer;
 }
 
 .lp-port-row:hover {
@@ -1337,4 +1391,56 @@ g {
   font-family: 'Consolas', 'Courier New', monospace;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.lp-pins-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.lp-pin-select {
+  font-size: 10px;
+  padding: 1px 2px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #f8f9fa;
+  color: #333;
+  cursor: pointer;
+  max-width: 80px;
+}
+
+.lp-pin-select:hover {
+  border-color: #337ab7;
+}
+
+.lp-section-header {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  padding: 6px 10px 2px;
+  margin-top: 4px;
+  border-top: 1px solid #d5dadd;
+  user-select: none;
+}
+
+.lp-unused-pin {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.lp-unused-pin:hover {
+  background: transparent;
+}
+
+.lp-dir-io {
+  background: #e8eaec;
+  color: #666;
+}
+
+.lp-pin-num {
+  color: #999;
 }
