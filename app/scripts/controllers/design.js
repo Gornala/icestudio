@@ -659,11 +659,18 @@ cells.sort((a, b) => {
 
           // 3 — Constant and memory blocks
           if (blockType === 'basic.constant' || blockType === 'basic.memory') {
+            var isMemory = blockType === 'basic.memory';
+            var entryCount = isMemory
+              ? (data.list || '').split('\n').filter(function (s) {
+                  return s.trim();
+                }).length
+              : null;
             constBlocks.push({
               id: cell.id,
-              cellType: blockType === 'basic.memory' ? 'memory' : 'constant',
+              cellType: isMemory ? 'memory' : 'constant',
               label: data.name || data.label || blockType.replace('basic.', ''),
               value: data.value !== undefined ? String(data.value) : '',
+              entries: entryCount,
             });
             return;
           }

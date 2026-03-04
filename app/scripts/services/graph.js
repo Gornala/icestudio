@@ -1235,6 +1235,9 @@ angular.module('icestudio').service(
       }, 200);
       graph.off('change:data', lpTriggerAutoRefresh);
       graph.on('change:data', lpTriggerAutoRefresh);
+      // Info/memory blocks update data.info/list directly and fire change:deltas
+      graph.off('change:deltas', lpTriggerAutoRefresh);
+      graph.on('change:deltas', lpTriggerAutoRefresh);
 
       paper.on('cell:mouseover', function (cellView, evt) {
         // Move selection to top view if !mousedown

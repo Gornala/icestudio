@@ -123,10 +123,16 @@
         <span class="lp-label">{{ cb.label }}</span>
         <span
           class="lp-value lp-editable"
-          ng-show="!cb._editing"
+          ng-show="cb.cellType === 'constant' && !cb._editing"
           ng-click="lp.startEditConst(cb, $event)"
           title="Click to edit value"
           >= {{ cb.value }}</span
+        >
+        <span
+          class="lp-value"
+          ng-show="cb.cellType === 'memory'"
+          title="Memory entries"
+          >[{{ cb.entries }}]</span
         >
         <input
           class="lp-const-input"
