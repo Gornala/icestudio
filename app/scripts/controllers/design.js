@@ -389,7 +389,7 @@ cells.sort((a, b) => {
         width: 280,
         nodes: [],
         hwPorts: [],
-        intPorts: [],
+        wires: [],
       };
 
       $scope.lp.toggle = function () {
@@ -483,12 +483,19 @@ cells.sort((a, b) => {
         $('.paper').find('[model-id]').removeClass('lp-highlight');
       };
 
-      // Build node list and port lists from current graph cells
+      // Label block types that belong in the Wires tab, not Modules
+      const WIRE_TYPES = new Set([
+        'basic.input_label',
+        'basic.output_label',
+        'basic.paired_label',
+      ]);
+
+      // Build node list, hardware port list, and wire list from current graph cells
       $scope.lp.refresh = function () {
         const cells = graph.getCells().filter((c) => !c.isLink());
         const nodes = [];
         const hwPorts = [];
-        const intPorts = [];
+        const wires = [];
 
         cells.forEach(function (cell) {
           const cellType = cell.get('type') || '';
@@ -496,6 +503,23 @@ cells.sort((a, b) => {
           const data = cell.get('data') || {};
           let lbl;
 
+          // Label blocks go to Wires tab — skip from Modules list
+          if (WIRE_TYPES.has(blockType)) {
+            let wDir = 'pair';
+            if (blockType === 'basic.input_label') {
+              wDir = 'in';
+            } else if (blockType === 'basic.output_label') {
+              wDir = 'out';
+            }
+            wires.push({
+              id: cell.id,
+              name: data.label || data.name || data.info || '?',
+              dir: wDir,
+            });
+            return;
+          }
+
+          // All other blocks go to Modules list
           if (cellType === 'ice.Generic') {
             const dep =
               common.allDependencies && common.allDependencies[blockType];
@@ -533,7 +557,7 @@ cells.sort((a, b) => {
             });
           }
 
-          // Hardware ports: basic.input / basic.output with board pin assignment
+          // Hardware ports: basic.input / basic.output with FPGA pin assignment
           if (blockType === 'basic.input' || blockType === 'basic.output') {
             const pins = data.pins || [];
             const pinStr = pins
@@ -548,29 +572,12 @@ cells.sort((a, b) => {
               virtual: data.virtual || false,
               size: data.size || 1,
             });
-          } else if (
-            blockType === 'basic.input_label' ||
-            blockType === 'basic.output_label' ||
-            blockType === 'basic.paired_label'
-          ) {
-            // Internal ports: label-based wires (no FPGA pin)
-            let iDir = 'pair';
-            if (blockType === 'basic.input_label') {
-              iDir = 'in';
-            } else if (blockType === 'basic.output_label') {
-              iDir = 'out';
-            }
-            intPorts.push({
-              id: cell.id,
-              name: data.label || data.name || data.info || '?',
-              dir: iDir,
-            });
           }
         });
 
         $scope.lp.nodes = nodes;
         $scope.lp.hwPorts = hwPorts;
-        $scope.lp.intPorts = intPorts;
+        $scope.lp.wires = wires;
       };
 
       // Refresh panel after design navigation (submodule in/out)

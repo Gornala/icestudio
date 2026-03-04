@@ -35,6 +35,13 @@
       </button>
       <button
         class="lp-tab-btn"
+        ng-class="{active: lp.tab === 'wires'}"
+        ng-click="lp.setTab('wires')"
+      >
+        Wires
+      </button>
+      <button
+        class="lp-tab-btn"
         ng-class="{active: lp.tab === 'ports'}"
         ng-click="lp.setTab('ports')"
       >
@@ -69,22 +76,24 @@
       </div>
     </div>
 
+    <!-- Wires -->
+    <div id="lp-wires" class="lp-panel-body" ng-show="lp.tab === 'wires'">
+      <div class="lp-empty" ng-show="!lp.wires.length">
+        No label wires on canvas
+      </div>
+      <div class="lp-port-row" ng-repeat="wire in lp.wires">
+        <span class="lp-dir lp-dir-{{ wire.dir }}">{{ wire.dir }}</span>
+        <span class="lp-pname" title="{{ wire.name }}">{{ wire.name }}</span>
+      </div>
+    </div>
+
     <!-- Port Editor -->
     <div id="lp-ports" class="lp-panel-body" ng-show="lp.tab === 'ports'">
-      <div class="lp-section-hdr">Hardware Ports</div>
       <div class="lp-empty" ng-show="!lp.hwPorts.length">No hardware ports</div>
       <div class="lp-port-row" ng-repeat="port in lp.hwPorts">
         <span class="lp-dir lp-dir-{{ port.dir }}">{{ port.dir }}</span>
         <span class="lp-pname" title="{{ port.name }}">{{ port.name }}</span>
         <span class="lp-pin">{{ port.pin }}</span>
-      </div>
-      <div class="lp-section-hdr lp-section-gap">Internal Ports</div>
-      <div class="lp-empty" ng-show="!lp.intPorts.length">
-        No internal ports
-      </div>
-      <div class="lp-port-row" ng-repeat="port in lp.intPorts">
-        <span class="lp-dir lp-dir-{{ port.dir }}">{{ port.dir }}</span>
-        <span class="lp-pname" title="{{ port.name }}">{{ port.name }}</span>
       </div>
     </div>
   </div>
