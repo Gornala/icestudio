@@ -378,5 +378,258 @@ cells.sort((a, b) => {
         utils.rootScopeSafeApply();
         //utils.endBlockingTask();
       });
+
+      //----------------------------------------------------------------
+      //-- Left Panel: Module Explorer & Port Editor
+      //----------------------------------------------------------------
+
+      $scope.lp = {
+        open: false,
+        tab: 'modules',
+        width: 280,
+        nodes: [],
+        hwPorts: [],
+        intPorts: [],
+      };
+
+      $scope.lp.toggle = function () {
+        $scope.lp.open = !$scope.lp.open;
+        if ($scope.lp.open) {
+          $scope.lp.refresh();
+        }
+      };
+
+      $scope.lp.setTab = function (tab) {
+        $scope.lp.tab = tab;
+      };
+
+      // Build tree nodes for blocks inside a dependency (recursive expand)
+      const buildDepNodes = function (depBlocks, depth) {
+        const result = [];
+        (depBlocks || []).forEach(function (block) {
+          if (!block.type) {
+            return;
+          }
+          const dep =
+            common.allDependencies && common.allDependencies[block.type];
+          const childBlocks =
+            dep && dep.design && dep.design.graph && dep.design.graph.blocks;
+          const d = block.data || {};
+          let lbl;
+          if (dep) {
+            lbl = (dep.package && dep.package.name) || block.type;
+          } else {
+            lbl =
+              d.label || d.name || d.info || block.type.replace('basic.', '');
+          }
+          result.push({
+            id: block.id,
+            type: block.type,
+            cellType: dep ? 'generic' : block.type.replace('basic.', ''),
+            label: lbl || block.type,
+            depth: depth,
+            hasChildren: !!(childBlocks && childBlocks.length),
+            expanded: false,
+            _depBlocks: childBlocks || null,
+          });
+        });
+        return result;
+      };
+
+      $scope.lp.toggleNode = function (node) {
+        const idx = $scope.lp.nodes.indexOf(node);
+        if (idx === -1) {
+          return;
+        }
+        node.expanded = !node.expanded;
+        if (node.expanded) {
+          const children = buildDepNodes(node._depBlocks, node.depth + 1);
+          $scope.lp.nodes.splice(idx + 1, 0, ...children);
+        } else {
+          let removeCount = 0;
+          for (let i = idx + 1; i < $scope.lp.nodes.length; i++) {
+            if ($scope.lp.nodes[i].depth > node.depth) {
+              removeCount++;
+            } else {
+              break;
+            }
+          }
+          $scope.lp.nodes.splice(idx + 1, removeCount);
+        }
+      };
+
+      // Hover: highlight canvas cells matching this node's module type
+      $scope.lp.hoverIn = function (node) {
+        if (!node || node.depth > 0) {
+          return;
+        }
+        graph.getCells().forEach(function (cell) {
+          if (cell.isLink()) {
+            return;
+          }
+          const match =
+            node.cellType === 'generic'
+              ? cell.get('blockType') === node.type
+              : cell.id === node.id;
+          if (match) {
+            $('.paper')
+              .find('[model-id="' + cell.id + '"]')
+              .addClass('lp-highlight');
+          }
+        });
+      };
+
+      $scope.lp.hoverOut = function () {
+        $('.paper').find('[model-id]').removeClass('lp-highlight');
+      };
+
+      // Build node list and port lists from current graph cells
+      $scope.lp.refresh = function () {
+        const cells = graph.getCells().filter((c) => !c.isLink());
+        const nodes = [];
+        const hwPorts = [];
+        const intPorts = [];
+
+        cells.forEach(function (cell) {
+          const cellType = cell.get('type') || '';
+          const blockType = cell.get('blockType') || '';
+          const data = cell.get('data') || {};
+          let lbl;
+
+          if (cellType === 'ice.Generic') {
+            const dep =
+              common.allDependencies && common.allDependencies[blockType];
+            const depBlocks =
+              dep && dep.design && dep.design.graph && dep.design.graph.blocks;
+            lbl =
+              cell.get('label') ||
+              (dep && dep.package && dep.package.name) ||
+              blockType;
+            nodes.push({
+              id: cell.id,
+              type: blockType,
+              cellType: 'generic',
+              label: lbl,
+              depth: 0,
+              hasChildren: !!(depBlocks && depBlocks.length),
+              expanded: false,
+              _depBlocks: depBlocks || null,
+            });
+          } else {
+            lbl =
+              data.label ||
+              data.name ||
+              data.info ||
+              cellType.replace('ice.', '');
+            nodes.push({
+              id: cell.id,
+              type: blockType || cellType,
+              cellType: cellType.replace('ice.', '').toLowerCase(),
+              label: lbl,
+              depth: 0,
+              hasChildren: false,
+              expanded: false,
+              _depBlocks: null,
+            });
+          }
+
+          // Hardware ports: basic.input / basic.output with board pin assignment
+          if (blockType === 'basic.input' || blockType === 'basic.output') {
+            const pins = data.pins || [];
+            const pinStr = pins
+              .map((p) => p.value || '')
+              .filter(Boolean)
+              .join(', ');
+            hwPorts.push({
+              id: cell.id,
+              name: data.label || data.name || '?',
+              dir: blockType === 'basic.input' ? 'in' : 'out',
+              pin: pinStr || '–',
+              virtual: data.virtual || false,
+              size: data.size || 1,
+            });
+          } else if (
+            blockType === 'basic.input_label' ||
+            blockType === 'basic.output_label' ||
+            blockType === 'basic.paired_label'
+          ) {
+            // Internal ports: label-based wires (no FPGA pin)
+            let iDir = 'pair';
+            if (blockType === 'basic.input_label') {
+              iDir = 'in';
+            } else if (blockType === 'basic.output_label') {
+              iDir = 'out';
+            }
+            intPorts.push({
+              id: cell.id,
+              name: data.label || data.name || data.info || '?',
+              dir: iDir,
+            });
+          }
+        });
+
+        $scope.lp.nodes = nodes;
+        $scope.lp.hwPorts = hwPorts;
+        $scope.lp.intPorts = intPorts;
+      };
+
+      // Refresh panel after design navigation (submodule in/out)
+      $rootScope.$on('navigateProjectEnded', function () {
+        if ($scope.lp.open) {
+          setTimeout(function () {
+            $scope.$apply(function () {
+              $scope.lp.refresh();
+            });
+          }, 200);
+        }
+      });
+
+      // Refresh panel when graph changes (blocks added / removed)
+      const lpUpdateWires = function () {
+        if ($scope.lp.open) {
+          setTimeout(function () {
+            $scope.$apply(function () {
+              $scope.lp.refresh();
+            });
+          }, 100);
+        }
+      };
+      $('body').on('Graph::updateWires', lpUpdateWires);
+
+      // Resize handle drag
+      const lpInitResize = function () {
+        let dragging = false;
+        let startX = 0;
+        let startW = 0;
+        $(document).on('mousedown.lp', '#lp-resize-handle', function (e) {
+          dragging = true;
+          startX = e.pageX;
+          startW = $scope.lp.width;
+          $('body').addClass('lp-resizing');
+          e.preventDefault();
+        });
+        $(document).on('mousemove.lp', function (e) {
+          if (!dragging) {
+            return;
+          }
+          const w = Math.max(180, Math.min(520, startW + e.pageX - startX));
+          $scope.$apply(function () {
+            $scope.lp.width = w;
+          });
+        });
+        $(document).on('mouseup.lp', function () {
+          if (!dragging) {
+            return;
+          }
+          dragging = false;
+          $('body').removeClass('lp-resizing');
+        });
+      };
+      lpInitResize();
+
+      $scope.$on('$destroy', function () {
+        $('body').off('Graph::updateWires', lpUpdateWires);
+        $(document).off('.lp');
+      });
     }
   );

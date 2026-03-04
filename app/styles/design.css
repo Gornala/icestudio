@@ -1022,3 +1022,319 @@ g {
 .tab-content.active {
   display: block;
 }
+
+/* ================================================================
+   Left Panel — Module Explorer & Port Editor
+   ================================================================ */
+
+/* Toggle tab: always visible at left edge */
+#lp-tab {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 48px;
+  background: #f5f6f7;
+  border: 1px solid #d5dadd;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  z-index: 2002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  font-size: 11px;
+  user-select: none;
+}
+
+#lp-tab:hover {
+  background: #e0e3e8;
+  color: #333;
+}
+
+/* Resize handle between panel and canvas */
+#lp-resize-handle {
+  position: fixed;
+  top: 46px;
+  bottom: 47px;
+  width: 9px;
+  cursor: col-resize;
+  z-index: 2001;
+  background: transparent;
+}
+
+#lp-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  background: #d5dadd;
+  transition:
+    width 0.12s,
+    background 0.12s;
+}
+
+#lp-resize-handle:hover::before,
+#lp-resize-handle.dragging::before {
+  width: 3px;
+  background: #337ab7;
+}
+
+/* Prevent text selection while resizing */
+.lp-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+/* Panel body */
+#left-panel {
+  position: fixed;
+  top: 46px;
+  left: 0;
+  bottom: 47px;
+  background: #f5f6f7;
+  border-right: 1px solid #d5dadd;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family:
+    'LatoWeb',
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  font-size: 12px;
+  color: #333;
+}
+
+/* Tab bar */
+#lp-tab-bar {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  background: #ebedf0;
+  border-bottom: 1px solid #d5dadd;
+  min-height: 30px;
+}
+
+.lp-tab-btn {
+  flex: 1;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #777;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.lp-tab-btn:hover {
+  color: #333;
+  background: #e0e3e8;
+}
+
+.lp-tab-btn.active {
+  color: #337ab7;
+  border-bottom-color: #337ab7;
+  background: #f5f6f7;
+}
+
+.lp-refresh-btn {
+  padding: 0 8px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid #d5dadd;
+  color: #777;
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.lp-refresh-btn:hover {
+  color: #333;
+  background: #e0e3e8;
+}
+
+/* Scrollable panel content */
+.lp-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+/* Module tree nodes */
+.lp-node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  margin: 1px 3px;
+  cursor: default;
+  color: #333;
+}
+
+.lp-node:hover {
+  background: #e0e3e8;
+}
+
+/* Expand/collapse icon */
+.lp-expand {
+  width: 14px;
+  flex-shrink: 0;
+  cursor: pointer;
+  color: #777;
+  font-size: 10px;
+  text-align: center;
+  user-select: none;
+  line-height: 1;
+}
+
+.lp-no-expand {
+  pointer-events: none;
+}
+
+/* Colored dot indicating block type */
+.lp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #bbb;
+}
+
+.lp-dot-generic {
+  background: #337ab7;
+}
+.lp-dot-code {
+  background: #5cb85c;
+  border-radius: 2px;
+}
+.lp-dot-input {
+  background: #3a9bd5;
+}
+.lp-dot-output {
+  background: #e67e22;
+}
+.lp-dot-inputlabel {
+  background: #5dade2;
+  border-radius: 1px;
+}
+.lp-dot-outputlabel {
+  background: #eb984e;
+  border-radius: 1px;
+}
+.lp-dot-constant {
+  background: #f39c12;
+}
+.lp-dot-memory {
+  background: #9b59b6;
+}
+.lp-dot-info {
+  background: #95a5a6;
+}
+
+.lp-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Highlight canvas cells on hover */
+.lp-highlight {
+  filter: drop-shadow(0 0 5px rgba(51, 122, 183, 0.9));
+}
+
+/* Section headers inside Port Editor */
+.lp-section-hdr {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #337ab7;
+  padding: 6px 10px 2px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lp-section-gap {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #d5dadd;
+}
+
+.lp-empty {
+  font-size: 11px;
+  color: #999;
+  padding: 4px 10px;
+  font-style: italic;
+}
+
+/* Port rows */
+.lp-port-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  margin: 1px 3px;
+}
+
+.lp-port-row:hover {
+  background: #e0e3e8;
+}
+
+.lp-dir {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  width: 26px;
+  text-align: center;
+  background: #e8eaec;
+  color: #555;
+}
+
+.lp-dir-in {
+  background: #d6eaf8;
+  color: #1a5276;
+}
+
+.lp-dir-out {
+  background: #fdebd0;
+  color: #784212;
+}
+
+.lp-dir-pair {
+  background: #e8daef;
+  color: #512e5f;
+}
+
+.lp-pname {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: #333;
+}
+
+.lp-pin {
+  font-size: 10px;
+  color: #777;
+  font-family: 'Consolas', 'Courier New', monospace;
+  white-space: nowrap;
+  flex-shrink: 0;
+}

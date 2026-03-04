@@ -1,6 +1,94 @@
 <!doctype html>
 
 <div ng-controller="DesignCtrl">
+  <!------------------------------------------------------------------------>
+  <!-- Left Panel: Module Explorer & Port Editor                          -->
+  <!------------------------------------------------------------------------>
+
+  <!-- Toggle tab — always visible at left edge -->
+  <div
+    id="lp-tab"
+    title="{{ 'Toggle panel' | translate }}"
+    ng-click="lp.toggle()"
+    ng-style="{'left': lp.open ? (lp.width + 9) + 'px' : '0'}"
+  >
+    <span>{{ lp.open ? '◂' : '▸' }}</span>
+  </div>
+
+  <!-- Resize handle — right edge of panel when open -->
+  <div
+    id="lp-resize-handle"
+    ng-show="lp.open"
+    ng-style="{'left': lp.width + 'px'}"
+  ></div>
+
+  <!-- Panel body -->
+  <div id="left-panel" ng-show="lp.open" ng-style="{'width': lp.width + 'px'}">
+    <!-- Tab bar -->
+    <div id="lp-tab-bar">
+      <button
+        class="lp-tab-btn"
+        ng-class="{active: lp.tab === 'modules'}"
+        ng-click="lp.setTab('modules')"
+      >
+        Modules
+      </button>
+      <button
+        class="lp-tab-btn"
+        ng-class="{active: lp.tab === 'ports'}"
+        ng-click="lp.setTab('ports')"
+      >
+        Ports
+      </button>
+      <button class="lp-refresh-btn" ng-click="lp.refresh()" title="Refresh">
+        &#8635;
+      </button>
+    </div>
+
+    <!-- Module Explorer -->
+    <div id="lp-modules" class="lp-panel-body" ng-show="lp.tab === 'modules'">
+      <div class="lp-empty" ng-show="!lp.nodes.length">
+        No modules on canvas
+      </div>
+      <div
+        class="lp-node"
+        ng-repeat="node in lp.nodes"
+        ng-style="{'padding-left': (8 + node.depth * 16) + 'px'}"
+        ng-mouseenter="lp.hoverIn(node)"
+        ng-mouseleave="lp.hoverOut()"
+      >
+        <span
+          class="lp-expand"
+          ng-if="node.hasChildren"
+          ng-click="lp.toggleNode(node)"
+          >{{ node.expanded ? '▾' : '▸' }}</span
+        >
+        <span class="lp-expand lp-no-expand" ng-if="!node.hasChildren"></span>
+        <span class="lp-dot lp-dot-{{ node.cellType }}"></span>
+        <span class="lp-label" title="{{ node.type }}">{{ node.label }}</span>
+      </div>
+    </div>
+
+    <!-- Port Editor -->
+    <div id="lp-ports" class="lp-panel-body" ng-show="lp.tab === 'ports'">
+      <div class="lp-section-hdr">Hardware Ports</div>
+      <div class="lp-empty" ng-show="!lp.hwPorts.length">No hardware ports</div>
+      <div class="lp-port-row" ng-repeat="port in lp.hwPorts">
+        <span class="lp-dir lp-dir-{{ port.dir }}">{{ port.dir }}</span>
+        <span class="lp-pname" title="{{ port.name }}">{{ port.name }}</span>
+        <span class="lp-pin">{{ port.pin }}</span>
+      </div>
+      <div class="lp-section-hdr lp-section-gap">Internal Ports</div>
+      <div class="lp-empty" ng-show="!lp.intPorts.length">
+        No internal ports
+      </div>
+      <div class="lp-port-row" ng-repeat="port in lp.intPorts">
+        <span class="lp-dir lp-dir-{{ port.dir }}">{{ port.dir }}</span>
+        <span class="lp-pname" title="{{ port.name }}">{{ port.name }}</span>
+      </div>
+    </div>
+  </div>
+
   <!---------------------------------------------------->
   <!-- Information Banners                            -->
   <!---------------------------------------------------->
