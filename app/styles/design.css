@@ -1039,7 +1039,7 @@ g {
   border-left: none;
   border-radius: 0 4px 4px 0;
   cursor: pointer;
-  z-index: 2002;
+  z-index: 1500;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1060,7 +1060,7 @@ g {
   bottom: 47px;
   width: 9px;
   cursor: col-resize;
-  z-index: 2001;
+  z-index: 1500;
   background: transparent;
 }
 
@@ -1098,7 +1098,7 @@ g {
   bottom: 47px;
   background: #f5f6f7;
   border-right: 1px solid #d5dadd;
-  z-index: 2000;
+  z-index: 1499;
   display: flex;
   flex-direction: column;
   overflow: hidden;
