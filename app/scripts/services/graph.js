@@ -1753,6 +1753,9 @@ angular.module('icestudio').service(
           });
         });
         graph.trigger('batch:start');
+        _.each(cells, function (cell) {
+          updateCellAttributes(cell);
+        });
         graph.addCells(cells);
         disableSelected();
         let opt = { transparent: true };
