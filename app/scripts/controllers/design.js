@@ -388,7 +388,8 @@ cells.sort((a, b) => {
         tab: 'modules',
         width: 280,
         nodes: [], // generic submodules + code blocks
-        constBlocks: [], // constants + memory
+        constBlocks: [], // constant blocks
+        memBlocks: [], // memory blocks
         infoBlocks: [], // info/comment blocks
         virtPorts: [], // virtual I/O ports
         hwPorts: [], // FPGA-assigned pins
@@ -622,6 +623,7 @@ cells.sort((a, b) => {
         const cells = graph.getCells().filter((c) => !c.isLink());
         const nodes = [];
         const constBlocks = [];
+        const memBlocks = [];
         const infoBlocks = [];
         const virtPorts = [];
         const hwPorts = [];
@@ -657,19 +659,26 @@ cells.sort((a, b) => {
             return;
           }
 
-          // 3 — Constant and memory blocks
-          if (blockType === 'basic.constant' || blockType === 'basic.memory') {
-            var isMemory = blockType === 'basic.memory';
-            var entryCount = isMemory
-              ? (data.list || '').split('\n').filter(function (s) {
-                  return s.trim();
-                }).length
-              : null;
+          // 3 — Constant blocks
+          if (blockType === 'basic.constant') {
             constBlocks.push({
               id: cell.id,
-              cellType: isMemory ? 'memory' : 'constant',
-              label: data.name || data.label || blockType.replace('basic.', ''),
+              cellType: 'constant',
+              label: data.name || data.label || 'constant',
               value: data.value !== undefined ? String(data.value) : '',
+            });
+            return;
+          }
+
+          // 4 — Memory blocks
+          if (blockType === 'basic.memory') {
+            var entryCount = (data.list || '').split('\n').filter(function (s) {
+              return s.trim();
+            }).length;
+            memBlocks.push({
+              id: cell.id,
+              cellType: 'memory',
+              label: data.name || data.label || 'memory',
               entries: entryCount,
             });
             return;
@@ -740,6 +749,7 @@ cells.sort((a, b) => {
 
         $scope.lp.nodes = nodes;
         $scope.lp.constBlocks = constBlocks;
+        $scope.lp.memBlocks = memBlocks;
         $scope.lp.infoBlocks = infoBlocks;
         $scope.lp.virtPorts = virtPorts;
         $scope.lp.hwPorts = hwPorts;

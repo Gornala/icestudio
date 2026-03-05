@@ -55,6 +55,13 @@
       <div class="lp-tab-row">
         <button
           class="lp-tab-btn"
+          ng-class="{active: lp.tab === 'memory'}"
+          ng-click="lp.setTab('memory')"
+        >
+          Memory
+        </button>
+        <button
+          class="lp-tab-btn"
           ng-class="{active: lp.tab === 'virtports'}"
           ng-click="lp.setTab('virtports')"
         >
@@ -104,10 +111,10 @@
       </div>
     </div>
 
-    <!-- Constants & Memory -->
+    <!-- Constants -->
     <div class="lp-panel-body" ng-show="lp.tab === 'consts'">
       <div class="lp-empty" ng-show="!lp.constBlocks.length">
-        No constants or memory blocks
+        No constant blocks
       </div>
       <div
         class="lp-node"
@@ -119,20 +126,14 @@
         ng-dblclick="lp.dblClickItem('constblock', cb, $event)"
       >
         <span class="lp-expand lp-no-expand"></span>
-        <span class="lp-dot lp-dot-{{ cb.cellType }}"></span>
+        <span class="lp-dot lp-dot-constant"></span>
         <span class="lp-label">{{ cb.label }}</span>
         <span
           class="lp-value lp-editable"
-          ng-show="cb.cellType === 'constant' && !cb._editing"
+          ng-show="!cb._editing"
           ng-click="lp.startEditConst(cb, $event)"
           title="Click to edit value"
           >= {{ cb.value }}</span
-        >
-        <span
-          class="lp-value"
-          ng-show="cb.cellType === 'memory'"
-          title="Memory entries"
-          >[{{ cb.entries }}]</span
         >
         <input
           class="lp-const-input"
@@ -143,6 +144,27 @@
           ng-click="$event.stopPropagation()"
           data-cbid="{{ cb.id }}"
         />
+      </div>
+    </div>
+
+    <!-- Memory -->
+    <div class="lp-panel-body" ng-show="lp.tab === 'memory'">
+      <div class="lp-empty" ng-show="!lp.memBlocks.length">
+        No memory blocks
+      </div>
+      <div
+        class="lp-node"
+        ng-repeat="mb in lp.memBlocks"
+        ng-class="{'lp-pinned': lp.pinned && lp.pinned.item === mb}"
+        ng-mouseenter="lp.hoverIn('constblock', mb)"
+        ng-mouseleave="lp.hoverOut()"
+        ng-click="lp.clickItem('constblock', mb, $event)"
+        ng-dblclick="lp.dblClickItem('constblock', mb, $event)"
+      >
+        <span class="lp-expand lp-no-expand"></span>
+        <span class="lp-dot lp-dot-memory"></span>
+        <span class="lp-label">{{ mb.label }}</span>
+        <span class="lp-value" title="Memory entries">[{{ mb.entries }}]</span>
       </div>
     </div>
 

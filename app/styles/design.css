@@ -1093,7 +1093,7 @@ g {
 /* Panel body */
 #left-panel {
   position: fixed;
-  top: calc(46px + 10%);
+  top: calc(46px + 5%);
   left: 0;
   bottom: 47px;
   background: #f5f6f7;
