@@ -298,23 +298,7 @@
 
   <!-- Panel body -->
   <div id="right-panel" ng-show="rp.open" ng-style="{'width': rp.width + 'px'}">
-    <!-- Tab bar -->
-    <div id="rp-tab-bar">
-      <div class="rp-tab-row">
-        <button
-          class="rp-tab-btn"
-          ng-class="{active: rp.tab === 'overview'}"
-          ng-click="rp.setTab('overview')"
-        >
-          Overview
-        </button>
-      </div>
-    </div>
-
-    <!-- Overview -->
-    <div class="rp-panel-body" ng-show="rp.tab === 'overview'">
-      <div class="rp-empty">No content yet</div>
-    </div>
+    <div id="rp-cm-host"></div>
   </div>
 
   <!---------------------------------------------------->

@@ -415,17 +415,24 @@ cells.sort((a, b) => {
 
       $scope.rp = {
         open: false,
-        tab: 'overview',
-        width: 280,
+        width: 375,
       };
 
       $scope.rp.toggle = function () {
         $scope.rp.open = !$scope.rp.open;
       };
 
-      $scope.rp.setTab = function (tab) {
-        $scope.rp.tab = tab;
-      };
+      // Move the collection manager plugin element into the right panel
+      // once the plugin finishes loading (async)
+      var rpCmInterval = setInterval(function () {
+        var cm = document.getElementById('collectionManager2');
+        var host = document.getElementById('rp-cm-host');
+        if (cm && host && !host.contains(cm)) {
+          host.appendChild(cm);
+          clearInterval(rpCmInterval);
+          rpCmInterval = null;
+        }
+      }, 200);
 
       // Build tree nodes for blocks inside a dependency (recursive expand)
       const buildDepNodes = function (depBlocks, depth) {
@@ -882,6 +889,9 @@ cells.sort((a, b) => {
         $('body').off('Graph::blankClick', lpBlankClick);
         $(document).off('.lp');
         $(document).off('.rp');
+        if (rpCmInterval) {
+          clearInterval(rpCmInterval);
+        }
       });
     }
   );
