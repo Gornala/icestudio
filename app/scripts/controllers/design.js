@@ -409,6 +409,24 @@ cells.sort((a, b) => {
         $scope.lp.tab = tab;
       };
 
+      //----------------------------------------------------------------
+      //-- Right Panel
+      //----------------------------------------------------------------
+
+      $scope.rp = {
+        open: false,
+        tab: 'overview',
+        width: 280,
+      };
+
+      $scope.rp.toggle = function () {
+        $scope.rp.open = !$scope.rp.open;
+      };
+
+      $scope.rp.setTab = function (tab) {
+        $scope.rp.tab = tab;
+      };
+
       // Build tree nodes for blocks inside a dependency (recursive expand)
       const buildDepNodes = function (depBlocks, depth) {
         const result = [];
@@ -816,6 +834,37 @@ cells.sort((a, b) => {
       };
       lpInitResize();
 
+      // Resize handle drag for right panel
+      var rpInitResize = function () {
+        var dragging = false;
+        var startX = 0;
+        var startW = 0;
+        $(document).on('mousedown.rp', '#rp-resize-handle', function (e) {
+          dragging = true;
+          startX = e.pageX;
+          startW = $scope.rp.width;
+          $('body').addClass('rp-resizing');
+          e.preventDefault();
+        });
+        $(document).on('mousemove.rp', function (e) {
+          if (!dragging) {
+            return;
+          }
+          var w = Math.max(180, Math.min(520, startW + startX - e.pageX));
+          $scope.$apply(function () {
+            $scope.rp.width = w;
+          });
+        });
+        $(document).on('mouseup.rp', function () {
+          if (!dragging) {
+            return;
+          }
+          dragging = false;
+          $('body').removeClass('rp-resizing');
+        });
+      };
+      rpInitResize();
+
       var lpBlankClick = function () {
         if ($scope.lp.pinned) {
           $scope.lp.pinned = null;
@@ -832,6 +881,7 @@ cells.sort((a, b) => {
         $('body').off('Graph::lpRefresh', lpAutoRefresh);
         $('body').off('Graph::blankClick', lpBlankClick);
         $(document).off('.lp');
+        $(document).off('.rp');
       });
     }
   );

@@ -275,6 +275,48 @@
     </div>
   </div>
 
+  <!------------------------------------------------------------------------>
+  <!-- Right Panel                                                        -->
+  <!------------------------------------------------------------------------>
+
+  <!-- Toggle tab — always visible at right edge -->
+  <div
+    id="rp-tab"
+    title="{{ 'Toggle panel' | translate }}"
+    ng-click="rp.toggle()"
+    ng-style="{'right': rp.open ? (rp.width + 9) + 'px' : '0'}"
+  >
+    <span>{{ rp.open ? '▸' : '◂' }}</span>
+  </div>
+
+  <!-- Resize handle — left edge of panel when open -->
+  <div
+    id="rp-resize-handle"
+    ng-show="rp.open"
+    ng-style="{'right': rp.width + 'px'}"
+  ></div>
+
+  <!-- Panel body -->
+  <div id="right-panel" ng-show="rp.open" ng-style="{'width': rp.width + 'px'}">
+    <!-- Tab bar -->
+    <div id="rp-tab-bar">
+      <div class="rp-tab-row">
+        <button
+          class="rp-tab-btn"
+          ng-class="{active: rp.tab === 'overview'}"
+          ng-click="rp.setTab('overview')"
+        >
+          Overview
+        </button>
+      </div>
+    </div>
+
+    <!-- Overview -->
+    <div class="rp-panel-body" ng-show="rp.tab === 'overview'">
+      <div class="rp-empty">No content yet</div>
+    </div>
+  </div>
+
   <!---------------------------------------------------->
   <!-- Information Banners                            -->
   <!---------------------------------------------------->
