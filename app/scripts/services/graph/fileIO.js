@@ -363,8 +363,8 @@ window._icegraph.fileIO = function (ctx) {
     var codeBlockNewId = ctx.joint.util.uuid();
 
     var codeHeight = Math.max(
-      150,
-      (Math.max(portsIn.length, portsOut.length) + params.length) * 40 + 80
+      300,
+      (Math.max(portsIn.length, portsOut.length) + params.length) * 80 + 160
     );
     var codeBlockObj = {
       id: codeBlockNewId,
@@ -393,7 +393,7 @@ window._icegraph.fileIO = function (ctx) {
         },
       },
       position: { x: 300, y: 150 },
-      size: { width: 400, height: codeHeight },
+      size: { width: 800, height: codeHeight },
     };
 
     if (testbenchCode) {

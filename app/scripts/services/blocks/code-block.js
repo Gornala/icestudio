@@ -36,8 +36,8 @@
 
       //-- Block size
       this.size = {
-        width: 192,
-        height: 128,
+        width: 384,
+        height: 256,
       };
 
       //-- Block ports
