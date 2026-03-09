@@ -208,12 +208,12 @@ angular
 
         //-- Command for creating the .fules file
         //-- echo "rules..." > /etc/udev/rules.d/80-fpga-ftdi.rules
-        const cmdList = [
+        let cmdList = [
           "echo '" + rules + "' > /etc/udev/rules.d/80-fpga-ftdi.rules",
         ];
 
         //-- Add the commands for reloading the udev rules
-        cmdList.concat(reloadRules());
+        cmdList = cmdList.concat(reloadRules());
 
         //-- Execute the comands in the cmd list!
         //-- Show a notification message when finished
@@ -230,10 +230,12 @@ angular
       //--
       function disableLinuxDriversFTDI() {
         //-- Command for removing the .rules file
-        const cmdList = ['rm -f /etc/udev/rules.d/80-fpga-ftdi.rules'];
+        let cmdList = ['rm -f /etc/udev/rules.d/80-fpga-ftdi.rules'];
 
         //-- This file is old (used many versions ago)
-        cmdList.concat(['rm -f /etc/udev/rules.d/80-fpga-ftdi.rules']);
+        cmdList = cmdList.concat([
+          'rm -f /etc/udev/rules.d/80-fpga-ftdi.rules',
+        ]);
 
         //-- Execute the comands in the cmd list!
         //-- Show a notification message when finished
@@ -266,12 +268,12 @@ angular
 
         //-- Command for creating the .fules file
         //-- echo "rules..." > /etc/udev/rules.d/80-fpga-ftdi.rules
-        const cmdList = [
+        let cmdList = [
           "echo '" + rules + "' > /etc/udev/rules.d/80-fpga-serial.rules",
         ];
 
         //-- Add the commands for reloading the udev rules
-        cmdList.concat(reloadRules());
+        cmdList = cmdList.concat(reloadRules());
 
         //-- Execute the comands in the cmd list!
         //-- Show a notification message when finished

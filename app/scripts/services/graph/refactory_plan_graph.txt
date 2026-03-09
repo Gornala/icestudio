@@ -1,0 +1,81 @@
+Refactoring a file of this size requires a careful approach to avoid breaking the application state or the Angular service contract. Below is a structured plan to split this file into modular, maintainable components.
+
+1. Analysis of Responsibilities
+The current graph.js file mixes concerns that should be separated:
+
+Canvas Management: JointJS paper/graph setup, viewport, SVG sizing.
+State Management: Zoom, pan, view state persistence.
+Cell/BLOCK Management: Adding, removing, dragging, replacing, resizing blocks.
+WIRE/Connection Logic: Routing, validation, port mapping, vertex management.
+UI/Event Handling: Mouse/keyboard listeners, tooltips, alert notifications (alertify).
+Data/Model Management: Info, Board, Language, package metadata.
+File I/O: Loading/Exporting designs, saving to collections, file system integration (fs).
+Helpers: Math for geometry, debounce, cloning.
+2. Proposed Module Structure
+We will split graph.js into smaller modules while maintaining a graph service facade.
+
+Core Service (graph.js)
+Responsibility: Acts as the Orchestrator/Factory.
+Changes: It will no longer contain logic. It will import other modules, initialize the service, and export the public API to Angular.
+Content: graph.service definition, initialization hooks, public method definitions.
+
+State & View (viewState.js)
+Responsibility: Zoom/Pan/Viewport logic.
+Functions: getState, setState, resetView, fitPaper, fitContent, mousePosition, viewstate constants.
+JointJS: Zoom/Pan zoom integration, coordinate transforms.
+
+Canvas & Paper (canvasPaper.js)
+Responsibility: JointJS setup, SVG sizing, Command Manager, Selection View.
+Functions: createPaper, createGraph, validateMagnet, validateConnection.
+JointJS: joint.dia.Paper initialization, SVG attributes.
+
+Cell Management (cellManager.js)
+Responsibility: Add, remove, drag, replace blocks.
+Functions: createBlock, createBasicBlock, addDraggableCell, processReplaceBlock, findLowerBlock, replaceBlock, undo/redo logic.
+Wire Management (wireLogic.js)
+Responsibility: Connection validation, routing, vertex insertion.
+Functions: updateWires, __updateWiresOnObstacles, computeAllPortsMap, computePortsMap, pointToSegmentDistance, getInsertIndex.
+
+Selection & Interaction (interaction.js)
+Responsibility: Mouse/Click events, Selection boxes, Breadcrumbs.
+Functions: Event listeners (paper.on, graph.on), checkInsideViewBox, selectionView logic, disableSelected.
+
+Data & Metadata (dataManager.js)
+Responsibility: Project info, Board selection, Language, Pinouts.
+Functions: setBoardRules, selectBoard, setBlockInfo, setInfo, selectLanguage, resetBreadcrumbs.
+File System & IO (fileIO.js)
+Responsibility: Loading designs, saving to disk, Collections integration.
+Functions: loadDesign, appendDesign, graphToCells, pushCodeBlockToCollection, loadDesignW.
+UI & Helpers (uiHelpers.js)
+Responsibility: Tooltips, Alerts, NW.js specific interactions, Debouncing.
+Functions: warning alerts, tooltip logic, enable/disable UI classes, nodeDebounce.
+3. Refactoring Roadmap
+Phase 1: Extraction (Safety First)
+Goal: Create new files without changing the main graph.js logic yet.
+Action:
+Copy specific functions (e.g., getState, setState, fitPaper) into viewState.js.
+Export them as modules (export const ...).
+Do not remove them from graph.js immediately.
+Phase 2: Decoupling
+Goal: Replace inline functions with imports from the new modules.
+Action:
+Refactor graph.js to import the logic from the extracted files.
+Keep all Angular dependency injections ($rootScope, joint, etc.) inside the main Service file if they are global requirements, but keep logic out.
+Phase 3: Cleanup
+Goal: Remove legacy code and global variable pollution.
+Action:
+Remove global comments if no longer needed.
+Ensure joint context is managed cleanly (avoid window vs nw.Window confusion).
+Handle the jQuery vs Vanilla JS hybrid syntax (consolidate if possible).
+Phase 4: Testing
+Goal: Ensure functionality remains identical.
+Action:
+Test "Draw", "Delete", "Load Design", "Save Design", "Undo/Redo".
+Test UI elements (Tooltips, Alerts).
+Test File System operations (Collections).
+4. Critical Considerations
+Angular Compatibility: Since this is an Angular service, ensure you aren't breaking the dependency graph ('graph' injection). The entry point (graph.js) must remain a stable facade.
+JointJS Context: JointJS often relies on global instances or paper variables. Ensure these are managed within the new modules to avoid scoping issues.
+File System: The fileIO module uses fs, path, nw.Window. Ensure these environment checks are robust in the new module structure.
+Legacy Code: The file has comments like //== JSHINT rules / START. You may want to remove JSHINT comments and replace with ESLint/ESLint compatible rules if possible.
+5. Example of Refactored Structure
