@@ -92,7 +92,7 @@ window._iceutils.project = function (ctx) {
         cell.type === 'ice.Info' ||
         cell.type === 'ice.Constant' ||
         cell.type === 'ice.Memory' ||
-        cell.type === 'ice.Json' ||
+        cell.type === 'ice.JsonInput' ||
         cell.type === 'ice.JsonOutput'
       ) {
         var block = {};
@@ -105,7 +105,7 @@ window._iceutils.project = function (ctx) {
           cell.type === 'ice.Code' ||
           cell.type === 'ice.Info' ||
           cell.type === 'ice.Memory' ||
-          cell.type === 'ice.Json' ||
+          cell.type === 'ice.JsonInput' ||
           cell.type === 'ice.JsonOutput'
         ) {
           block.size = cell.size;

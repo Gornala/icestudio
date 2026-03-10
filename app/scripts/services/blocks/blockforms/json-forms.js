@@ -36,7 +36,7 @@ window._iceblockforms.jsonForms = function (ctx) {
 
     // All ports are outputs on the bottom side
     (data.ports || []).forEach(function (pname) {
-      bottomPorts.push({ id: pname, name: pname, label: pname, size: 1 });
+      bottomPorts.push({ id: pname, name: pname, label: pname });
     });
 
     var cell = new joint.shapes.ice.JsonInput({

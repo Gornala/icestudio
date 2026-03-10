@@ -44,9 +44,12 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
         <div class="info-render markdown-body' +
           (readonly ? '' : ' hidden') +
           '"></div>\
-        <div class="info-content' +
-          (readonly ? ' hidden' : '') +
-          '"></div>\
+        <div class="info-content">\
+          <div class="info-header">\
+            <label class="info-name">Info</label>\
+            <button class="info-btn info-btn-toggle" title="Toggle edit/view"></button>\
+          </div>\
+        </div>\
         <div class="info-editor' +
           (readonly ? ' hidden' : '') +
           '" id="' +
@@ -100,6 +103,16 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
       event.stopPropagation();
     });
 
+    // Header button events
+    this.$box.find('.info-btn').on('mousedown click', function (event) {
+      event.stopPropagation();
+    });
+    var self = this;
+    this.$box.find('.info-btn-toggle').on('click', function () {
+      self.model.attributes.data.readonly = !self.model.get('data').readonly;
+      self.apply();
+    });
+
     this.updateBox();
 
     this.updating = false;
@@ -108,7 +121,6 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
     this.timer = null;
     var undoGroupingInterval = 200;
 
-    var self = this;
     this.editor = ace.edit(this.editorSelector[0]);
     this.updateScrollStatus(false);
     this.editor.$blockScrolling = Infinity;
@@ -201,11 +213,12 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
 
   applyReadonly: function () {
     var readonly = this.model.get('data').readonly;
+    var toggleBtn = this.$box.find('.info-btn-toggle');
     if (readonly) {
+      toggleBtn.html('<i class="fas fa-edit"></i>');
       this.$box.addClass('info-block-readonly');
       this.renderSelector.removeClass('hidden');
       this.editorSelector.addClass('hidden');
-      this.contentSelector.addClass('hidden');
       this.disableResizer();
       // Clear selection
       var selection = this.editor.session.selection;
@@ -214,10 +227,10 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
       }
       this.applyText();
     } else {
+      toggleBtn.html('<i class="fas fa-eye"></i>');
       this.$box.removeClass('info-block-readonly');
       this.renderSelector.addClass('hidden');
       this.editorSelector.removeClass('hidden');
-      this.contentSelector.removeClass('hidden');
       this.enableResizer();
     }
   },
@@ -318,6 +331,7 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
     var pendingTasks = [];
 
     if (data.readonly) {
+      var renderHeight = bbox.height - 32;
       pendingTasks.push(
         {
           e: this.renderSelector[0],
@@ -327,7 +341,10 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
         {
           e: this.renderSelector[0],
           property: 'top',
-          value: Math.round((bbox.height / 2.0) * (state.zoom - 1)) + 'px',
+          value:
+            Math.round(
+              32 * state.zoom + (renderHeight / 2.0) * (state.zoom - 1)
+            ) + 'px',
         },
         {
           e: this.renderSelector[0],
@@ -337,7 +354,7 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
         {
           e: this.renderSelector[0],
           property: 'height',
-          value: Math.round(bbox.height) + 'px',
+          value: Math.round(renderHeight) + 'px',
         },
         {
           e: this.renderSelector[0],
@@ -352,6 +369,11 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
       );
     } else if (this.editor) {
       pendingTasks.push(
+        {
+          e: this.editorSelector[0],
+          property: 'top',
+          value: Math.round(32 * state.zoom) + 'px',
+        },
         {
           e: this.editorSelector[0],
           property: 'margin',

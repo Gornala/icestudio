@@ -711,12 +711,21 @@ cells.sort((a, b) => {
             return;
           }
 
-          // 4b — JSON input blocks
+          // 4b — JSON input/output blocks
           if (blockType === 'basic.jsonInput') {
             jsonBlocks.push({
               id: cell.id,
               cellType: 'jsonInput',
               label: data.name || 'json_input',
+              portCount: (data.ports || []).length,
+            });
+            return;
+          }
+          if (blockType === 'basic.jsonOutput') {
+            jsonBlocks.push({
+              id: cell.id,
+              cellType: 'jsonOutput',
+              label: data.name || 'json_output',
               portCount: (data.ports || []).length,
             });
             return;

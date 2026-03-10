@@ -170,13 +170,17 @@ joint.shapes.ice.JsonInputView = joint.shapes.ice.ModelView.extend({
           self.updating = false;
         }, 10);
 
-        // Update the JointJS bottomPorts — triggers renderPorts() on the view
-        var bottomPorts = newPorts.map(function (pname) {
-          return { id: pname, name: pname, label: pname };
-        });
-        self.model.set('bottomPorts', bottomPorts);
-        self.model.processPorts();
-        self.model.trigger('process:ports');
+        // Update ports only for json_input (bottom outputs).
+        // json_output uses topPorts (inputs) managed by its own form.
+        var isInput = self.model.get('type') === 'ice.JsonInput';
+        if (isInput) {
+          var bottomPorts = newPorts.map(function (pname) {
+            return { id: pname, name: pname, label: pname };
+          });
+          self.model.set('bottomPorts', bottomPorts);
+          self.model.processPorts();
+          self.model.trigger('process:ports');
+        }
 
         if (showAlert) {
           alertify.success('JSON loaded: ' + filepath);

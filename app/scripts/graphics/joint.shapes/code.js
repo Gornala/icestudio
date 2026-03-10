@@ -42,14 +42,16 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
       joint.util.template(
         `
       <div class="code-block">
-        <div class="js-codeblock-io-edit" data-blkId="${modelId}" title="Settings"><i class="fas fa-edit"></i></div>
-        <div class="codeblock-extra-btns">
-          <div class="js-codeblock-full-edit codeblock-btn" data-blkId="${modelId}" title="Full Editor"><i class="fas fa-expand-alt"></i></div>
-          <div class="js-codeblock-formal-test codeblock-btn" data-blkId="${modelId}" title="Formal Test"><i class="fas fa-flask"></i></div>
-          <div class="js-codeblock-testbench codeblock-btn" data-blkId="${modelId}" title="Testbench"><i class="fas fa-vial"></i></div>
-          <div class="js-codeblock-push-collection codeblock-btn" data-blkId="${modelId}" title="Push to Collection"><i class="fas fa-archive"></i></div>
+        <div class="code-content">
+          <div class="code-header">
+            <label class="code-block-name"></label>
+            <div class="js-codeblock-io-edit code-btn" data-blkId="${modelId}" title="Settings"><i class="fas fa-edit"></i></div>
+            <div class="js-codeblock-full-edit code-btn" data-blkId="${modelId}" title="Full Editor"><i class="fas fa-expand-alt"></i></div>
+            <div class="js-codeblock-formal-test code-btn" data-blkId="${modelId}" title="Formal Test"><i class="fas fa-flask"></i></div>
+            <div class="js-codeblock-testbench code-btn" data-blkId="${modelId}" title="Testbench"><i class="fas fa-vial"></i></div>
+            <div class="js-codeblock-push-collection code-btn" data-blkId="${modelId}" title="Push to Collection"><i class="fas fa-archive"></i></div>
+          </div>
         </div>
-        <div class="code-content"></div>
         <div class="code-editor" id="${editorLabel}"></div>
         <script>
           var ${editorLabel} = ace.edit("${editorLabel}");
@@ -63,7 +65,6 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
          ${editorLabel}.session.setMode("ace/mode/verilog");
         </script>
         <div class="resizer"/></div>
-        <div class="code-block-name"></div>
       </div>
       `
       )()
@@ -86,6 +87,9 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
 
     // Prevent paper from handling pointerdown.
     this.editorSelector.on('mousedown click', function (event) {
+      event.stopPropagation();
+    });
+    this.$box.find('.code-btn').on('mousedown', function (event) {
       event.stopPropagation();
     });
 
@@ -252,27 +256,14 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
       editorUpdated = true;
       this.prevZoom = state.zoom;
       var editorStyles = {
-        'margin-top': Math.round(40 * state.zoom) + 'px',
-        'margin-right': Math.round(7 * state.zoom) + 'px',
-        'margin-bottom': Math.round(7 * state.zoom) + 'px',
-        'margin-left': Math.round(7 * state.zoom) + 'px',
+        'margin-top': Math.round(38 * state.zoom) + 'px',
+        'margin-right': Math.round(1 * state.zoom) + 'px',
+        'margin-bottom': Math.round(1 * state.zoom) + 'px',
+        'margin-left': Math.round(1 * state.zoom) + 'px',
         'border-radius': 5 * state.zoom + 'px',
         'border-width': state.zoom + 0.5 + 'px',
       };
       this.applyStyles(this.nativeDom.editorSelector, editorStyles);
-
-      if (this.nativeDom.nameEl) {
-        var nameGap = Math.round(9 * state.zoom);
-        this.nativeDom.nameEl.style.top = Math.round(4 * state.zoom) + 'px';
-        this.nativeDom.nameEl.style.left = Math.round(15 * state.zoom) + 'px';
-        this.nativeDom.nameEl.style.right =
-          Math.round(80 * state.zoom + nameGap) + 'px';
-        this.nativeDom.nameEl.style.fontSize =
-          Math.round(22 * state.zoom) + 'px';
-        this.nativeDom.nameEl.style.lineHeight =
-          Math.round(40 * state.zoom) + 'px';
-        this.nativeDom.nameEl.style.maxWidth = '';
-      }
 
       var annotationSize = Math.round(15 * state.zoom) + 'px';
       var annotationTypes = ['.ace_error', '.ace_warning', '.ace_info'];
@@ -285,26 +276,6 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
       this.applyStyles(this.$box[0].querySelectorAll('.ace_text-layer'), {
         padding: '0px ' + Math.round(4 * state.zoom) + 'px',
       });
-
-      var editIcon = this.$box.find('.js-codeblock-io-edit');
-      if (editIcon.length) {
-        editIcon.css({
-          'transform': `scale(${state.zoom})`,
-          'transform-origin': 'top right',
-          'top': '0px',
-          'right': '0px',
-        });
-      }
-
-      var extraBtns = this.$box.find('.codeblock-extra-btns');
-      if (extraBtns.length) {
-        extraBtns.css({
-          'transform': `scale(${state.zoom})`,
-          'transform-origin': 'top right',
-          'top': Math.round(30 * state.zoom) + 'px',
-          'right': '0px',
-        });
-      }
     }
     /* Maintain comment, code in testing 
  *
@@ -363,7 +334,8 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
     this.editor?.resize();
 
     if (this.nativeDom.nameEl) {
-      this.nativeDom.nameEl.textContent = data && data.label ? data.label : '';
+      this.nativeDom.nameEl.textContent =
+        data && data.label ? data.label : 'code';
     }
 
     return pendingTasks;

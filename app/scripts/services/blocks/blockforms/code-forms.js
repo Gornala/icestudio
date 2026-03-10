@@ -246,6 +246,10 @@ window._iceblockforms.codeForms = function (ctx) {
           //-- Get source and target cells
           let source = wire.get('source');
           let target = wire.get('target');
+          let sourceCell = graph.getCell(source.id);
+          let isJsonInputSrc =
+            sourceCell &&
+            sourceCell.get('blockType') === ctx.blocks.BASIC_JSON_INPUT;
 
           //-- TODO: This BIG if needs more comments and more
           //--  refactoring. It is too complex
@@ -259,18 +263,21 @@ window._iceblockforms.codeForms = function (ctx) {
               containsPort(source.port, size, cell.get('rightPorts'))) ||
             //-- Condition II: Wires that ends in the input ports
             //-- if the port name and size has not been changed
-            //-- and the source block are not a constant or memory
-            //-- blocks
+            //-- and the source block are not a constant, memory,
+            //-- or json_input blocks
             (target.id === cell.id &&
               containsPort(target.port, size, cell.get('leftPorts')) &&
               source.port !== 'constant-out' &&
-              source.port !== 'memory-out') ||
+              source.port !== 'memory-out' &&
+              !isJsonInputSrc) ||
             //-- Condition III: Wire that ends in the input param ports
-            //-- only if the source blocks are a constant or memory
-            //-- blocks
+            //-- only if the source block is a constant, memory,
+            //-- or json_input block
             (target.id === cell.id &&
               containsPort(target.port, size, cell.get('topPorts')) &&
-              (source.port === 'constant-out' || source.port === 'memory-out'))
+              (source.port === 'constant-out' ||
+                source.port === 'memory-out' ||
+                isJsonInputSrc))
           ) {
             //-- Add the current wire (the wire is kept)
             graph.addCell(wire);

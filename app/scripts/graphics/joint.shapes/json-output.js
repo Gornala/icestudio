@@ -24,6 +24,14 @@ joint.shapes.ice.JsonOutputView = joint.shapes.ice.JsonView.extend({
     joint.shapes.ice.JsonView.prototype.initialize.apply(this, arguments);
     this.$box.removeClass('json-block').addClass('json-output-block');
 
+    // Replace the json_input reload button with a save button
+    this.$box
+      .find('.json-btn-reload')
+      .removeClass('json-btn-reload')
+      .addClass('json-btn-save')
+      .attr('title', 'Save to file')
+      .html('&#128190;');
+
     var self = this;
     var fs = require('fs');
 

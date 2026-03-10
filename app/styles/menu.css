@@ -151,6 +151,38 @@
   background-color: #a8e6a8;
 }
 
+.marker-input {
+  background-color: #52be80;
+}
+
+.marker-output {
+  background-color: #d4ac0d;
+}
+
+.marker-code {
+  background-color: #2471a3;
+}
+
+.marker-memory {
+  background-color: #ffcd00;
+}
+
+.marker-info {
+  background-color: #7d3c98;
+}
+
+.marker-json-input {
+  background-color: #27ae60;
+}
+
+.marker-json-output {
+  background-color: #0ed6dd;
+}
+
+.marker-constant {
+  background-color: #f39c12;
+}
+
 .disabled > a {
   cursor: default !important;
 }
