@@ -77,6 +77,37 @@
         </li>
       </ul>
 
+      <h3>JSON Input &amp; JSON Output Blocks</h3>
+      <p>Two new basic block types for data-driven designs:</p>
+      <ul>
+        <li>
+          <strong>JSON Input</strong> — reads an external JSON file,
+          auto-extracts ports from its keys, and outputs them as Verilog
+          localparams
+        </li>
+        <li>
+          <strong>JSON Output</strong> — collects design signals and writes them
+          to a JSON file for external tooling
+        </li>
+      </ul>
+
+      <h3>Project-Level Testbench</h3>
+      <p>
+        A new <strong>Testbench</strong> button in the bottom toolbar (next to
+        Verify / Build / Upload) opens the testbench editor with the compiled
+        Verilog of the entire design. Edit the testbench, run the simulation,
+        and inspect waveforms — all without opening individual code blocks.
+      </p>
+
+      <h3>Graphical Improvements</h3>
+      <ul>
+        <li>Refined code block styling and header strip layout</li>
+        <li>Updated menu dot colours for better contrast</li>
+        <li>
+          Custom theme panel now applies consistently across all UI elements
+        </li>
+      </ul>
+
       <h3>Collection Manager — Reworked</h3>
       <p>
         The collection panel has been completely redesigned as a permanent
