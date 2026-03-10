@@ -134,7 +134,9 @@ joint.shapes.ice.JsonInputView = joint.shapes.ice.ModelView.extend({
       }
     });
 
-    // Load the JSON file from disk (synchronously)
+    // Load the JSON file from disk (synchronously).
+    // Also re-derives bottom output ports from the file's top-level keys so
+    // that ports always reflect the actual JSON content.
     var doLoad = function (showAlert) {
       var filepath = self.model.get('data').path;
       if (!filepath) {
@@ -147,12 +149,35 @@ joint.shapes.ice.JsonInputView = joint.shapes.ice.ModelView.extend({
       }
       try {
         var content = fs.readFileSync(filepath, 'utf8');
+        var jsonObj = {};
+        try {
+          jsonObj = JSON.parse(content);
+        } catch (parseErr) {
+          if (showAlert) {
+            alertify.error('Invalid JSON: ' + parseErr.message);
+          }
+        }
+        var newPorts = Object.keys(jsonObj);
+
+        // Update stored data
         self.model.attributes.data.content = content;
+        self.model.attributes.data.ports = newPorts;
+
+        // Refresh editor display
         self.updating = true;
         self.editor.session.setValue(content);
         setTimeout(function () {
           self.updating = false;
         }, 10);
+
+        // Update the JointJS bottomPorts — triggers renderPorts() on the view
+        var bottomPorts = newPorts.map(function (pname) {
+          return { id: pname, name: pname, label: pname };
+        });
+        self.model.set('bottomPorts', bottomPorts);
+        self.model.processPorts();
+        self.model.trigger('process:ports');
+
         if (showAlert) {
           alertify.success('JSON loaded: ' + filepath);
         }
@@ -336,5 +361,8 @@ joint.shapes.ice.JsonInputView = joint.shapes.ice.ModelView.extend({
     });
   },
 });
+
+// Alias so that JsonOutputView (json-output.js) can extend JsonInputView
+joint.shapes.ice.JsonView = joint.shapes.ice.JsonInputView;
 
 /* jshint ignore: end */

@@ -188,8 +188,14 @@
         ng-dblclick="lp.dblClickItem('jsonblock', jb, $event)"
       >
         <span class="lp-expand lp-no-expand"></span>
-        <span class="lp-dot lp-dot-json"></span>
+        <span
+          class="lp-dot"
+          ng-class="jb.cellType === 'jsonOutput' ? 'lp-dot-json-output' : 'lp-dot-json'"
+        ></span>
         <span class="lp-label">{{ jb.label }}</span>
+        <span class="lp-value lp-value-tag"
+          >{{ jb.cellType === 'jsonOutput' ? 'OUT' : 'IN' }}</span
+        >
         <span class="lp-value" title="Ports">{{ jb.portCount }}</span>
       </div>
     </div>
