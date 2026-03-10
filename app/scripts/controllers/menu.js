@@ -264,6 +264,7 @@ angular.module('icestudio').controller(
 
     sectionBoard.init($scope, {
       profile: profile,
+      project: project,
       common: common,
       graph: graph,
       tools: tools,

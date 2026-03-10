@@ -1381,3 +1381,8 @@ canvas.wv-timeaxis {
 .wv-meas-row.wv-meas-disabled {
   opacity: 0.4;
 }
+
+/* ---- Read-only DUT editor (project-level testbench) ---- */
+.ace_read-only-dim {
+  opacity: 0.65;
+}

@@ -9,6 +9,7 @@ window._icemenu.board = {
     var path = require('path');
     var fs = require('fs');
     var profile = deps.profile;
+    var project = deps.project;
     var common = deps.common;
     var graph = deps.graph;
     var tools = deps.tools;
@@ -399,6 +400,145 @@ window._icemenu.board = {
         })
         .then(function () {
           resetBuildStack();
+        })
+        .catch(function () {});
+    };
+
+    //-----------------------------------------------------------------
+    //-- Open Testbench for the whole project
+    //-----------------------------------------------------------------
+
+    $scope.openTestbench = function () {
+      var nodePath = require('path');
+
+      if (graph.breadcrumbs.length > 1) {
+        alertify.alert(
+          gettextCatalog.getString('Testbench'),
+          gettextCatalog.getString(
+            'You can only open the testbench at the top-level design.'
+          ),
+          function () {}
+        );
+        return;
+      }
+
+      iceStudio.bus.events.publish('graph:loadJsonInputs');
+      iceStudio.bus.events.publish('graph:writeJsonOutputs');
+      checkGraph()
+        .then(function () {
+          // Generate the full project Verilog
+          var verilogFiles = project.compile('verilog');
+          if (!verilogFiles || !verilogFiles.length) {
+            alertify.error(
+              gettextCatalog.getString('Could not generate Verilog')
+            );
+            return;
+          }
+          var verilogCode = verilogFiles[0].content;
+
+          // Generate the testbench
+          var tbFiles = project.compile('testbench');
+          var testbenchCode =
+            tbFiles && tbFiles.length ? tbFiles[0].content : '';
+
+          // Extract top-level ports for the code-editor
+          var proj = project.get();
+          var portsIn = [];
+          var portsOut = [];
+          var params = [];
+          var blocks = proj.design.graph.blocks;
+          for (var i in blocks) {
+            var block = blocks[i];
+            if (block.type === 'basic.input') {
+              portsIn.push({
+                name: block.data.name || '',
+                range: block.data.range || '',
+              });
+            } else if (block.type === 'basic.output') {
+              portsOut.push({
+                name: block.data.name || '',
+                range: block.data.range || '',
+              });
+            } else if (block.type === 'basic.constant' && !block.data.local) {
+              params.push({
+                name: block.data.name || '',
+                value: block.data.value || '',
+              });
+            }
+          }
+
+          var projectName = (project.name || 'main').replace(
+            /[^a-zA-Z0-9_]/g,
+            '_'
+          );
+
+          var configObj = {
+            mode: 'testbench',
+            blockId: '__project__',
+            code: verilogCode,
+            ports: { in: portsIn, out: portsOut },
+            params: params,
+            testbench: testbenchCode,
+            moduleName: 'main',
+            theme: profile.data.uiTheme || 'light',
+            customTheme: profile.data.customTheme || null,
+            buildDir: common.BUILD_DIR,
+            blockDir: nodePath.join(common.BUILD_DIR, 'project_tb'),
+            toolchainBinDir: nodePath.join(
+              common.APIO_HOME_DIR,
+              'packages',
+              'tools-oss-cad-suite',
+              'bin'
+            ),
+            gtkwavePath: (function () {
+              try {
+                var isWin = process.platform === 'win32';
+                var exe = isWin ? 'gtkwave.exe' : 'gtkwave';
+                var appRoot = process.cwd();
+                var fsSync = require('fs');
+                var candidates = [
+                  nodePath.join(appRoot, 'GTKWave', 'bin', exe),
+                  nodePath.join(appRoot, 'gtkwave', 'bin', exe),
+                  nodePath.join(appRoot, 'GTKWave', exe),
+                ];
+                for (var ci = 0; ci < candidates.length; ci++) {
+                  try {
+                    fsSync.accessSync(candidates[ci]);
+                    return candidates[ci];
+                  } catch (e) {}
+                }
+              } catch (e) {}
+              return '';
+            })(),
+            isWin32: process.platform === 'win32',
+            pythonCmd: common.PYTHON_ENV || 'python',
+            sourcePath: '',
+            boardInfo: common.selectedBoard
+              ? {
+                  name: common.selectedBoard.name || '',
+                  info: common.selectedBoard.info || {},
+                }
+              : null,
+            boardPinout: common.selectedBoard
+              ? common.selectedBoard.pinout || []
+              : [],
+            projectTestbench: true,
+          };
+
+          var configParam = encodeURIComponent(JSON.stringify(configObj));
+          var editorURL =
+            'resources/viewers/code-editor/code-editor.html?config=' +
+            configParam;
+
+          nw.Window.open(editorURL, {
+            title: 'Testbench - ' + projectName,
+            focus: true,
+            resizable: true,
+            show: false,
+            width: 1200,
+            height: 700,
+            icon: 'resources/images/icestudio-logo.png',
+          });
         })
         .catch(function () {});
     };

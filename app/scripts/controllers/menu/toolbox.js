@@ -302,6 +302,10 @@ window._icemenu.toolbox = {
         case 'upload':
           $scope.uploadCode();
           break;
+
+        case 'testbench':
+          $scope.openTestbench();
+          break;
       }
       return false;
     });

@@ -170,6 +170,12 @@ function initAceEditors() {
   codeEditor.session.setValue(config.code || '');
   codeEditor.$blockScrolling = Infinity;
 
+  // Project-level testbench: DUT code is compiled from the design, read-only
+  if (config.projectTestbench) {
+    codeEditor.setReadOnly(true);
+    codeEditor.renderer.setStyle('ace_read-only-dim');
+  }
+
   // Clear annotations whenever the user edits
   codeEditor.session.on('change', function () {
     codeEditor.session.setAnnotations([]);
@@ -342,6 +348,11 @@ function saveCode() {
   if (!codeEditor) {
     return;
   }
+  // Project-level testbench: DUT code is read-only, no save-back
+  if (config.projectTestbench) {
+    saveBlockFile('module.v', assembleVerilog());
+    return;
+  }
   var newCode = codeEditor.getValue();
   findMainWindow(function (mainWin) {
     if (mainWin) {
@@ -394,6 +405,11 @@ function writeIfChanged(filepath, content) {
 // Mirrors the exact format used by icestudio's compiler.js
 // ============================================================
 function assembleVerilog() {
+  // Project-level testbench: code is already complete compiled Verilog
+  if (config.projectTestbench) {
+    return codeEditor ? codeEditor.getValue() : config.code || '';
+  }
+
   var ports = config.ports || { in: [], out: [] };
   var portsIn = ports.in || [];
   var portsOut = ports.out || [];
@@ -1452,13 +1468,17 @@ window.onload = function () {
 
     // Async: push code change to main window, then close
     // Fallback: close after 1 s if main window doesn't respond
-    setTimeout(doClose, 1000);
-    findMainWindow(function (mainWin) {
-      if (mainWin && codeEditor) {
-        mainWin.icestudioReceiveCodeSave(blockId, codeEditor.getValue());
-      }
+    if (config.projectTestbench) {
       doClose();
-    });
+    } else {
+      setTimeout(doClose, 1000);
+      findMainWindow(function (mainWin) {
+        if (mainWin && codeEditor) {
+          mainWin.icestudioReceiveCodeSave(blockId, codeEditor.getValue());
+        }
+        doClose();
+      });
+    }
   });
 
   // Close this popup (and GTKWave via the close handler above) when the main window closes
