@@ -292,6 +292,7 @@ angular.module('icestudio').controller(
       utils: utils,
       gettextCatalog: gettextCatalog,
       state: state,
+      graph: graph,
     });
 
     //-------------------------------------------------------------------------

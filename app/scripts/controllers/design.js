@@ -390,6 +390,7 @@ cells.sort((a, b) => {
         nodes: [], // generic submodules + code blocks
         constBlocks: [], // constant blocks
         memBlocks: [], // memory blocks
+        jsonBlocks: [], // json parameter blocks
         infoBlocks: [], // info/comment blocks
         virtPorts: [], // virtual I/O ports
         hwPorts: [], // FPGA-assigned pins
@@ -649,6 +650,7 @@ cells.sort((a, b) => {
         const nodes = [];
         const constBlocks = [];
         const memBlocks = [];
+        const jsonBlocks = [];
         const infoBlocks = [];
         const virtPorts = [];
         const hwPorts = [];
@@ -705,6 +707,18 @@ cells.sort((a, b) => {
               cellType: 'memory',
               label: data.name || data.label || 'memory',
               entries: entryCount,
+            });
+            return;
+          }
+
+          // 4b — JSON blocks
+          if (blockType === 'basic.json') {
+            jsonBlocks.push({
+              id: cell.id,
+              cellType: 'json',
+              label: data.name || 'json',
+              portType: data.type || 'output',
+              portCount: (data.ports || []).length,
             });
             return;
           }
@@ -775,6 +789,7 @@ cells.sort((a, b) => {
         $scope.lp.nodes = nodes;
         $scope.lp.constBlocks = constBlocks;
         $scope.lp.memBlocks = memBlocks;
+        $scope.lp.jsonBlocks = jsonBlocks;
         $scope.lp.infoBlocks = infoBlocks;
         $scope.lp.virtPorts = virtPorts;
         $scope.lp.hwPorts = hwPorts;

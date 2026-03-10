@@ -15,6 +15,7 @@ window._icemenu.toolbox = {
     var utils = deps.utils;
     var gettextCatalog = deps.gettextCatalog;
     var state = deps.state;
+    var graph = deps.graph;
 
     //-- Private state
     var mouseDownTB = false;
@@ -158,6 +159,41 @@ window._icemenu.toolbox = {
       }
     );
 
+    iceStudio.bus.events.subscribe('JsonBlock::saveAs', function (data) {
+      var cells = graph.getCells();
+      var cell = null;
+      for (var ci = 0; ci < cells.length; ci++) {
+        if (cells[ci].get('id') === data.id) {
+          cell = cells[ci];
+          break;
+        }
+      }
+      if (!cell) {
+        return;
+      }
+      utils.saveDialog('#input-json-save', '.json', function (filepath) {
+        if (!filepath) {
+          return;
+        }
+        var content = cell.get('data').content || '{}';
+        try {
+          fs.writeFileSync(filepath, content, 'utf8');
+          cell.attributes.data.path = filepath;
+          alertify.success(
+            gettextCatalog.getString('JSON saved to {{path}}', {
+              path: filepath,
+            })
+          );
+        } catch (e) {
+          alertify.error(
+            gettextCatalog.getString('Could not save JSON: {{msg}}', {
+              msg: e.message,
+            })
+          );
+        }
+      });
+    });
+
     iceStudio.bus.events.subscribe('collectionManager2.addZip', function () {
       $scope.addCollections();
     });
@@ -281,6 +317,14 @@ window._icemenu.toolbox = {
 
         case 'constant':
           project.addBasicBlock(blocks.BASIC_CONSTANT);
+          break;
+
+        case 'json':
+          project.addBasicBlock(blocks.BASIC_JSON);
+          break;
+
+        case 'json-output':
+          project.addBasicBlock(blocks.BASIC_JSON_OUTPUT);
           break;
 
         case 'verify':

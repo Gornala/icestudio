@@ -685,6 +685,8 @@ angular
               case blocks.BASIC_INPUT_LABEL:
               case blocks.BASIC_CONSTANT:
               case blocks.BASIC_MEMORY:
+              case blocks.BASIC_JSON:
+              case blocks.BASIC_JSON_OUTPUT:
                 break;
               case blocks.BASIC_CODE:
                 for (var j in block.data.ports.in) {

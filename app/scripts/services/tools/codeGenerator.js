@@ -66,6 +66,30 @@ window._icetools.codeGenerator = function (ctx) {
           'utf8'
         );
       }
+      // JSON input block files (written to their configured absolute paths)
+      var jsonFiles = ctx.compiler.generate('json', ctx.project.get());
+      for (var ji in jsonFiles) {
+        var jsonFile = jsonFiles[ji];
+        try {
+          ctx.nodeFs.writeFileSync(jsonFile.name, jsonFile.content, 'utf8');
+        } catch (e) {
+          console.warn('JSON block: could not write ' + jsonFile.name, e);
+        }
+      }
+      // JSON output block files (written to their configured absolute paths)
+      var jsonOutputFiles = ctx.compiler.generate(
+        'jsonOutput',
+        ctx.project.get()
+      );
+      for (var joi in jsonOutputFiles) {
+        var joFile = jsonOutputFiles[joi];
+        try {
+          ctx.nodeFs.writeFileSync(joFile.name, joFile.content, 'utf8');
+        } catch (e) {
+          console.warn('JSON output block: could not write ' + joFile.name, e);
+        }
+      }
+
       ctx.project.restoreSnapshot();
       resolve({
         code: verilogFile.content,

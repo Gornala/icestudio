@@ -19,6 +19,7 @@ angular
     var _testbench = window._icecompiler.testbench(ctx);
     var _gtkwave = window._icecompiler.gtkwave(ctx);
     var _list = window._icecompiler.list(ctx);
+    var _json = window._icecompiler.json(ctx);
 
     //-- Wire cross-module references into ctx
     ctx.header = _helpers.header;
@@ -67,6 +68,13 @@ angular
           break;
         case 'list':
           files = _list.listCompiler(project);
+          break;
+
+        case 'json':
+          files = _json.jsonInputCompiler(project);
+          break;
+        case 'jsonOutput':
+          files = _json.jsonOutputCompiler(project);
           break;
         case 'testbench':
           content += _helpers.header('//', opt, true);

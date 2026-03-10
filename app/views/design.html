@@ -62,6 +62,13 @@
         </button>
         <button
           class="lp-tab-btn"
+          ng-class="{active: lp.tab === 'json'}"
+          ng-click="lp.setTab('json')"
+        >
+          JSON
+        </button>
+        <button
+          class="lp-tab-btn"
           ng-class="{active: lp.tab === 'virtports'}"
           ng-click="lp.setTab('virtports')"
         >
@@ -165,6 +172,25 @@
         <span class="lp-dot lp-dot-memory"></span>
         <span class="lp-label">{{ mb.label }}</span>
         <span class="lp-value" title="Memory entries">[{{ mb.entries }}]</span>
+      </div>
+    </div>
+
+    <!-- JSON -->
+    <div class="lp-panel-body" ng-show="lp.tab === 'json'">
+      <div class="lp-empty" ng-show="!lp.jsonBlocks.length">No JSON blocks</div>
+      <div
+        class="lp-node"
+        ng-repeat="jb in lp.jsonBlocks"
+        ng-class="{'lp-pinned': lp.pinned && lp.pinned.item === jb}"
+        ng-mouseenter="lp.hoverIn('jsonblock', jb)"
+        ng-mouseleave="lp.hoverOut()"
+        ng-click="lp.clickItem('jsonblock', jb, $event)"
+        ng-dblclick="lp.dblClickItem('jsonblock', jb, $event)"
+      >
+        <span class="lp-expand lp-no-expand"></span>
+        <span class="lp-dot lp-dot-json"></span>
+        <span class="lp-label">{{ jb.label }}</span>
+        <span class="lp-value" title="Type">{{ jb.portType }}</span>
       </div>
     </div>
 
@@ -682,6 +708,24 @@
         >
           <div class="marker marker-gray"></div>
           {{ 'Information' | translate }}
+        </a>
+
+        <a
+          href=""
+          class="iceToolbox--item js-shortcut--action"
+          data-item="json"
+        >
+          <div class="marker marker-green"></div>
+          {{ 'JSON' | translate }}
+        </a>
+
+        <a
+          href=""
+          class="iceToolbox--item js-shortcut--action"
+          data-item="json-output"
+        >
+          <div class="marker marker-green"></div>
+          {{ 'JSON Output' | translate }}
         </a>
       </li>
     </ul>

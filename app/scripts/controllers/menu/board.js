@@ -341,6 +341,7 @@ window._icemenu.board = {
     $scope.verifyCode = function () {
       var startMessage = gettextCatalog.getString('Start verification');
       var endMessage = gettextCatalog.getString('Verification done');
+      iceStudio.bus.events.publish('graph:writeJsonOutputs');
       checkGraph()
         .then(function () {
           return tools.verifyCode(startMessage, endMessage);
@@ -362,6 +363,7 @@ window._icemenu.board = {
 
       var startMessage = gettextCatalog.getString('Start build');
       var endMessage = gettextCatalog.getString('Build done');
+      iceStudio.bus.events.publish('graph:writeJsonOutputs');
       checkGraph()
         .then(function () {
           return tools.buildCode(startMessage, endMessage);
@@ -387,6 +389,7 @@ window._icemenu.board = {
 
       var startMessage = gettextCatalog.getString('Start upload');
       var endMessage = gettextCatalog.getString('Upload done');
+      iceStudio.bus.events.publish('graph:writeJsonOutputs');
       checkGraph()
         .then(function () {
           return tools.uploadCode(startMessage, endMessage);

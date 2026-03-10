@@ -17,7 +17,9 @@
 .joint-type-ice-constant,
 .joint-type-ice-generic,
 .joint-type-ice-output,
-.joint-type-ice-input {
+.joint-type-ice-input,
+.joint-type-ice-json,
+.joint-type-ice-jsonoutput {
   .body {
     width: 1px;
     height: 1px;

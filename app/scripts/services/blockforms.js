@@ -39,6 +39,8 @@ angular.module('icestudio').service(
     var _codeForms = window._iceblockforms.codeForms(ctx);
     var _memConstForms = window._iceblockforms.memoryConstantForms(ctx);
     var _infoForms = window._iceblockforms.infoForms(ctx);
+    var _jsonForms = window._iceblockforms.jsonForms(ctx);
+    var _jsonOutputForms = window._iceblockforms.jsonOutputForms(ctx);
     var _genericWireForms = window._iceblockforms.genericWireForms(ctx);
 
     //-- Wire cross-module references into ctx
@@ -165,6 +167,14 @@ angular.module('icestudio').service(
           _infoForms.newBasicInfo(callback);
           break;
 
+        case blocks.BASIC_JSON:
+          _jsonForms.newBasicJson(callback);
+          break;
+
+        case blocks.BASIC_JSON_OUTPUT:
+          _jsonOutputForms.newBasicJsonOutput(callback);
+          break;
+
         default:
           break;
       }
@@ -198,6 +208,12 @@ angular.module('icestudio').service(
 
         case blocks.BASIC_INFO:
           return _infoForms.loadBasicInfo(instance, disabled);
+
+        case blocks.BASIC_JSON:
+          return _jsonForms.loadBasicJson(instance, disabled);
+
+        case blocks.BASIC_JSON_OUTPUT:
+          return _jsonOutputForms.loadBasicJsonOutput(instance, disabled);
 
         default:
           break;
@@ -288,6 +304,14 @@ angular.module('icestudio').service(
 
         case blocks.BASIC_INFO:
           _infoForms.editBasicInfo(cellView);
+          break;
+
+        case blocks.BASIC_JSON:
+          _jsonForms.editBasicJson(cellView, callback);
+          break;
+
+        case blocks.BASIC_JSON_OUTPUT:
+          _jsonOutputForms.editBasicJsonOutput(cellView, callback);
           break;
 
         default:

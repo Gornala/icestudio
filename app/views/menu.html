@@ -94,6 +94,23 @@
     />
 
     <input
+      id="input-json-save"
+      type="file"
+      accept=".json"
+      class="hidden"
+      nwworkingdir="{{ workingdir }}"
+      nwsaveas="config.json"
+    />
+
+    <input
+      id="input-json-open"
+      type="file"
+      accept=".json"
+      class="hidden"
+      nwworkingdir="{{ workingdir }}"
+    />
+
+    <input
       id="input-add-collection"
       type="file"
       accept=".zip"
@@ -890,6 +907,14 @@
                 <a href ng-click="project.addBasicBlock('basic.info')">
                   <div class="marker marker-gray"></div>
                   {{ 'Information' | translate }}
+                </a>
+                <a href ng-click="project.addBasicBlock('basic.json')">
+                  <div class="marker marker-green"></div>
+                  {{ 'JSON' | translate }}
+                </a>
+                <a href ng-click="project.addBasicBlock('basic.jsonOutput')">
+                  <div class="marker marker-green"></div>
+                  {{ 'JSON Output' | translate }}
                 </a>
               </li>
             </ul>

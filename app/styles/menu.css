@@ -147,6 +147,10 @@
   background-color: #ddd;
 }
 
+.marker-green {
+  background-color: #a8e6a8;
+}
+
 .disabled > a {
   cursor: default !important;
 }

@@ -537,6 +537,152 @@ g {
   pointer-events: auto;
 }
 
+.json-block {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.json-block .json-content {
+  position: absolute;
+  background: #e8f8e8;
+  border-radius: 5px;
+  border: 1px solid #555;
+}
+
+.json-block .json-header {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  height: 32px;
+  background: #27ae60;
+}
+
+.json-block .json-name {
+  flex-grow: 1;
+  font-size: 13px;
+  font-weight: normal;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.json-block .json-type-badge {
+  font-size: 10px;
+  font-weight: bold;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 4px;
+}
+
+.json-block .json-btn {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.15);
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  margin-left: 2px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.json-block .json-btn:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.json-block .json-editor {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 7px;
+  border-radius: 5px;
+  border: 1px solid #aaa;
+  pointer-events: auto;
+}
+
+.json-output-block {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.json-output-block .json-content {
+  position: absolute;
+  background: #e8f0f8;
+  border-radius: 5px;
+  border: 1px solid #555;
+}
+
+.json-output-block .json-header {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  height: 32px;
+  background: #2980b9;
+}
+
+.json-output-block .json-name {
+  flex-grow: 1;
+  font-size: 13px;
+  font-weight: normal;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.json-output-block .json-type-badge {
+  font-size: 10px;
+  font-weight: bold;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 4px;
+}
+
+.json-output-block .json-btn {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.15);
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  margin-left: 2px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.json-output-block .json-btn:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.json-output-block .json-editor {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 7px;
+  border-radius: 5px;
+  border: 1px solid #aaa;
+  pointer-events: auto;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .code-block {
   position: absolute;
   pointer-events: none;
@@ -1227,6 +1373,12 @@ g {
 .lp-dot-code {
   background: #5cb85c;
   border-radius: 2px;
+}
+.lp-dot-json {
+  background: #27ae60;
+}
+.lp-dot-json-output {
+  background: #2980b9;
 }
 .lp-dot-input {
   background: #3a9bd5;

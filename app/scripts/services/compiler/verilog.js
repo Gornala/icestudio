@@ -42,6 +42,22 @@ window._icecompiler.verilog = function (ctx) {
           name: name,
           value: '"' + name + '.list"',
         });
+      } else if (
+        block.type === ctx.blocks.BASIC_JSON &&
+        block.data.type === 'output'
+      ) {
+        var jsonObj = {};
+        try {
+          jsonObj = JSON.parse(block.data.content || '{}');
+        } catch (e) {
+          jsonObj = {};
+        }
+        (block.data.ports || []).forEach(function (pname) {
+          params.push({
+            name: ctx.utils.digestId(block.id) + '_' + pname,
+            value: jsonObj[pname] !== undefined ? String(jsonObj[pname]) : '0',
+          });
+        });
       }
     }
 
