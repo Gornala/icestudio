@@ -228,9 +228,19 @@ window._icecompiler.verilog = function (ctx) {
           );
         }
       } else {
-        // Wires
-        var range = wire.size ? ' [' + (wire.size - 1) + ':0] ' : ' ';
-        connections.wire.push('wire' + range + 'w' + w + ';');
+        var jsonSrcBlock = ctx.findBlock(wire.source.block, graph);
+        if (jsonSrcBlock && jsonSrcBlock.type === ctx.blocks.BASIC_JSON_INPUT) {
+          // JSON input port — treated as a named localparam
+          var jsonParamName =
+            ctx.utils.digestId(jsonSrcBlock.id) + '_' + wire.source.port;
+          connections.localparam.push(
+            'localparam p' + w + ' = ' + jsonParamName + ';'
+          );
+        } else {
+          // Regular wires
+          var range = wire.size ? ' [' + (wire.size - 1) + ':0] ' : ' ';
+          connections.wire.push('wire' + range + 'w' + w + ';');
+        }
       }
       // Assign Statements
       for (i in graph.blocks) {
@@ -243,11 +253,13 @@ window._icecompiler.verilog = function (ctx) {
           }
         } else if (block.type === ctx.blocks.BASIC_OUTPUT) {
           if (wire.target.block === block.id) {
+            var outSrcBlock = ctx.findBlock(wire.source.block, graph);
             if (
               wire.source.port === 'constant-out' ||
-              wire.source.port === 'memory-out'
+              wire.source.port === 'memory-out' ||
+              (outSrcBlock && outSrcBlock.type === ctx.blocks.BASIC_JSON_INPUT)
             ) {
-              // connections.assign.push('assign ' + digestId(block.id) + ' = p' + w + ';');
+              // localparam source — no assign needed
             } else {
               connections.assign.push(
                 'assign ' + ctx.utils.digestId(block.id) + ' = w' + w + ';'
@@ -270,11 +282,15 @@ window._icecompiler.verilog = function (ctx) {
       for (j = 0; j < i; j++) {
         gwi = graph.wires[i];
         gwj = graph.wires[j];
+        var dedupSrc = ctx.findBlock(gwi.source.block, graph);
+        var isParamSrc =
+          gwi.source.port === 'constant-out' ||
+          gwi.source.port === 'memory-out' ||
+          (dedupSrc && dedupSrc.type === ctx.blocks.BASIC_JSON_INPUT);
         if (
           gwi.source.block === gwj.source.block &&
           gwi.source.port === gwj.source.port &&
-          gwi.source.port !== 'constant-out' &&
-          gwi.source.port !== 'memory-out'
+          !isParamSrc
         ) {
           content.push('assign w' + i + ' = w' + j + ';');
         }
@@ -336,7 +352,8 @@ window._icecompiler.verilog = function (ctx) {
         block.type !== ctx.blocks.BASIC_MEMORY &&
         block.type !== ctx.blocks.BASIC_INFO &&
         block.type !== ctx.blocks.BASIC_INPUT_LABEL &&
-        block.type !== ctx.blocks.BASIC_OUTPUT_LABEL
+        block.type !== ctx.blocks.BASIC_OUTPUT_LABEL &&
+        block.type !== ctx.blocks.BASIC_JSON_INPUT
       ) {
         // Header
         var instance;
@@ -356,11 +373,12 @@ window._icecompiler.verilog = function (ctx) {
         var params = [];
         for (w in graph.wires) {
           wire = graph.wires[w];
-          if (
-            block.id === wire.target.block &&
-            (wire.source.port === 'constant-out' ||
-              wire.source.port === 'memory-out')
-          ) {
+          var instSrcBlock = ctx.findBlock(wire.source.block, graph);
+          var isInstParamSrc =
+            wire.source.port === 'constant-out' ||
+            wire.source.port === 'memory-out' ||
+            (instSrcBlock && instSrcBlock.type === ctx.blocks.BASIC_JSON_INPUT);
+          if (block.id === wire.target.block && isInstParamSrc) {
             var paramName = wire.target.port;
             if (block.type !== ctx.blocks.BASIC_CODE) {
               paramName = ctx.utils.digestId(paramName);
@@ -392,10 +410,13 @@ window._icecompiler.verilog = function (ctx) {
             connectPort(wire.source.port, portsNames, ports, block);
           }
           if (block.id === wire.target.block) {
-            if (
-              wire.source.port !== 'constant-out' &&
-              wire.source.port !== 'memory-out'
-            ) {
+            var portSrcBlock = ctx.findBlock(wire.source.block, graph);
+            var isPortParamSrc =
+              wire.source.port === 'constant-out' ||
+              wire.source.port === 'memory-out' ||
+              (portSrcBlock &&
+                portSrcBlock.type === ctx.blocks.BASIC_JSON_INPUT);
+            if (!isPortParamSrc) {
               connectPort(wire.target.port, portsNames, ports, block);
             }
           }
