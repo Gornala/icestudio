@@ -145,6 +145,7 @@ window._icemenu.file = {
 
       var filepath = project.path;
       if (filepath) {
+        iceStudio.bus.events.publish('graph:loadJsonInputs');
         iceStudio.bus.events.publish('graph:writeJsonOutputs');
         project.save(filepath, () => {
           reloadCollectionsIfRequired(filepath);

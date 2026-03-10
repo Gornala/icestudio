@@ -70,9 +70,6 @@ angular
           files = _list.listCompiler(project);
           break;
 
-        case 'json':
-          files = _json.jsonInputCompiler(project);
-          break;
         case 'jsonOutput':
           files = _json.jsonOutputCompiler(project);
           break;

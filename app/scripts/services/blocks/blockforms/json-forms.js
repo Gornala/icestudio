@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------
-//-- JSON block form functions: new, load, and edit
+//-- JSON Input block form functions: new, load, and edit
 //---------------------------------------------------------------------------
 'use strict';
 
@@ -15,58 +15,51 @@ window._iceblockforms.jsonForms = function (ctx) {
     return false;
   }
 
-  function newBasicJson(callback) {
-    var form = new ctx.forms.FormBasicJson();
+  function newBasicJsonInput(callback) {
+    var form = new ctx.forms.FormBasicJsonInput();
     form.display(function (evt) {
       form.process(evt);
       if (evt.cancel) {
         return;
       }
       var block = form.newBlock();
-      var cell = loadBasicJson(block);
+      var cell = loadBasicJsonInput(block);
       if (callback) {
         callback([cell]);
       }
     });
   }
 
-  function loadBasicJson(instance, disabled) {
+  function loadBasicJsonInput(instance, disabled) {
     var data = instance.data;
-    var leftPorts = [];
-    var rightPorts = [];
+    var bottomPorts = [];
 
-    if (data.type === 'input') {
-      // Input type: wires connect into the block (left side)
-      (data.ports || []).forEach(function (pname) {
-        leftPorts.push({ id: pname, name: pname, label: pname, size: 1 });
-      });
-    } else {
-      // Output type: values flow out of the block (right side)
-      (data.ports || []).forEach(function (pname) {
-        rightPorts.push({ id: pname, name: pname, label: pname, size: 1 });
-      });
-    }
+    // All ports are outputs on the bottom side
+    (data.ports || []).forEach(function (pname) {
+      bottomPorts.push({ id: pname, name: pname, label: pname, size: 1 });
+    });
 
-    var cell = new joint.shapes.ice.Json({
+    var cell = new joint.shapes.ice.JsonInput({
       id: instance.id,
       blockType: instance.type,
       data: instance.data,
       position: instance.position,
       size: instance.size,
       disabled: disabled,
-      leftPorts: leftPorts,
-      rightPorts: rightPorts,
+      leftPorts: [],
+      rightPorts: [],
+      topPorts: [],
+      bottomPorts: bottomPorts,
     });
     return cell;
   }
 
-  function editBasicJson(cellView, callback) {
+  function editBasicJsonInput(cellView, callback) {
     var block = cellView.model.attributes;
     var data = block.data;
-    var form = new ctx.forms.FormBasicJson(
+    var form = new ctx.forms.FormBasicJsonInput(
       data.name,
       data.path,
-      data.type,
       data.ports
     );
     form.display(function (evt) {
@@ -78,10 +71,9 @@ window._iceblockforms.jsonForms = function (ctx) {
         return;
       }
 
-      var blockInstance = new ctx.blocks.JsonBlock(
+      var blockInstance = new ctx.blocks.JsonInputBlock(
         form.jsonName,
         form.jsonPath,
-        form.jsonType,
         form.jsonPorts
       );
       blockInstance.position = block.position;
@@ -89,7 +81,7 @@ window._iceblockforms.jsonForms = function (ctx) {
       blockInstance.id = block.id;
       blockInstance.data.content = data.content || '{}';
 
-      var cell = loadBasicJson(blockInstance);
+      var cell = loadBasicJsonInput(blockInstance);
 
       if (cell) {
         var graph = cellView.paper.model;
@@ -105,14 +97,10 @@ window._iceblockforms.jsonForms = function (ctx) {
           var wire = connectedWires[w];
           var size = wire.get('size');
           var source = wire.get('source');
-          var target = wire.get('target');
-          var cellLeftPorts = cell.get('leftPorts') || [];
-          var cellRightPorts = cell.get('rightPorts') || [];
+          var cellBottomPorts = cell.get('bottomPorts') || [];
           if (
-            (target.id === cell.id &&
-              containsPort(target.port, size, cellLeftPorts)) ||
-            (source.id === cell.id &&
-              containsPort(source.port, size, cellRightPorts))
+            source.id === cell.id &&
+            containsPort(source.port, size, cellBottomPorts)
           ) {
             graph.addCell(wire);
           }
@@ -127,8 +115,8 @@ window._iceblockforms.jsonForms = function (ctx) {
   }
 
   return {
-    newBasicJson: newBasicJson,
-    loadBasicJson: loadBasicJson,
-    editBasicJson: editBasicJson,
+    newBasicJsonInput: newBasicJsonInput,
+    loadBasicJsonInput: loadBasicJsonInput,
+    editBasicJsonInput: editBasicJsonInput,
   };
 };

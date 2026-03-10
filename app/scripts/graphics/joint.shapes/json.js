@@ -5,12 +5,12 @@
 
 'use strict';
 
-// JSON block
+// JSON Input block — reads an external JSON file, exposes values as bottom ports
 
-joint.shapes.ice.Json = joint.shapes.ice.Model.extend({
+joint.shapes.ice.JsonInput = joint.shapes.ice.Model.extend({
   defaults: joint.util.deepSupplement(
     {
-      type: 'ice.Json',
+      type: 'ice.JsonInput',
       z: 10,
       size: {
         width: 192,
@@ -21,13 +21,13 @@ joint.shapes.ice.Json = joint.shapes.ice.Model.extend({
   ),
 });
 
-joint.shapes.ice.JsonView = joint.shapes.ice.ModelView.extend({
+joint.shapes.ice.JsonInputView = joint.shapes.ice.ModelView.extend({
   initialize: function () {
     _.bindAll(this, 'updateBox');
     joint.dia.ElementView.prototype.initialize.apply(this, arguments);
 
     var id = sha1(this.model.get('id')).toString().substring(0, 6);
-    var editorLabel = 'jsoneditor' + id;
+    var editorLabel = 'jsoninputeditor' + id;
 
     var editorTheme;
     if (global.uiTheme === 'dark') {
@@ -39,13 +39,12 @@ joint.shapes.ice.JsonView = joint.shapes.ice.ModelView.extend({
     this.$box = $(
       joint.util.template(
         '\
-      <div class="json-block">\
+      <div class="json-block json-input-block">\
         <div class="json-content">\
           <div class="json-header">\
             <label class="json-name"></label>\
-            <span class="json-type-badge"></span>\
             <button class="json-btn json-btn-menu" title="Configure">&#8801;</button>\
-            <button class="json-btn json-btn-save" title="Save As">&#128190;</button>\
+            <button class="json-btn json-btn-reload" title="Reload from file">&#8635;</button>\
           </div>\
         </div>\
         <div class="json-editor" id="' +
@@ -97,11 +96,10 @@ joint.shapes.ice.JsonView = joint.shapes.ice.ModelView.extend({
     this.listenTo(this.model, 'process:ports', this.update);
     joint.dia.ElementView.prototype.initialize.apply(this, arguments);
 
-    // Prevent paper from handling pointerdown
-    this.editorSelector.on('mousedown click', function (event) {
+    this.$box.find('.json-btn').on('mousedown click', function (event) {
       event.stopPropagation();
     });
-    this.$box.find('.json-btn').on('mousedown click', function (event) {
+    this.editorSelector.on('mousedown click', function (event) {
       event.stopPropagation();
     });
 
@@ -109,52 +107,22 @@ joint.shapes.ice.JsonView = joint.shapes.ice.ModelView.extend({
 
     this.updating = false;
     this.prevZoom = 0;
-    this.deltas = [];
-    this.counter = 0;
-    this.timer = null;
-    var undoGroupingInterval = 200;
 
     var self = this;
+    var fs = require('fs');
+
     this.editor = ace.edit(this.editorSelector[0]);
+    this.editor.setReadOnly(true);
     this.updateScrollStatus(false);
     this.editor.$blockScrolling = Infinity;
     this.editor.commands.removeCommand('touppercase');
-    this.editor.session.on('change', function (delta) {
-      if (!self.updating) {
-        if (Date.now() - self.counter < undoGroupingInterval) {
-          clearTimeout(self.timer);
-        }
-        self.deltas = self.deltas.concat([delta]);
-        self.timer = setTimeout(function () {
-          var deltas = JSON.parse(JSON.stringify(self.deltas));
-          self.model.set('deltas', deltas);
-          self.deltas = [];
-          self.model.attributes.data.content = self.editor.session.getValue();
-        }, undoGroupingInterval);
-        self.counter = Date.now();
-      }
-    });
+
     this.editor.on('focus', function () {
       self.updateScrollStatus(true);
       $(document).trigger('disableSelected');
-      self.editor.setHighlightActiveLine(true);
-      self.editor.setHighlightGutterLine(true);
-      self.editor.renderer.$cursorLayer.element.style.opacity = 1;
     });
     this.editor.on('blur', function () {
       self.updateScrollStatus(false);
-      var selection = self.editor.session.selection;
-      if (selection) {
-        selection.clearSelection();
-      }
-      self.editor.setHighlightActiveLine(false);
-      self.editor.setHighlightGutterLine(false);
-      self.editor.renderer.$cursorLayer.element.style.opacity = 0;
-    });
-    this.editor.on('paste', function (e) {
-      if (e.text.startsWith('{"icestudio":')) {
-        e.text = '';
-      }
     });
     this.editor.on('mousewheel', function (event) {
       if (
@@ -166,27 +134,60 @@ joint.shapes.ice.JsonView = joint.shapes.ice.ModelView.extend({
       }
     });
 
+    // Load the JSON file from disk (synchronously)
+    var doLoad = function (showAlert) {
+      var filepath = self.model.get('data').path;
+      if (!filepath) {
+        if (showAlert) {
+          alertify.warning(
+            'No file path configured. Double-click the block to configure.'
+          );
+        }
+        return;
+      }
+      try {
+        var content = fs.readFileSync(filepath, 'utf8');
+        self.model.attributes.data.content = content;
+        self.updating = true;
+        self.editor.session.setValue(content);
+        setTimeout(function () {
+          self.updating = false;
+        }, 10);
+        if (showAlert) {
+          alertify.success('JSON loaded: ' + filepath);
+        }
+      } catch (e) {
+        console.warn('JSON input block: could not read ' + filepath, e);
+        if (showAlert) {
+          alertify.error('Could not load JSON: ' + e.message);
+        }
+      }
+    };
+
     // Configure button: trigger dblclick on the block
     this.$box.find('.json-btn-menu').on('click', function () {
       self.paper.trigger('cell:pointerdblclick', self, {}, 0, 0);
     });
 
-    // Save As button
-    this.$box.find('.json-btn-save').on('click', function () {
-      iceStudio.bus.events.publish('JsonBlock::saveAs', {
-        id: self.model.get('id'),
-      });
+    // Reload button: re-read the file with user feedback
+    this.$box.find('.json-btn-reload').on('click', function () {
+      doLoad(true);
+    });
+
+    // Subscribe to global load event (triggered on save/verify/build/upload)
+    iceStudio.bus.events.subscribe('graph:loadJsonInputs', function () {
+      doLoad(false);
     });
 
     this.setupResizer();
 
-    // Apply data
+    // Load on init (if a path is already configured)
     this.apply({ ini: true });
+    doLoad(false);
   },
 
   apply: function (opt) {
     this.applyName();
-    this.applyType();
     this.applyContent(opt);
     if (this.editor) {
       this.editor.resize();
@@ -195,17 +196,7 @@ joint.shapes.ice.JsonView = joint.shapes.ice.ModelView.extend({
 
   applyName: function () {
     var name = this.model.get('data').name;
-    this.$box.find('.json-name').text(name || 'json');
-  },
-
-  applyType: function () {
-    var type = this.model.get('data').type;
-    var badge = this.$box.find('.json-type-badge');
-    if (type === 'input') {
-      badge.text('IN').removeClass('json-badge-out').addClass('json-badge-in');
-    } else {
-      badge.text('OUT').removeClass('json-badge-in').addClass('json-badge-out');
-    }
+    this.$box.find('.json-name').text(name || 'json_input');
   },
 
   applyContent: function (opt) {
@@ -214,8 +205,6 @@ joint.shapes.ice.JsonView = joint.shapes.ice.ModelView.extend({
     opt = opt || {};
     if (opt.ini) {
       this.editor.session.setValue(data.content || '{}');
-    } else {
-      this.model.attributes.data.content = this.editor.session.getValue();
     }
     setTimeout(
       function (self) {
@@ -229,14 +218,13 @@ joint.shapes.ice.JsonView = joint.shapes.ice.ModelView.extend({
   update: function () {
     this.renderPorts();
     if (this.editor) {
-      this.editor.setReadOnly(this.model.get('disabled'));
+      this.editor.setReadOnly(true);
     }
     joint.dia.ElementView.prototype.update.apply(this, arguments);
   },
 
   updateBox: function () {
     var bbox = this.model.getBBox();
-    var data = this.model.get('data');
     var state = this.model.get('state');
 
     var pendingTasks = [];

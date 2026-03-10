@@ -17,7 +17,7 @@ angular.module('icestudio').service('blocks', function () {
   this.MemoryBlock = _b.MemoryBlock;
   this.ConstantBlock = _b.ConstantBlock;
   this.InfoBlock = _b.InfoBlock;
-  this.JsonBlock = _b.JsonBlock;
+  this.JsonInputBlock = _b.JsonInputBlock;
   this.JsonOutputBlock = _b.JsonOutputBlock;
 
   //-- Public functions
@@ -36,6 +36,6 @@ angular.module('icestudio').service('blocks', function () {
   this.BASIC_MEMORY = _b.BASIC_MEMORY;
   this.BASIC_CONSTANT = _b.BASIC_CONSTANT;
   this.BASIC_INFO = _b.BASIC_INFO;
-  this.BASIC_JSON = _b.BASIC_JSON;
+  this.BASIC_JSON_INPUT = _b.BASIC_JSON_INPUT;
   this.BASIC_JSON_OUTPUT = _b.BASIC_JSON_OUTPUT;
 });

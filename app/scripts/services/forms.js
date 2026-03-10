@@ -60,15 +60,14 @@ angular
       var FormBasicMemory = _blockForms.FormBasicMemory;
       var FormBasicConstant = _blockForms.FormBasicConstant;
 
-      //-- Build JSON form class
+      //-- Build JSON Input form class
       var _jsonForms = window._iceforms.jsonForms({
         gettextCatalog: gettextCatalog,
         blocks: blocks,
         Form: Form,
         TextField: TextField,
-        ComboboxField: ComboboxField,
       });
-      var FormBasicJson = _jsonForms.FormBasicJson;
+      var FormBasicJsonInput = _jsonForms.FormBasicJsonInput;
 
       //-- Build JSON Output form class
       var _jsonOutputForms = window._iceforms.jsonOutputForms({
@@ -107,7 +106,7 @@ angular
       this.FormBasicCode = FormBasicCode;
       this.FormBasicMemory = FormBasicMemory;
       this.FormBasicConstant = FormBasicConstant;
-      this.FormBasicJson = FormBasicJson;
+      this.FormBasicJsonInput = FormBasicJsonInput;
       this.FormBasicJsonOutput = FormBasicJsonOutput;
       this.FormSelectBoard = FormSelectBoard;
       this.FormLogfile = FormLogfile;

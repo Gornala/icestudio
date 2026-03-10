@@ -42,10 +42,7 @@ window._icecompiler.verilog = function (ctx) {
           name: name,
           value: '"' + name + '.list"',
         });
-      } else if (
-        block.type === ctx.blocks.BASIC_JSON &&
-        block.data.type === 'output'
-      ) {
+      } else if (block.type === ctx.blocks.BASIC_JSON_INPUT) {
         var jsonObj = {};
         try {
           jsonObj = JSON.parse(block.data.content || '{}');

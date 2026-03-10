@@ -167,8 +167,8 @@ angular.module('icestudio').service(
           _infoForms.newBasicInfo(callback);
           break;
 
-        case blocks.BASIC_JSON:
-          _jsonForms.newBasicJson(callback);
+        case blocks.BASIC_JSON_INPUT:
+          _jsonForms.newBasicJsonInput(callback);
           break;
 
         case blocks.BASIC_JSON_OUTPUT:
@@ -209,8 +209,8 @@ angular.module('icestudio').service(
         case blocks.BASIC_INFO:
           return _infoForms.loadBasicInfo(instance, disabled);
 
-        case blocks.BASIC_JSON:
-          return _jsonForms.loadBasicJson(instance, disabled);
+        case blocks.BASIC_JSON_INPUT:
+          return _jsonForms.loadBasicJsonInput(instance, disabled);
 
         case blocks.BASIC_JSON_OUTPUT:
           return _jsonOutputForms.loadBasicJsonOutput(instance, disabled);
@@ -306,8 +306,8 @@ angular.module('icestudio').service(
           _infoForms.editBasicInfo(cellView);
           break;
 
-        case blocks.BASIC_JSON:
-          _jsonForms.editBasicJson(cellView, callback);
+        case blocks.BASIC_JSON_INPUT:
+          _jsonForms.editBasicJsonInput(cellView, callback);
           break;
 
         case blocks.BASIC_JSON_OUTPUT:

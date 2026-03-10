@@ -1,28 +1,23 @@
 //---------------------------------------------------------------------------
-//-- Class: JsonBlock. Represents a JSON parameter block
+//-- Class: JsonInputBlock. Reads an external JSON file → exposes values as
+//-- bottom output ports on the canvas.
 //---------------------------------------------------------------------------
 'use strict';
 
 (function () {
   var Block = window._iceblocks.Block;
-  var BASIC_JSON = window._iceblocks.BASIC_JSON;
+  var BASIC_JSON_INPUT = window._iceblocks.BASIC_JSON_INPUT;
 
-  //-------------------------------------------------------------------------
-  //-- Class: JSON block. For reading/writing JSON parameter files
-  //-- type 'output': reads JSON → exposes values as right-side ports
-  //-- type 'input':  takes constant wires → writes them to a JSON file
-  //-------------------------------------------------------------------------
-  class JsonBlock extends Block {
-    constructor(name, path, type, ports) {
-      super(BASIC_JSON);
+  class JsonInputBlock extends Block {
+    constructor(name, path, ports) {
+      super(BASIC_JSON_INPUT);
       this.size = { width: 192, height: 160 };
       this.data.name = name || '';
       this.data.path = path || '';
-      this.data.type = type || 'output';
       this.data.ports = ports || [];
       this.data.content = '{}';
     }
   }
 
-  window._iceblocks.JsonBlock = JsonBlock;
+  window._iceblocks.JsonInputBlock = JsonInputBlock;
 })();

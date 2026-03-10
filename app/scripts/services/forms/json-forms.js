@@ -1,28 +1,26 @@
 //---------------------------------------------------------------------------
-//-- FormBasicJson: form for creating/editing a JSON parameter block
+//-- FormBasicJsonInput: form for creating/editing a JSON Input block.
+//-- Reads an external JSON file; exposes its values as bottom output ports.
 //---------------------------------------------------------------------------
 'use strict';
 
 window._iceforms = window._iceforms || {};
 
-//-- Factory: called from inside the Angular service with injected deps
 window._iceforms.jsonForms = function (deps) {
   var gettextCatalog = deps.gettextCatalog;
   var blocks = deps.blocks;
   var Form = deps.Form;
   var TextField = deps.TextField;
-  var ComboboxField = deps.ComboboxField;
 
   //-------------------------------------------------------------------------
-  //-- CLASS: FormBasicJson
+  //-- CLASS: FormBasicJsonInput
   //-- Fields:
   //--   0: Name (text)
-  //--   1: Save path (text + browse button injected in init())
-  //--   2: Type combobox (output / input)
-  //--   3: Ports, comma-separated (text)
+  //--   1: File path (text, read-only — browse opens an open dialog)
+  //--   2: Ports, comma-separated (text)
   //-------------------------------------------------------------------------
-  class FormBasicJson extends Form {
-    constructor(name, path, type, ports) {
+  class FormBasicJsonInput extends Form {
+    constructor(name, path, ports) {
       super();
 
       var field0 = new TextField(
@@ -31,42 +29,23 @@ window._iceforms.jsonForms = function (deps) {
         0
       );
       var field1 = new TextField(
-        gettextCatalog.getString('Save path'),
+        gettextCatalog.getString('File path'),
         path || '',
         1
       );
-      var field2 = new ComboboxField(
-        [
-          {
-            value: 'output',
-            label: gettextCatalog.getString('Output (JSON \u2192 parameters)'),
-          },
-          {
-            value: 'input',
-            label: gettextCatalog.getString(
-              'Input (constants \u2192 JSON file)'
-            ),
-          },
-        ],
-        gettextCatalog.getString('Type'),
-        type || 'output',
-        2
-      );
-      var field3 = new TextField(
+      var field2 = new TextField(
         gettextCatalog.getString('Ports (comma-separated)'),
         (ports || []).join(','),
-        3
+        2
       );
 
       this.addField(field0);
       this.addField(field1);
       this.addField(field2);
-      this.addField(field3);
 
       this.resultAlert = null;
       this.nameIni = name || '';
       this.pathIni = path || '';
-      this.typeIni = type || 'output';
       this.portsIni = (ports || []).join(',');
     }
 
@@ -80,20 +59,15 @@ window._iceforms.jsonForms = function (deps) {
       if ($pathInput.length && !$pathInput.next('.json-browse-btn').length) {
         var $btn = $(
           '<button type="button" class="json-browse-btn">' +
-            gettextCatalog.getString('Choose path') +
+            gettextCatalog.getString('Choose file') +
             '</button>'
         );
         $pathInput.after($btn);
         $btn.on('click', function (e) {
           e.preventDefault();
           e.stopPropagation();
-          // Use save dialog for input type (writing new file),
-          // open dialog for output type (reading existing file)
-          var currentType = $('#form2').val();
-          var $fileInput =
-            currentType === 'input'
-              ? $('#input-json-save')
-              : $('#input-json-open');
+          // Always use open dialog — json_input only reads files
+          var $fileInput = $('#input-json-open');
           $fileInput
             .off('change.jsonpath')
             .on('change.jsonpath', function (ev) {
@@ -112,8 +86,7 @@ window._iceforms.jsonForms = function (deps) {
       this.values = this.readFields();
       this.jsonName = (this.values[0] || '').trim();
       this.jsonPath = (this.values[1] || '').trim();
-      this.jsonType = this.values[2] || 'output';
-      var rawPorts = (this.values[3] || '').trim();
+      var rawPorts = (this.values[2] || '').trim();
       this.jsonPorts = rawPorts
         ? rawPorts
             .split(',')
@@ -140,10 +113,9 @@ window._iceforms.jsonForms = function (deps) {
     }
 
     newBlock() {
-      return new blocks.JsonBlock(
+      return new blocks.JsonInputBlock(
         this.jsonName,
         this.jsonPath,
-        this.jsonType,
         this.jsonPorts
       );
     }
@@ -152,13 +124,12 @@ window._iceforms.jsonForms = function (deps) {
       return (
         this.nameIni !== this.jsonName ||
         this.pathIni !== this.jsonPath ||
-        this.typeIni !== this.jsonType ||
         this.portsIni !== (this.jsonPorts || []).join(',')
       );
     }
   }
 
   return {
-    FormBasicJson: FormBasicJson,
+    FormBasicJsonInput: FormBasicJsonInput,
   };
 };

@@ -103,7 +103,7 @@ window._icegraph.fileIO = function (ctx) {
           case ctx.blocks.BASIC_CODE:
           case ctx.blocks.BASIC_INPUT:
           case ctx.blocks.BASIC_OUTPUT:
-          case ctx.blocks.BASIC_JSON:
+          case ctx.blocks.BASIC_JSON_INPUT:
           case ctx.blocks.BASIC_JSON_OUTPUT:
             founded = true;
             break;
