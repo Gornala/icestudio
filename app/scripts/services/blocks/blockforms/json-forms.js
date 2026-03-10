@@ -79,7 +79,8 @@ window._iceblockforms.jsonForms = function (ctx) {
       blockInstance.position = block.position;
       blockInstance.size = block.size;
       blockInstance.id = block.id;
-      blockInstance.data.content = data.content || '{}';
+      // Prefer freshly loaded content from the form (if file was re-read)
+      blockInstance.data.content = form.jsonContent || data.content || '{}';
 
       var cell = loadBasicJsonInput(blockInstance);
 

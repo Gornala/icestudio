@@ -609,6 +609,41 @@ g {
   pointer-events: auto;
 }
 
+/* --- JSON Input: dialog port-preview table -------------------------------- */
+.json-port-preview {
+  margin-top: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  border-radius: 4px;
+}
+
+.json-port-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.json-port-table th,
+.json-port-table td {
+  border: 1px solid #ccc;
+  padding: 3px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.json-port-table th {
+  background: #27ae60;
+  color: #fff;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+}
+
+.json-port-table tr:nth-child(even) td {
+  background: #f4faf4;
+}
+
 .json-output-block {
   position: absolute;
   pointer-events: none;
