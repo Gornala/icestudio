@@ -530,11 +530,69 @@ window._icegraph.fileIO = function (ctx) {
       iceProject.package.author = newValues[3] || '';
       iceProject.package.image = newValues[4] || '';
 
-      alertify.prompt(
-        ctx.gettextCatalog.getString('Collection name'),
-        'Custom',
-        function (evt2, collectionName) {
+      //-- Build collection chooser: dropdown of existing + "New collection" option
+      var existingColls = [];
+      try {
+        var entries = nodeFs.readdirSync(ctx.common.INTERNAL_COLLECTIONS_DIR);
+        for (var ei = 0; ei < entries.length; ei++) {
+          var entryPath = nodePath.join(
+            ctx.common.INTERNAL_COLLECTIONS_DIR,
+            entries[ei]
+          );
+          try {
+            if (nodeFs.statSync(entryPath).isDirectory()) {
+              existingColls.push(entries[ei]);
+            }
+          } catch (eStat) {}
+        }
+        existingColls.sort();
+      } catch (eDir) {}
+
+      var collHtml = [];
+      collHtml.push('<div>');
+      collHtml.push(
+        '  <p>' + ctx.gettextCatalog.getString('Collection') + '</p>'
+      );
+      collHtml.push(
+        '  <select id="coll-select" class="ajs-input" style="width:100%">'
+      );
+      for (var ci = 0; ci < existingColls.length; ci++) {
+        collHtml.push(
+          '    <option value="' +
+            existingColls[ci] +
+            '">' +
+            existingColls[ci] +
+            '</option>'
+        );
+      }
+      collHtml.push(
+        '    <option value="__new__">' +
+          ctx.gettextCatalog.getString('-- New collection --') +
+          '</option>'
+      );
+      collHtml.push('  </select>');
+      collHtml.push(
+        '  <p id="coll-new-label" style="display:none;margin-top:8px">' +
+          ctx.gettextCatalog.getString('New collection name') +
+          '</p>'
+      );
+      collHtml.push(
+        '  <input id="coll-new-name" class="ajs-input" type="text" ' +
+          'value="Custom" style="display:none;width:100%">'
+      );
+      collHtml.push('</div>');
+
+      //-- Defer so the projectinfoprompt confirm dialog fully closes first
+      setTimeout(function () {
+        alertify.confirm(collHtml.join('\n'), function () {
+          var sel = document.getElementById('coll-select');
+          var inp = document.getElementById('coll-new-name');
+          var collectionName =
+            sel.value === '__new__' ? (inp.value || '').trim() : sel.value;
           if (!collectionName) {
+            alertify.warning(
+              ctx.gettextCatalog.getString('Collection name cannot be empty')
+            );
             return false;
           }
 
@@ -669,8 +727,23 @@ window._icegraph.fileIO = function (ctx) {
           } else {
             doSave();
           }
-        }
-      );
+        });
+        //-- Wire up the dropdown toggle after the dialog is in the DOM
+        setTimeout(function () {
+          var sel = document.getElementById('coll-select');
+          var lbl = document.getElementById('coll-new-label');
+          var inp = document.getElementById('coll-new-name');
+          if (sel && lbl && inp) {
+            var toggle = function () {
+              var isNew = sel.value === '__new__';
+              lbl.style.display = isNew ? '' : 'none';
+              inp.style.display = isNew ? '' : 'none';
+            };
+            sel.addEventListener('change', toggle);
+            toggle();
+          }
+        }, 50);
+      }, 100);
     });
   };
 
