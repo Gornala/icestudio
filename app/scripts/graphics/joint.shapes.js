@@ -325,8 +325,13 @@ joint.shapes.ice.ModelView = joint.dia.ElementView.extend({
   },
 
   placeIO: function (data, bbox, state) {
-    const virtualtopOffset = 24;
-    const fpgaTopOffset = data.name || data.range || data.clock ? 0 : 24;
+    var blockType = this.model.get('blockType') || '';
+    var isLabel =
+      blockType === 'basic.inputLabel' ||
+      blockType === 'basic.outputLabel' ||
+      blockType === 'basic.pairedLabel';
+    const virtualtopOffset = isLabel ? 0 : 24;
+    const fpgaTopOffset = 0;
 
     let bx = Math.round(bbox.x * state.zoom + state.pan.x);
     let by = Math.round(bbox.y * state.zoom + state.pan.y);
@@ -358,7 +363,7 @@ joint.shapes.ice.ModelView = joint.dia.ElementView.extend({
       this.nativeDom.virtualContentSelector.forEach((el) => {
         Object.assign(el.style, {
           left: '0px',
-          top: '20%',
+          top: isLabel ? '0px' : '20%',
           width: `${bw}px`,
           height: `${bh}px`,
         });

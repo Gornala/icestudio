@@ -18,22 +18,31 @@ joint.shapes.ice.IO = joint.shapes.ice.Model.extend({
 
   updateSize: function () {
     let name = this.get('data').name;
-    const fontSize = 14;
+    const blockType = this.get('blockType') || '';
+    const isLabel =
+      blockType === 'basic.inputLabel' ||
+      blockType === 'basic.outputLabel' ||
+      blockType === 'basic.pairedLabel';
+    const fontSize = isLabel ? 12 : 14;
 
     const pins = this.get('data').pins;
 
-    for (let i in pins) {
-      name =
-        pins[i].name !== null && pins[i].name.length > name.length
-          ? pins[i].name
-          : name;
+    if (!isLabel) {
+      for (let i in pins) {
+        name =
+          pins[i].name !== null && pins[i].name.length > name.length
+            ? pins[i].name
+            : name;
+      }
     }
 
     if (name.length > 0) {
       const context = document.createElement('canvas').getContext('2d');
       context.font = `${fontSize}px Monaco`;
       const textWidth = context.measureText(name).width;
-      const newWidth = Math.round(Math.max(textWidth + 50, 96));
+      var minW = isLabel ? 32 : 96;
+      var pad = isLabel ? 12 : 50;
+      const newWidth = Math.round(Math.max(textWidth + pad, minW));
       this.resize(newWidth, this.size().height);
     }
   },
@@ -45,7 +54,7 @@ joint.shapes.ice.Input = joint.shapes.ice.IO.extend({
       type: 'ice.Input',
       size: {
         width: 96,
-        height: 64,
+        height: 32,
       },
     },
     joint.shapes.ice.IO.prototype.defaults
@@ -59,7 +68,7 @@ joint.shapes.ice.Output = joint.shapes.ice.IO.extend({
       z: 10,
       size: {
         width: 96,
-        height: 64,
+        height: 32,
       },
     },
     joint.shapes.ice.Model.prototype.defaults
@@ -92,8 +101,8 @@ joint.shapes.ice.InputLabel = joint.shapes.ice.IO.extend({
     {
       type: 'ice.Output',
       size: {
-        width: 96,
-        height: 64,
+        width: 32,
+        height: 32,
       },
     },
     joint.shapes.ice.Model.prototype.defaults
@@ -126,8 +135,8 @@ joint.shapes.ice.OutputLabel = joint.shapes.ice.IO.extend({
     {
       type: 'ice.Input',
       size: {
-        width: 96,
-        height: 64,
+        width: 32,
+        height: 32,
       },
     },
     joint.shapes.ice.Model.prototype.defaults
@@ -186,13 +195,13 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
         <div class="io-fpga-content' +
           (virtual ? ' hidden' : '') +
           '">\
-          <div class="header">\
+          <div class="fpga-row">\
             <label>' +
           name +
           '</label>\
             <svg viewBox="0 0 12 18"><path d="M-1 0 l10 8-10 8" fill="none" stroke-width="2" stroke-linejoin="round"/>\
           </div>\
-          <div>' +
+          <div class="fpga-pins">' +
           selectCode +
           '</div>\
           <script>' +
@@ -206,7 +215,7 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
 
     this.virtualContentSelector = this.$box.find('.io-virtual-content');
     this.fpgaContentSelector = this.$box.find('.io-fpga-content');
-    this.headerSelector = this.$box.find('.header');
+    this.headerSelector = this.$box.find('.header, .fpga-row');
     const dkey = this.id + this.cid + '.io-virtual-content';
     let vcs = domCache[dkey];
     if (!vcs) {
@@ -310,9 +319,18 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
     var data = this.model.get('data');
     var name = data.name + (data.range || '');
     var virtual = data.virtual || this.model.get('disabled') || subModuleActive;
+    var blockType = this.model.get('blockType') || '';
+    var isLabel =
+      blockType === 'basic.inputLabel' ||
+      blockType === 'basic.outputLabel' ||
+      blockType === 'basic.pairedLabel';
     var $label = this.$box.find('label');
 
     $label.text(name || '');
+
+    if (isLabel) {
+      this.$box.addClass('io-label');
+    }
 
     if (virtual) {
       // Virtual port (green)
@@ -334,13 +352,19 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
         this.virtualContentSelector.addClass('color-' + data.blockColor);
       }
 
-      this.model.attributes.size.height = 64;
+      var newH = isLabel ? 32 : 64;
+      if (this.model.get('size').height !== newH) {
+        this.model.resize(this.model.get('size').width, newH);
+      }
     } else {
       // FPGA I/O port (yellow)
       this.virtualContentSelector.addClass('hidden');
       this.fpgaContentSelector.removeClass('hidden');
       if (data.pins) {
-        this.model.attributes.size.height = 32 + 32 * data.pins.length;
+        var fpgaH = 32 * data.pins.length;
+        if (this.model.get('size').height !== fpgaH) {
+          this.model.resize(this.model.get('size').width, fpgaH);
+        }
       }
     }
   },

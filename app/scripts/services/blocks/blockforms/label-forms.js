@@ -105,7 +105,7 @@ window._iceblockforms.labelForms = function (ctx) {
         //-- update the pair position
         pair[0].position.y = positionY;
         pair[1].position.y = positionY;
-        pair[1].position.x += 130;
+        pair[1].position.x += 72;
 
         //-- Build the two cells of the paired labels
         let cell0 = ctx.loadBasic(pair[0]);
@@ -116,7 +116,7 @@ window._iceblockforms.labelForms = function (ctx) {
         cells.push(cell1);
 
         //-- Calculate the Next paired block position
-        positionY += 10 * ctx.gridsize;
+        positionY += 5 * ctx.gridsize;
       });
 
       //-- We are done! Execute the callback function

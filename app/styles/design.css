@@ -316,6 +316,11 @@ g {
   height: 18px;
 }
 
+.io-block.io-label .io-virtual-content .header {
+  margin-top: 2px;
+  height: 16px;
+}
+
 .io-block .io-virtual-content .header label {
   flex-grow: 1;
   height: 20px;
@@ -327,6 +332,12 @@ g {
   overflow: hidden;
 }
 
+.io-block.io-label .io-virtual-content .header label {
+  height: 16px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
 .io-block .io-virtual-content .header svg {
   padding-left: 2px;
   padding-right: 2px;
@@ -336,47 +347,53 @@ g {
 
 .io-block .io-fpga-content {
   position: absolute;
-  width: 96px;
   background: #fbfbc9;
   border-radius: 5px;
   border: 1px solid #777;
-}
-
-.io-block .io-fpga-content .header {
   display: flex;
-  padding: 0 6px;
-  margin-top: 6px;
-  height: 18px;
+  flex-direction: row;
+  align-items: stretch;
 }
 
-.io-block .io-fpga-content .header label {
-  flex-grow: 1;
-  height: 20px;
-  text-align: center;
-  font-size: 14px;
+.io-block .io-fpga-content .fpga-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 4px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.io-block .io-fpga-content .fpga-row label {
+  font-size: 12px;
   font-weight: normal;
-  line-height: 18px;
+  line-height: 16px;
   color: #222;
-  text-overflow: ellipsis;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.io-block .io-fpga-content .header svg {
-  padding-left: 4px;
-  padding-right: 0px;
-  width: 10px;
+.io-block .io-fpga-content .fpga-row svg {
+  width: 8px;
   stroke: #444;
+  margin-top: 2px;
 }
 
-.io-block .io-fpga-content div .select2 {
+.io-block .io-fpga-content .fpga-pins {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-grow: 1;
+  min-width: 0;
+  padding: 2px 4px 2px 0;
+}
+
+.io-block .io-fpga-content .fpga-pins .select2 {
   position: relative;
-  /*width: 82px;
-  min-width:82px;*/
-  width: 90% !important;
-  top: 6px;
-  left: 6px;
-  margin-bottom: 6px;
+  width: 100% !important;
   pointer-events: auto;
+  margin-bottom: 2px;
 }
 
 .select2-container .select2-selection--single .select2-selection__rendered {
@@ -386,8 +403,21 @@ g {
 }
 
 .select2-selection {
-  font-size: 12px;
-  height: 26px !important;
+  font-size: 11px;
+  height: 22px !important;
+}
+
+.select2-container .select2-selection--single {
+  min-height: 22px;
+}
+
+.select2-container--default
+  .select2-selection--single
+  .select2-selection__rendered {
+  line-height: 22px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .select2-selection button {
@@ -397,11 +427,8 @@ g {
   display: block;
 }
 
-.io-block .io-fpga-content .header label {
-  font-size: 12px;
-}
 .select2-selection__rendered {
-  line-height: 24px !important;
+  line-height: 22px !important;
 }
 
 .select2-selection__clear {
