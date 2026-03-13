@@ -170,13 +170,16 @@ window._icemenu.file = {
       utils.saveDialog('#input-save-project', '.ice', function (filepath) {
         updateWorkingdir(filepath);
 
+        iceStudio.bus.events.publish('graph:loadJsonInputs');
+        iceStudio.bus.events.publish('graph:writeJsonOutputs');
         project.save(filepath, function () {
           reloadCollectionsIfRequired(filepath);
+          resetChangedStack();
+          addRecentProject(filepath);
+          if (localCallback) {
+            localCallback();
+          }
         });
-        resetChangedStack();
-        if (localCallback) {
-          localCallback();
-        }
       });
     };
 

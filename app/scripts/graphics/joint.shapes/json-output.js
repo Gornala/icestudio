@@ -38,6 +38,56 @@ joint.shapes.ice.JsonOutputView = joint.shapes.ice.JsonView.extend({
     // Editor is always read-only for output blocks
     this.editor.setReadOnly(true);
 
+    // Resolve the value for a source cell, following label connections
+    // if the source is an outputLabel.
+    var resolveValue = function (sourceCell, graph) {
+      if (!sourceCell || !sourceCell.get('data')) {
+        return undefined;
+      }
+      var data = sourceCell.get('data');
+      // Direct value source (constant, memory, etc.)
+      if (data.value !== undefined) {
+        return data.value;
+      }
+      // Source is an output label — find the matching input label(s) by name
+      var bt = sourceCell.get('blockType') || '';
+      if (bt === 'basic.outputLabel') {
+        var labelName = data.name;
+        if (!labelName) {
+          return undefined;
+        }
+        // Find input labels with the same name
+        var allCells = graph.getCells();
+        for (var i = 0; i < allCells.length; i++) {
+          var c = allCells[i];
+          if (c.isLink()) {
+            continue;
+          }
+          var cbt = c.get('blockType') || '';
+          if (cbt !== 'basic.inputLabel') {
+            continue;
+          }
+          var cData = c.get('data') || {};
+          if (cData.name !== labelName) {
+            continue;
+          }
+          // Found matching input label — find what feeds into it
+          var inLinks = graph.getConnectedLinks(c, { inbound: true });
+          for (var j = 0; j < inLinks.length; j++) {
+            var feeder = graph.getCell(inLinks[j].get('source').id);
+            if (
+              feeder &&
+              feeder.get('data') &&
+              feeder.get('data').value !== undefined
+            ) {
+              return feeder.get('data').value;
+            }
+          }
+        }
+      }
+      return undefined;
+    };
+
     // Collect wired values and write to data.path
     var doWrite = function (showAlert) {
       var graph = self.paper.model;
@@ -46,12 +96,9 @@ joint.shapes.ice.JsonOutputView = joint.shapes.ice.JsonView.extend({
       links.forEach(function (link) {
         var targetPort = link.get('target').port;
         var sourceCell = graph.getCell(link.get('source').id);
-        if (
-          sourceCell &&
-          sourceCell.get('data') &&
-          sourceCell.get('data').value !== undefined
-        ) {
-          jsonObj[targetPort] = sourceCell.get('data').value;
+        var val = resolveValue(sourceCell, graph);
+        if (val !== undefined) {
+          jsonObj[targetPort] = val;
         }
       });
       var filepath = self.model.get('data').path;

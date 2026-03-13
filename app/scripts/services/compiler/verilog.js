@@ -353,7 +353,8 @@ window._icecompiler.verilog = function (ctx) {
         block.type !== ctx.blocks.BASIC_INFO &&
         block.type !== ctx.blocks.BASIC_INPUT_LABEL &&
         block.type !== ctx.blocks.BASIC_OUTPUT_LABEL &&
-        block.type !== ctx.blocks.BASIC_JSON_INPUT
+        block.type !== ctx.blocks.BASIC_JSON_INPUT &&
+        block.type !== ctx.blocks.BASIC_JSON_OUTPUT
       ) {
         // Header
         var instance;
