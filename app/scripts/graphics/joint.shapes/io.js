@@ -269,8 +269,8 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
     if (!this.model.get('disabled')) {
       this.applyChoices();
       this.applyValues();
-      this.applyShape();
     }
+    this.applyShape();
     this.applyClock();
   },
 

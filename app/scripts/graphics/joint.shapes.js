@@ -348,27 +348,25 @@ joint.shapes.ice.ModelView = joint.dia.ElementView.extend({
       Object.assign(box.style, {
         'left': '0px',
         'top': '0px',
-        'width': `${bw}px`,
-        'height': `${bh}px`,
         'transform-origin': '0 0',
       });
-
-      bx = Math.round((bbox.width / 2.0) * (state.zoom - 1));
-      by = Math.round(
-        ((bbox.height - virtualtopOffset) / 2.0) * (state.zoom - 1) +
-          (virtualtopOffset / 2.0) * state.zoom
-      );
-      bh = Math.round(bbox.height - virtualtopOffset);
-
-      this.nativeDom.virtualContentSelector.forEach((el) => {
-        Object.assign(el.style, {
-          left: '0px',
-          top: isLabel ? '0px' : '20%',
-          width: `${bw}px`,
-          height: `${bh}px`,
-        });
-      });
     }
+
+    Object.assign(box.style, {
+      width: `${bw}px`,
+      height: `${bh}px`,
+    });
+
+    var vbh = Math.round(bbox.height - virtualtopOffset);
+
+    this.nativeDom.virtualContentSelector.forEach((el) => {
+      Object.assign(el.style, {
+        left: '0px',
+        top: isLabel ? '0px' : '20%',
+        width: `${bw}px`,
+        height: `${vbh}px`,
+      });
+    });
 
     bh = Math.round(bbox.height - fpgaTopOffset);
 

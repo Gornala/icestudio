@@ -790,8 +790,10 @@ g {
 
 .code-block .code-block-name {
   flex-grow: 1;
+  margin: 0;
   font-size: 13px;
   font-weight: normal;
+  line-height: 40px;
   color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
