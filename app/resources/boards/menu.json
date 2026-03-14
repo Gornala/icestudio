@@ -22,7 +22,8 @@
       "iCE40-HX8K",
       "icefun",
       "iceWerx",
-      "ThetaMachines-ETH4K"
+      "ThetaMachines-ETH4K",
+      "test"
     ]
   },
   {
@@ -104,6 +105,12 @@
       "ColorLight-i9-v7.2_(CMSIS-DAP)",
       "Cynthion-r1.4",
       "mimas-ecp5-mini"
+    ]
+  },
+  {
+    "type": "HX4K",
+    "boards": [
+      "Two_Brothers"
     ]
   }
 ]

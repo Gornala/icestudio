@@ -278,7 +278,7 @@ joint.shapes.ice.MemoryView = joint.shapes.ice.ModelView.extend({
           {
             e: this.editorSelector[0],
             property: 'top',
-            value: 24 * state.zoom + 'px',
+            value: 36 * state.zoom + 'px',
           },
           {
             e: this.editorSelector[0],

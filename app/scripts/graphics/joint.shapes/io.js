@@ -40,8 +40,8 @@ joint.shapes.ice.IO = joint.shapes.ice.Model.extend({
       const context = document.createElement('canvas').getContext('2d');
       context.font = `${fontSize}px Monaco`;
       const textWidth = context.measureText(name).width;
-      var minW = isLabel ? 32 : 96;
-      var pad = isLabel ? 12 : 50;
+      var minW = isLabel ? 64 : 96;
+      var pad = isLabel ? 60 : 50;
       const newWidth = Math.round(Math.max(textWidth + pad, minW));
       this.resize(newWidth, this.size().height);
     }

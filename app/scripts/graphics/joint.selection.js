@@ -106,6 +106,28 @@ joint.ui.SelectionView = Backbone.View.extend({
       // Mouse left button
 
       if (!evt.shiftKey) {
+        // Check if click landed on an interactive element (e.g. a pin dropdown)
+        // underneath the selection box by temporarily removing its pointer events.
+        evt.target.style.pointerEvents = 'none';
+        var under = document.elementFromPoint(evt.clientX, evt.clientY);
+        evt.target.style.pointerEvents = '';
+
+        if (under && $(under).closest('.fpga-pins').length > 0) {
+          evt.stopPropagation();
+          under.dispatchEvent(
+            new MouseEvent('mousedown', {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+              clientX: evt.clientX,
+              clientY: evt.clientY,
+              button: 0,
+              buttons: 1,
+            })
+          );
+          return;
+        }
+
         this._action = 'translating';
 
         this.options.graph.trigger('batch:stop');
@@ -401,14 +423,14 @@ joint.ui.SelectionView = Backbone.View.extend({
       i,
       pendingTasks = [];
 
+    let bw = bbox.width + (element.get('type') === 'ice.Constant' ? 13 : 0);
+    let bh = bbox.height;
     let bx = Math.round(
-      bbox.x * state.zoom + state.pan.x + (bbox.width / 2.0) * (state.zoom - 1)
+      bbox.x * state.zoom + state.pan.x + (bw / 2.0) * (state.zoom - 1)
     );
     let by = Math.round(
-      bbox.y * state.zoom + state.pan.y + (bbox.height / 2.0) * (state.zoom - 1)
+      bbox.y * state.zoom + state.pan.y + (bh / 2.0) * (state.zoom - 1)
     );
-    let bw = bbox.width;
-    let bh = bbox.height;
 
     for (i = 0; i < sels.length; i++) {
       pendingTasks.push({

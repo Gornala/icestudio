@@ -207,7 +207,7 @@
 }
 
 .io-block .io-fpga-content {
-  background: #fbfbc9;
+  background: #8dbfdd;
   border: 1px solid #777 !important;
 }
 
@@ -244,17 +244,17 @@
 }
 
 .memory-block .memory-content {
-  background: #fbfbc9;
+  background: #f5f5f5;
   border: 1px solid #777;
 }
 
 .constant-block .constant-content {
-  background: #fbfbc9;
+  background: #bdbdbd;
   border: 1px solid #777;
 }
 /*NOK*/
 .config-block {
-  background: #fbfbc9 !important;
+  background: #eaeff165 !important;
 }
 
 .code-block .code-content {

@@ -177,6 +177,77 @@ window._icegraph.wireLogic = function (ctx) {
     _lpSyncingWire = false;
   }
 
+  //-- Domain helpers for label connection validation -------------------------
+  //-- 'constant' = bottom/top ports, 'signal' = right/left ports
+  function posToDomain(pos) {
+    if (pos === 'bottom' || pos === 'top') {
+      return 'constant';
+    }
+    return 'signal';
+  }
+
+  // Given a port id, find which domain it belongs to on a cell
+  function portDomain(cell, portId) {
+    var top = cell.get('topPorts') || [];
+    var bottom = cell.get('bottomPorts') || [];
+    var i;
+    for (i = 0; i < top.length; i++) {
+      if (top[i].id === portId) {
+        return 'constant';
+      }
+    }
+    for (i = 0; i < bottom.length; i++) {
+      if (bottom[i].id === portId) {
+        return 'constant';
+      }
+    }
+    return 'signal';
+  }
+
+  // Find domain carried by a label group (by name) from existing connections
+  // Returns 'constant', 'signal', or null if no non-label connections exist
+  function getLabelDomain(labelName) {
+    if (!labelName) {
+      return null;
+    }
+    var allCells = ctx.graph.getCells();
+    var i, j;
+    for (i = 0; i < allCells.length; i++) {
+      var c = allCells[i];
+      if (c.isLink()) {
+        continue;
+      }
+      var bt = c.get('blockType') || '';
+      if (bt.indexOf('Label') === -1) {
+        continue;
+      }
+      var cName = (c.get('data') || {}).name;
+      if (cName !== labelName) {
+        continue;
+      }
+      // Found a label with the same name — check its connections
+      var links = ctx.graph.getConnectedLinks(c);
+      for (j = 0; j < links.length; j++) {
+        var link = links[j];
+        var src = link.get('source');
+        var tgt = link.get('target');
+        var otherId = src.id === c.id ? tgt.id : src.id;
+        var otherPort = src.id === c.id ? tgt.port : src.port;
+        var otherCell = ctx.graph.getCell(otherId);
+        if (!otherCell) {
+          continue;
+        }
+        // Skip if the other end is also a label
+        var otherBT = otherCell.get('blockType') || '';
+        if (otherBT.indexOf('Label') !== -1) {
+          continue;
+        }
+        return portDomain(otherCell, otherPort);
+      }
+    }
+    return null;
+  }
+
   //-- validateConnection callback for joint.dia.Paper constructor
   function validateConnection(
     cellViewS,
@@ -198,18 +269,40 @@ window._icegraph.wireLogic = function (ctx) {
       }
       return false;
     }
-    // Ensure right -> left connections
-    if (magnetS && magnetS.getAttribute('pos') === 'right') {
-      if (magnetT && magnetT.getAttribute('pos') !== 'left') {
-        ctx.warning(ctx.gettextCatalog.getString('Invalid connection'));
-        return false;
-      }
-    }
-    // Ensure bottom -> top connections
-    if (magnetS && magnetS.getAttribute('pos') === 'bottom') {
-      if (magnetT && magnetT.getAttribute('pos') !== 'top') {
-        ctx.warning(ctx.gettextCatalog.getString('Invalid connection'));
-        return false;
+    // Enforce signal/constant domain separation
+    if (magnetS && magnetT) {
+      var sPos = magnetS.getAttribute('pos');
+      var tPos = magnetT.getAttribute('pos');
+      var sBT = cellViewS.model.get('blockType') || '';
+      var tBT = cellViewT.model.get('blockType') || '';
+      var sIsLabel = sBT.indexOf('Label') !== -1;
+      var tIsLabel = tBT.indexOf('Label') !== -1;
+
+      if (!sIsLabel && !tIsLabel) {
+        // Neither side is a label — strict directional rules
+        if (sPos === 'right' && tPos !== 'left') {
+          ctx.warning(ctx.gettextCatalog.getString('Invalid connection'));
+          return false;
+        }
+        if (sPos === 'bottom' && tPos !== 'top') {
+          ctx.warning(ctx.gettextCatalog.getString('Invalid connection'));
+          return false;
+        }
+      } else {
+        // At least one side is a label — enforce domain consistency
+        var labelCell = sIsLabel ? cellViewS.model : cellViewT.model;
+        var otherPos = sIsLabel ? tPos : sPos;
+        var labelName = (labelCell.get('data') || {}).name;
+        var domain = getLabelDomain(labelName);
+        if (domain) {
+          // Label already has a domain from existing connections
+          var otherDomain = posToDomain(otherPos);
+          if (domain !== otherDomain) {
+            ctx.warning(ctx.gettextCatalog.getString('Invalid connection'));
+            return false;
+          }
+        }
+        // No existing connections — allow anything (first wire sets domain)
       }
     }
     var i;
