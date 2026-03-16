@@ -12,8 +12,12 @@
     <div id="toolbar">
       <span id="toolbar-title">Code Editor</span>
       <div id="toolbar-buttons">
-        <button id="btn-load" class="btn btn-secondary">&#8635; Load</button>
-        <button id="btn-save" class="btn btn-primary">&#10003; Save</button>
+        <button id="btn-load" class="btn btn-secondary">
+          &#8635; Load from Main
+        </button>
+        <button id="btn-save" class="btn btn-primary">
+          &#10003; Send to Main
+        </button>
         <button id="btn-verify" class="btn btn-secondary">
           &#9654; Verify
         </button>
@@ -273,6 +277,27 @@
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unsent-changes dialog (shown on close when code differs from main) -->
+    <div id="unsent-dialog" class="cp-modal" style="display: none">
+      <div class="cp-modal-box" style="max-width: 400px">
+        <div class="cp-modal-title">Unsent Changes</div>
+        <p class="cp-modal-hint" style="margin: 10px 0; font-size: 12px">
+          You have changes that have not been sent to main.
+        </p>
+        <div class="cp-modal-buttons" style="margin-top: 14px">
+          <button id="unsent-cancel" class="btn btn-secondary">
+            Back to Editor
+          </button>
+          <button id="unsent-discard" class="btn btn-secondary">
+            Close without Sending
+          </button>
+          <button id="unsent-send" class="btn btn-primary">
+            Send to Main &amp; Close
+          </button>
         </div>
       </div>
     </div>

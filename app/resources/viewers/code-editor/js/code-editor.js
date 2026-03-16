@@ -159,6 +159,8 @@ var applyTheme = function () {};
 // ============================================================
 var codeEditor = null;
 var testbenchEditor = null;
+// Track what was last sent to main window so we can warn on close
+var _lastSentCode = null;
 
 function initAceEditors() {
   codeEditor = ace.edit('ace-code');
@@ -169,6 +171,7 @@ function initAceEditors() {
   codeEditor.setHighlightActiveLine(true);
   codeEditor.session.setValue(config.code || '');
   codeEditor.$blockScrolling = Infinity;
+  _lastSentCode = config.code || '';
 
   // Project-level testbench: DUT code is compiled from the design, read-only
   if (config.projectTestbench) {
@@ -189,18 +192,54 @@ function initAceEditors() {
     testbenchEditor.session.setMode('ace/mode/verilog');
     testbenchEditor.setHighlightActiveLine(true);
     testbenchEditor.$blockScrolling = Infinity;
-    // Load saved testbench, updating module name references if the
-    // module was renamed (e.g. user changed the label). Custom test
-    // code is preserved — only the DUT name references are patched.
+    // Load saved testbench. For project testbenches, UUIDs in port
+    // mappings change on every re-synthesis, so we merge: take the
+    // auto-generated header (module decl + instance) from the fresh
+    // testbench and preserve the user's custom test logic from the
+    // saved one. The marker "// --- END AUTO-GENERATED --- //" splits
+    // the two sections.
     var savedTb = readBlockFile('testbench.v');
     var moduleName = config.moduleName || 'dut';
     var tbContent;
-    if (savedTb !== null) {
+    var AUTO_MARKER = '// --- END AUTO-GENERATED --- //';
+
+    if (savedTb !== null && config.projectTestbench && config.testbench) {
+      // Project testbench: merge fresh header with saved body
+      var savedMarkerIdx = savedTb.indexOf(AUTO_MARKER);
+      var freshMarkerIdx = config.testbench.indexOf(AUTO_MARKER);
+      if (savedMarkerIdx !== -1 && freshMarkerIdx !== -1) {
+        // Take header from fresh (up to and including marker),
+        // body from saved (everything after marker)
+        var freshHeader = config.testbench.substring(
+          0,
+          freshMarkerIdx + AUTO_MARKER.length
+        );
+        var savedBody = savedTb.substring(savedMarkerIdx + AUTO_MARKER.length);
+        tbContent = freshHeader + savedBody;
+      } else if (savedMarkerIdx === -1 && freshMarkerIdx !== -1) {
+        // Old saved testbench has no marker (created before this
+        // feature). Try to extract user body after module instance.
+        var instanceEnd = savedTb.match(/\)\s*;\s*\n/);
+        if (instanceEnd) {
+          var bodyStart = instanceEnd.index + instanceEnd[0].length;
+          var freshHeader2 = config.testbench.substring(
+            0,
+            freshMarkerIdx + AUTO_MARKER.length
+          );
+          var savedBody2 = '\n' + savedTb.substring(bodyStart);
+          tbContent = freshHeader2 + savedBody2;
+        } else {
+          // Cannot parse old testbench — use fresh
+          tbContent = config.testbench;
+        }
+      } else {
+        tbContent = config.testbench;
+      }
+    } else if (savedTb !== null) {
+      // Block-level testbench: patch module name if renamed
       if (savedTb.indexOf(moduleName + ' dut') !== -1) {
-        // Module name matches — use saved testbench as-is
         tbContent = savedTb;
       } else {
-        // Extract old module name from DUT instantiation: "<old> dut ("
         var nameMatch = savedTb.match(/^\s*(\w+)\s+dut\s*\(/m);
         if (nameMatch) {
           var oldName = nameMatch[1];
@@ -218,7 +257,6 @@ function initAceEditors() {
         }
       }
     } else if (config.testbench) {
-      // Use testbench from block data (e.g. collection block)
       tbContent = config.testbench;
       if (tbContent.indexOf(moduleName + ' dut') === -1) {
         var nameMatch2 = tbContent.match(/^\s*(\w+)\s+dut\s*\(/m);
@@ -362,6 +400,7 @@ function saveCode() {
       }
     }
   });
+  _lastSentCode = newCode;
   // Persist assembled module to per-block directory
   saveBlockFile('module.v', assembleVerilog());
 }
@@ -378,6 +417,7 @@ function loadCode() {
     var current = mainWin.icestudioGetCode(blockId);
     if (codeEditor) {
       codeEditor.setValue(current, -1);
+      _lastSentCode = current;
     }
     showOk('Code loaded from main window.');
   });
@@ -1434,21 +1474,29 @@ window.onload = function () {
     }
   });
 
-  // Auto-save all work when the window is closed
-  win.on('close', function () {
-    var self = this;
+  // Check whether the editor has unsent changes (code differs from last sent)
+  var _hasUnsentChanges = function () {
+    if (config.projectTestbench) {
+      return false; // project testbench DUT is read-only, no send-back
+    }
+    if (!codeEditor || _lastSentCode === null) {
+      return false;
+    }
+    return codeEditor.getValue() !== _lastSentCode;
+  };
+
+  // Perform the actual close: persist files, optionally push to main, shut down
+  var _performClose = function (self, sendToMain) {
     var done = false;
-    function doClose() {
+    var doClose = function () {
       if (!done) {
         done = true;
         self.close(true);
       }
-    }
+    };
 
-    // Persist final window position immediately
     _saveGeometry(win);
 
-    // Kill GTKWave if it is open
     if (gtkwaveProc) {
       try {
         gtkwaveProc.kill();
@@ -1456,19 +1504,15 @@ window.onload = function () {
       gtkwaveProc = null;
     }
 
-    // Sync: save block files immediately (no async risk)
     if (codeEditor) {
       saveBlockFile('module.v', assembleVerilog());
     }
     if (testbenchEditor) {
       saveBlockFile('testbench.v', testbenchEditor.getValue());
     }
-    // Persist waveform viewer state (colors, zoom, markers)
     saveWaveformState();
 
-    // Async: push code change to main window, then close
-    // Fallback: close after 1 s if main window doesn't respond
-    if (config.projectTestbench) {
+    if (config.projectTestbench || !sendToMain) {
       doClose();
     } else {
       setTimeout(doClose, 1000);
@@ -1479,6 +1523,52 @@ window.onload = function () {
         doClose();
       });
     }
+  };
+
+  // Guard: prevent the close handler from stacking while dialog is open
+  var _closeDialogOpen = false;
+
+  // Close handler: warn if there are unsent changes
+  win.on('close', function () {
+    var self = this;
+
+    if (!_hasUnsentChanges()) {
+      _performClose(self, true);
+      return;
+    }
+
+    if (_closeDialogOpen) {
+      return; // dialog already visible, ignore repeated close events
+    }
+    _closeDialogOpen = true;
+
+    var dialog = document.getElementById('unsent-dialog');
+    dialog.style.display = '';
+
+    var btnCancel = document.getElementById('unsent-cancel');
+    var btnDiscard = document.getElementById('unsent-discard');
+    var btnSend = document.getElementById('unsent-send');
+
+    var cleanup = function () {
+      dialog.style.display = 'none';
+      _closeDialogOpen = false;
+      btnCancel.onclick = null;
+      btnDiscard.onclick = null;
+      btnSend.onclick = null;
+    };
+
+    btnCancel.onclick = function () {
+      cleanup();
+      // stay in editor
+    };
+    btnDiscard.onclick = function () {
+      cleanup();
+      _performClose(self, false);
+    };
+    btnSend.onclick = function () {
+      cleanup();
+      _performClose(self, true);
+    };
   });
 
   // Close this popup (and GTKWave via the close handler above) when the main window closes

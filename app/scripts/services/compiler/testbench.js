@@ -134,6 +134,10 @@ window._icecompiler.testbench = function (ctx) {
 
     content += ';\n';
 
+    // Marker: everything above is auto-generated and will be refreshed
+    // when UUIDs change. Everything below is user-editable test logic.
+    content += '// --- END AUTO-GENERATED --- //\n';
+
     // Clock signal
     var hasClk = false;
     for (i in input) {

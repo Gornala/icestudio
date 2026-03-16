@@ -158,6 +158,12 @@ window._icemenu.toolbox = {
       }
     );
 
+    iceStudio.bus.events.subscribe('collectionManager2.reload', function () {
+      collections.loadInternalCollections();
+      iceStudio.updateEnv(common);
+      utils.rootScopeSafeApply();
+    });
+
     iceStudio.bus.events.subscribe('collectionManager2.addZip', function () {
       $scope.addCollections();
     });
@@ -199,43 +205,243 @@ window._icemenu.toolbox = {
       });
     });
 
-    iceStudio.bus.events.subscribe(
-      'collectionManager2.addBlock',
-      function (data) {
-        utils.openDialog('#input-add-block-ice', function (filepaths) {
-          var files = filepaths.split(';');
-          files.forEach(function (src) {
-            if (!src) {
-              return;
-            }
-            var targetDir =
-              data && data.targetCollectionPath
-                ? path.join(data.targetCollectionPath, 'blocks')
-                : path.join(
-                    common.INTERNAL_COLLECTIONS_DIR,
-                    'custom',
-                    'blocks'
-                  );
+    iceStudio.bus.events.subscribe('collectionManager2.addBlock', function () {
+      utils.openDialog('#input-add-block-ice', function (filepaths) {
+        var files = filepaths.split(';');
+        var pending = files.filter(function (f) {
+          return !!f;
+        });
+        if (!pending.length) {
+          return;
+        }
+
+        var processFile = function (idx) {
+          if (idx >= pending.length) {
+            return;
+          }
+          var src = pending[idx];
+
+          //-- Read and parse the .ice file
+          var iceData;
+          try {
+            iceData = JSON.parse(fs.readFileSync(src, 'utf8'));
+          } catch (e) {
+            alertify.error(
+              gettextCatalog.getString('Could not read block: {{msg}}', {
+                msg: e.message,
+              })
+            );
+            processFile(idx + 1);
+            return;
+          }
+
+          //-- Ensure package section exists
+          if (!iceData.package) {
+            iceData.package = {};
+          }
+          var pkg = iceData.package;
+          var baseName = path.basename(src, '.ice');
+
+          //-- Step 1: Show Project Information dialog
+          var infoValues = [
+            pkg.name || baseName,
+            pkg.version || '1.0.0',
+            pkg.description || '',
+            pkg.author || '',
+            pkg.image || '',
+          ];
+
+          utils.projectinfoprompt(infoValues, function (evt, newValues) {
+            var projectName = newValues[0] || baseName || 'Untitled';
+            iceData.package.name = projectName;
+            iceData.package.version = newValues[1] || '';
+            iceData.package.description = newValues[2] || '';
+            iceData.package.author = newValues[3] || '';
+            iceData.package.image = newValues[4] || '';
+
+            //-- Step 2: Build collection chooser dropdown
+            var existingColls = [];
             try {
-              if (!fs.existsSync(targetDir)) {
-                fs.mkdirSync(targetDir, { recursive: true });
+              var entries = fs.readdirSync(common.INTERNAL_COLLECTIONS_DIR);
+              for (var ei = 0; ei < entries.length; ei++) {
+                var entryPath = path.join(
+                  common.INTERNAL_COLLECTIONS_DIR,
+                  entries[ei]
+                );
+                try {
+                  if (fs.statSync(entryPath).isDirectory()) {
+                    existingColls.push(entries[ei]);
+                  }
+                } catch (eStat) {}
               }
-              var destFile = path.join(targetDir, path.basename(src));
-              fs.copyFileSync(src, destFile);
-            } catch (e) {
-              alertify.error(
-                gettextCatalog.getString('Could not add block: {{msg}}', {
-                  msg: e.message,
-                })
+              existingColls.sort();
+            } catch (eDir) {}
+
+            var collHtml = [];
+            collHtml.push('<div>');
+            collHtml.push(
+              '  <p>' + gettextCatalog.getString('Collection') + '</p>'
+            );
+            collHtml.push(
+              '  <select id="coll-select" class="ajs-input" style="width:100%">'
+            );
+            for (var ci = 0; ci < existingColls.length; ci++) {
+              collHtml.push(
+                '    <option value="' +
+                  existingColls[ci] +
+                  '">' +
+                  existingColls[ci] +
+                  '</option>'
               );
             }
+            collHtml.push(
+              '    <option value="__new__">' +
+                gettextCatalog.getString('-- New collection --') +
+                '</option>'
+            );
+            collHtml.push('  </select>');
+            collHtml.push(
+              '  <p id="coll-new-label" style="display:none;margin-top:8px">' +
+                gettextCatalog.getString('New collection name') +
+                '</p>'
+            );
+            collHtml.push(
+              '  <input id="coll-new-name" class="ajs-input" type="text" ' +
+                'value="Custom" style="display:none;width:100%">'
+            );
+            collHtml.push('</div>');
+
+            //-- Defer so the projectinfoprompt dialog fully closes first
+            setTimeout(function () {
+              alertify
+                .confirm(collHtml.join('\n'))
+                .set('onok', function () {
+                  var sel = document.getElementById('coll-select');
+                  var inp = document.getElementById('coll-new-name');
+                  var collectionName =
+                    sel.value === '__new__'
+                      ? (inp.value || '').trim()
+                      : sel.value;
+                  if (!collectionName) {
+                    alertify.warning(
+                      gettextCatalog.getString(
+                        'Collection name cannot be empty'
+                      )
+                    );
+                    return false;
+                  }
+
+                  var collDir = path.join(
+                    common.INTERNAL_COLLECTIONS_DIR,
+                    collectionName
+                  );
+                  var blocksDir = path.join(collDir, 'blocks');
+
+                  try {
+                    fs.mkdirSync(blocksDir, { recursive: true });
+                  } catch (e) {
+                    alertify.error(
+                      'Failed to create collection directory: ' + e
+                    );
+                    return;
+                  }
+
+                  //-- Create package.json for new collections
+                  var pkgPath = path.join(collDir, 'package.json');
+                  if (!fs.existsSync(pkgPath)) {
+                    var pkgData = {
+                      name: collectionName,
+                      version: '1.0.0',
+                      description: 'Custom collection',
+                      keywords: ['custom', 'collection'],
+                      license: 'GPL-2.0',
+                    };
+                    fs.writeFileSync(pkgPath, JSON.stringify(pkgData, null, 2));
+                  }
+
+                  var safeName = projectName
+                    .replace(/[^a-zA-Z0-9_\-\s]/g, '_')
+                    .trim();
+                  if (!safeName) {
+                    safeName = 'Untitled';
+                  }
+                  var filePath = path.join(blocksDir, safeName + '.ice');
+
+                  var doSave = function () {
+                    try {
+                      fs.writeFileSync(
+                        filePath,
+                        JSON.stringify(iceData, null, 2)
+                      );
+                      alertify.success(
+                        gettextCatalog.getString('Block saved to collection') +
+                          ': ' +
+                          projectName
+                      );
+
+                      //-- Clear cached package.json so collection reloads properly
+                      var pkgCachePath = path.resolve(pkgPath);
+                      if (require.cache[pkgCachePath]) {
+                        delete require.cache[pkgCachePath];
+                      }
+
+                      collections.loadAllCollections();
+                      collections.selectCollection(collDir);
+                      iceStudio.updateEnv(common);
+                      utils.rootScopeSafeApply();
+                    } catch (e) {
+                      alertify.error(
+                        gettextCatalog.getString('Failed to save block') +
+                          ': ' +
+                          e
+                      );
+                    }
+                    //-- Process next file
+                    processFile(idx + 1);
+                  };
+
+                  if (fs.existsSync(filePath)) {
+                    alertify.confirm(
+                      gettextCatalog.getString(
+                        'A block named "' +
+                          safeName +
+                          '" already exists. Overwrite?'
+                      ),
+                      function () {
+                        doSave();
+                      }
+                    );
+                  } else {
+                    doSave();
+                  }
+                })
+                .set('oncancel', function () {
+                  //-- Process next file even if cancelled
+                  processFile(idx + 1);
+                });
+
+              //-- Wire up the dropdown toggle after the dialog is in the DOM
+              setTimeout(function () {
+                var sel = document.getElementById('coll-select');
+                var lbl = document.getElementById('coll-new-label');
+                var inp = document.getElementById('coll-new-name');
+                if (sel && lbl && inp) {
+                  var toggle = function () {
+                    var isNew = sel.value === '__new__';
+                    lbl.style.display = isNew ? '' : 'none';
+                    inp.style.display = isNew ? '' : 'none';
+                  };
+                  sel.addEventListener('change', toggle);
+                  toggle();
+                }
+              }, 50);
+            }, 100);
           });
-          collections.loadInternalCollections();
-          iceStudio.updateEnv(common);
-          utils.rootScopeSafeApply();
-        });
-      }
-    );
+        };
+
+        processFile(0);
+      });
+    });
 
     //------------------------------------------------------------------
     //-- Toolbox menu item dispatch
