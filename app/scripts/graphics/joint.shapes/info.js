@@ -1,5 +1,5 @@
 //-- jshint rules
-/* global sha1, aceFontSize, openurl,marked */
+/* global sha1, aceFontSize, openurl, marked, mermaid */
 
 'use strict';
 
@@ -239,25 +239,44 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
     var data = this.model.get('data');
     var markdown = data.text || data.info || '';
 
-    // Replace emojis
-    /*markdown = markdown.replace(/(:.*:)/g, function (match) {
-      return emoji.emojify(match, null, function (code, name) {
-        var source =
-          "https://github.global.ssl.fastly.net/images/icons/emoji/" +
-          name +
-          ".png";
-        return (
-          ' <object data="' +
-          source +
-          '" type="image/png" width="20" height="20">' +
-          code +
-          "</object>"
-        );
-      });
-    });*/
+    // Extract mermaid blocks before markdown processing (preserve raw content)
+    var mermaidBlocks = [];
+    markdown = markdown.replace(
+      /```mermaid\r?\n([\s\S]*?)```/g,
+      function (_, content) {
+        var idx = mermaidBlocks.length;
+        mermaidBlocks.push(content.trim());
+        return 'MERMAID_PLACEHOLDER_' + idx + '_END';
+      }
+    );
 
     // Apply Marked to convert from Markdown to HTML
-    this.renderSelector.html(marked(markdown));
+    var html = marked(markdown);
+
+    // Restore mermaid blocks (content must NOT be HTML-escaped)
+    mermaidBlocks.forEach(function (content, idx) {
+      html = html.replace(
+        'MERMAID_PLACEHOLDER_' + idx + '_END',
+        '<div class="mermaid">' + content + '</div>'
+      );
+    });
+
+    this.renderSelector.html(html);
+
+    // Render mermaid diagrams
+    if (
+      typeof mermaid !== 'undefined' &&
+      this.renderSelector[0].querySelector('.mermaid')
+    ) {
+      try {
+        mermaid.init(
+          undefined,
+          this.renderSelector[0].querySelectorAll('.mermaid')
+        );
+      } catch (e) {
+        // mermaid rendering failed silently
+      }
+    }
 
     // Render task list
     this.renderSelector.find('li').each(function (index, element) {
@@ -331,7 +350,7 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
     var pendingTasks = [];
 
     if (data.readonly) {
-      var renderHeight = bbox.height - 32;
+      var renderHeight = bbox.height;
       pendingTasks.push(
         {
           e: this.renderSelector[0],
@@ -341,10 +360,7 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
         {
           e: this.renderSelector[0],
           property: 'top',
-          value:
-            Math.round(
-              32 * state.zoom + (renderHeight / 2.0) * (state.zoom - 1)
-            ) + 'px',
+          value: Math.round((renderHeight / 2.0) * (state.zoom - 1)) + 'px',
         },
         {
           e: this.renderSelector[0],

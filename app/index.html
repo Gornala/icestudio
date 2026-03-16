@@ -493,6 +493,12 @@
     <script src="scripts/graphics/joint.connectors.js"></script>
     <script src="scripts/graphics/joint.routers.js"></script>
     <script src="scripts/graphics/joint.selection.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.min.js"></script>
+    <script>
+      if (typeof mermaid !== 'undefined') {
+        mermaid.initialize({ startOnLoad: false, theme: 'default' });
+      }
+    </script>
     <script src="scripts/graphics/joint.shapes.js"></script>
     <script src="scripts/graphics/joint.shapes/generic.js"></script>
     <script src="scripts/graphics/joint.shapes/code.js"></script>
