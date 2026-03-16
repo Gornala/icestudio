@@ -65,25 +65,22 @@ class CollectionService {
     if (this.indexing === false) {
       return this.collections;
     }
-    return this.temp;
+    return this.collections || this.temp;
   }
 
   publishCollections() {
-    if (this.indexing === false) {
-      iceStudio.bus.events.publish(
-        'collectionService.collections',
-        this.collections
-      );
-    } else {
-      iceStudio.bus.events.publish(
-        'collectionService.collections',
-        this.temp || this.collections
-      );
-    }
+    iceStudio.bus.events.publish(
+      'collectionService.collections',
+      this.collections || this.temp
+    );
   }
 
   blockContentLoaded(args) {
     if (this.blockInQueue(args.blockId)) {
+      if (this._indexTimeout) {
+        clearTimeout(this._indexTimeout);
+        this._indexTimeout = null;
+      }
       args.obj.path = args.path;
       this.indexBlock(args.blockId, args.obj);
     }
@@ -187,6 +184,12 @@ class CollectionService {
     force = force || false;
     if ((this.indexing === false && this.indexQ.length > 0) || force) {
       this.indexing = true;
+      var _this = this;
+      // Safety timeout: if block loading takes >10s, skip it
+      this._indexTimeout = setTimeout(function () {
+        _this._indexTimeout = null;
+        _this.indexNext();
+      }, 10000);
       iceStudio.bus.events.publish(
         'collectionService.block.loadFromFile',
         this.indexQ[0]
@@ -314,6 +317,7 @@ class CollectionService {
 
     iceStudio.bus.events.publish('collectionService.indexingStart');
     this.guiOpts = false;
+    this.temp = false;
     collArray.sort(function compare(a, b) {
       if (a.name.toLowerCase() < b.name.toLowerCase()) {
         return -1;

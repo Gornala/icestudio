@@ -182,6 +182,7 @@ window._icetools.collections = function (ctx) {
                   name: ctx.utils.bold(collection.name),
                 })
               );
+              next();
             }
           }, 0);
         },
