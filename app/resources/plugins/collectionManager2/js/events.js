@@ -830,6 +830,13 @@ function setupToolbarEvents() {
     });
   }
 
+  var reloadBtnEls = cmEl('#cm-btn-reload');
+  if (reloadBtnEls.length) {
+    reloadBtnEls[0].addEventListener('click', function () {
+      iceStudio.bus.events.publish('collectionManager2.reload');
+    });
+  }
+
   var treeBtnEls = cmEl('#cm-btn-tree');
   var tableBtnEls = cmEl('#cm-btn-table');
 

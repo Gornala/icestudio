@@ -45,6 +45,12 @@
   font-weight: bold;
 }
 
+.cm-btn-reload {
+  font-size: 14px;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
 .cm-view-toggle {
   display: flex;
   gap: 2px;
