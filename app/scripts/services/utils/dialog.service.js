@@ -122,21 +122,22 @@ window._iceutils.dialog = function (ctx) {
         ctx.gettextCatalog.getString('Reset SVG') +
         '</label>'
     );
+    content.push(
+      '    <label id="toggle-thumbmaker" class="btn" title="Draw Thumbnail">' +
+        '<i class="fa fa-paint-brush"></i>' +
+        '</label>'
+    );
     content.push('  </div>');
     content.push('</div>');
+    content.push(
+      '<div id="projinfo-thumbmaker" class="tm-panel tm-hidden"></div>'
+    );
 
     for (i = 0; i < n; i++) {
       $('#input' + i).val(values[i]);
     }
 
-    var prevOnshow = alertify.confirm().get('onshow') || function () {};
-
-    alertify.confirm().set('onshow', function () {
-      prevOnshow();
-      registerOpen();
-      registerSave();
-      registerReset();
-    });
+    var thumbMaker = null;
 
     function registerOpen() {
       var chooserOpen = $('#input-open-svg');
@@ -193,22 +194,99 @@ window._iceutils.dialog = function (ctx) {
       });
     }
 
-    alertify
-      .confirm(content.join('\n'))
-      .set('onok', function (evt) {
-        var vals = [];
-        for (var j = 0; j < n; j++) {
-          vals.push($('#input' + j).val());
+    var registerThumbmaker = function () {
+      var toggleBtn = document.getElementById('toggle-thumbmaker');
+      var panel = document.getElementById('projinfo-thumbmaker');
+      var dialog = document.querySelector('.alertify .ajs-dialog');
+
+      var openPanel = function () {
+        panel.classList.remove('tm-hidden');
+        if (dialog) {
+          dialog.classList.add('tm-expanded');
         }
-        vals.push(image);
-        if (callback) {
-          callback(evt, vals);
+        if (!thumbMaker) {
+          thumbMaker = new window.ThumbnailMaker(panel);
+          thumbMaker.init();
+          // Load existing image into canvas if present
+          if (image && image.length > 0) {
+            var decoded = '';
+            if (image.startsWith('%3Csvg')) {
+              decoded = decodeURI(image);
+            } else if (image.startsWith('<svg')) {
+              decoded = image;
+            }
+            if (decoded) {
+              thumbMaker.loadSVG(decoded);
+            }
+          }
         }
-        alertify.confirm().set('onshow', prevOnshow);
-      })
-      .set('oncancel', function () {
-        alertify.confirm().set('onshow', prevOnshow);
+      };
+
+      var closePanel = function () {
+        panel.classList.add('tm-hidden');
+        if (dialog) {
+          dialog.classList.remove('tm-expanded');
+        }
+      };
+
+      toggleBtn.addEventListener('click', function () {
+        if (panel.classList.contains('tm-hidden')) {
+          openPanel();
+        } else {
+          closePanel();
+        }
       });
+
+      // Close button inside the panel
+      $(document).on('click', '#tm-close', function () {
+        closePanel();
+      });
+
+      // Apply button handler
+      $(document).on('click', '#tm-apply', function () {
+        if (thumbMaker) {
+          var svgString = thumbMaker.exportSVG();
+          image = encodeURI(svgString);
+          registerSave();
+          $('#preview-svg-wrapper').html(svgString);
+        }
+      });
+    };
+
+    var cleanupThumbmaker = function () {
+      if (thumbMaker) {
+        thumbMaker.destroy();
+        thumbMaker = null;
+      }
+      $(document).off('click', '#tm-apply');
+      $(document).off('click', '#tm-close');
+    };
+
+    var dlg = alertify.confirm();
+    dlg.setContent(content.join('\n'));
+    dlg.set('onshow', function () {
+      registerOpen();
+      registerSave();
+      registerReset();
+      registerThumbmaker();
+    });
+    dlg.set('onok', function (evt) {
+      var vals = [];
+      for (var j = 0; j < n; j++) {
+        vals.push($('#input' + j).val());
+      }
+      vals.push(image);
+      if (callback) {
+        callback(evt, vals);
+      }
+      cleanupThumbmaker();
+      dlg.set('onshow', null);
+    });
+    dlg.set('oncancel', function () {
+      cleanupThumbmaker();
+      dlg.set('onshow', null);
+    });
+    dlg.show();
   };
 
   mod.openDialog = function (inputID, callback) {

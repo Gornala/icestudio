@@ -119,6 +119,211 @@ body {
   border-top: none !important;
 }
 
+/* --- Thumbnail Maker panel in Project Info dialog --- */
+
+.alertify .ajs-dialog.tm-expanded {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+.alertify .ajs-dialog.tm-expanded .ajs-body {
+  overflow: visible !important;
+}
+
+.alertify .ajs-dialog.tm-expanded .ajs-body .ajs-content {
+  overflow: visible !important;
+}
+
+.tm-panel {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 540px;
+  height: 100%;
+  padding: 12px;
+  border-left: 1px solid #ccc;
+  border-radius: 0 4px 4px 0;
+  overflow-y: auto;
+  background: #f0f0f0;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
+}
+
+.tm-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tm-panel-header span {
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.tm-close-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #999;
+  border-radius: 3px;
+  background: #f5f5f5;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: center;
+  padding: 0;
+  color: #333;
+}
+
+.tm-close-btn:hover {
+  background: #e0e0e0;
+}
+
+.tm-hidden {
+  display: none !important;
+}
+
+.tm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+
+.tm-tool-btn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #999;
+  border-radius: 3px;
+  background: #f5f5f5;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 24px;
+  text-align: center;
+  padding: 0;
+  color: #333;
+}
+
+.tm-tool-btn:hover {
+  background: #e0e0e0;
+}
+
+.tm-tool-btn.tm-active {
+  background: #3593d2;
+  color: #fff;
+  border-color: #2a7ab5;
+}
+
+.tm-icon-lg {
+  font-size: 20px;
+  line-height: 24px;
+}
+
+.tm-action-btn {
+  margin-left: 2px;
+}
+
+.tm-apply-btn {
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid #8bc34a;
+  border-radius: 3px;
+  background: #d4ffad;
+  color: #333;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.tm-apply-btn:hover {
+  background: #c0f090;
+}
+
+.tm-color-input {
+  width: 26px;
+  height: 26px;
+  padding: 1px;
+  border: 1px solid #999;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.tm-canvas-wrap {
+  text-align: center;
+  margin: 6px 0;
+}
+
+#tm-canvas-outer {
+  border: 1px solid #999;
+  background: #ffffff;
+  image-rendering: pixelated;
+  cursor: none;
+}
+
+.tm-color-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.tm-color-row label {
+  font-size: 12px;
+  color: #555;
+  white-space: nowrap;
+}
+
+.tm-color-row .tm-color-input {
+  width: 40px;
+  height: 28px;
+}
+
+.tm-panel input[type='text'],
+.tm-panel select,
+.tm-panel textarea {
+  cursor: text;
+}
+
+.tm-status {
+  font-family: monospace;
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+}
+
+.tm-select {
+  padding: 2px 4px;
+  border: 1px solid #999;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.tm-align-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #999;
+  border-radius: 3px;
+  background: #f5f5f5;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: bold;
+  text-align: center;
+  padding: 0;
+}
+
+.tm-align-btn:hover {
+  background: #e0e0e0;
+}
+
+.tm-align-btn.tm-active {
+  background: #3593d2;
+  color: #fff;
+  border-color: #2a7ab5;
+}
+
+/* --- End Thumbnail Maker --- */
+
 .checkbox {
   margin-top: 14px;
 }
