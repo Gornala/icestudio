@@ -831,7 +831,6 @@ function renderMarkdown(md) {
 // ============================================================
 var vcdPath = '';
 var runningSimProc = null; // track the active vvp process for Stop button
-var gtkwaveProc = null; // track the GTKWave process for kill-on-rerun
 var waveformViewer = null; // embedded waveform viewer instance
 
 // ============================================================
@@ -900,11 +899,6 @@ function runSimulation() {
 
   var logEl = document.getElementById('sim-log');
   logEl.textContent = 'Compiling...';
-
-  var gtkBtn = document.getElementById('btn-gtkwave');
-  if (gtkBtn) {
-    gtkBtn.disabled = true;
-  }
 
   var iverilog = getBin('iverilog');
   // Inject toolchain bin/ and lib/ into PATH so OSS CAD Suite DLLs are found.
@@ -1013,10 +1007,7 @@ function runSimulation() {
         });
         if (vcdFiles.length > 0) {
           vcdPath = path.join(simDir, vcdFiles[0]);
-          if (gtkBtn) {
-            gtkBtn.disabled = false;
-          }
-          // Load waveform viewer if available, otherwise fall back to GTKWave
+          // Load waveform viewer
           if (waveformViewer) {
             try {
               // Save current state BEFORE loading new VCD so re-run preserves settings
@@ -1045,12 +1036,10 @@ function runSimulation() {
               showOk('Simulation done \u2014 waveform loaded.');
             } catch (loadErr) {
               console.error('Failed to load VCD:', loadErr);
-              showOk('Simulation done \u2014 opening GTKWave...');
-              setTimeout(launchGTKWave, 300);
+              showOk('Simulation done (waveform viewer failed to load VCD).');
             }
           } else {
-            showOk('Simulation done \u2014 opening GTKWave...');
-            setTimeout(launchGTKWave, 300);
+            showOk('Simulation done.');
           }
         } else {
           vcdPath = '';
@@ -1060,199 +1049,6 @@ function runSimulation() {
         showOk('Simulation done.');
       }
     });
-  });
-}
-
-function findGTKWave() {
-  // 1. Explicit path resolved by graph.js at launch time (checks next to app folder)
-  if (config.gtkwavePath) {
-    return config.gtkwavePath;
-  }
-
-  // 2. Check apio toolchain bin dir
-  var fromBin = getBin('gtkwave');
-  if (fromBin !== 'gtkwave') {
-    return fromBin;
-  }
-
-  // 3. Check relative to toolchainBinDir's ancestor (covers custom apio setups)
-  if (isWin32) {
-    var candidates = [
-      // Known user location (icestudio-relative)
-      'C:\\Users\\gewac\\Documents\\code\\ice_studio_modded\\icestudio\\GTKWave\\bin\\gtkwave.exe',
-      // Common install locations
-      'C:\\Program Files\\GTKWave\\bin\\gtkwave.exe',
-      'C:\\Program Files (x86)\\GTKWave\\bin\\gtkwave.exe',
-      'C:\\Program Files\\gtkwave64\\bin\\gtkwave.exe',
-      'C:\\gtkwave\\bin\\gtkwave.exe',
-    ];
-    for (var i = 0; i < candidates.length; i++) {
-      try {
-        fs.accessSync(candidates[i]);
-        return candidates[i];
-      } catch (e) {}
-    }
-  }
-
-  // 4. Fall back to bare name (works if GTKWave is on the PATH NW.js sees)
-  return 'gtkwave';
-}
-
-function launchGTKWave() {
-  if (!vcdPath || !fs.existsSync(vcdPath)) {
-    showError('No VCD file found. Run simulation first.');
-    return;
-  }
-
-  // Close old GTKWave if running, then open a fresh instance
-  if (gtkwaveProc) {
-    try {
-      gtkwaveProc.kill();
-    } catch (e) {}
-    gtkwaveProc = null;
-  }
-
-  var gtkwave = findGTKWave();
-  var gtkwaveDir = path.dirname(gtkwave);
-
-  // Small delay after kill so the old process is fully gone
-  setTimeout(function () {
-    _spawnGTKWave(gtkwave, gtkwaveDir);
-  }, 300);
-}
-
-// ============================================================
-// VCD parser — extracts signal hierarchy and max simulation time.
-// Used to build the .gtkw save file before GTKWave opens so that
-// zoom is pre-calculated and written into the file (the only
-// reliable way: GTKWave reads the save file during C-level display
-// init, after any Tcl -S script, so it cannot be overridden).
-// ============================================================
-function parseVCDForGTKWave(vcdFilePath) {
-  var result = { signals: [], maxTime: 0 };
-  try {
-    var content = fs.readFileSync(vcdFilePath, 'utf8');
-
-    // Scan entire file for the largest #time stamp
-    var timeRe = /^#(\d+)/gm;
-    var tm;
-    while ((tm = timeRe.exec(content)) !== null) {
-      var t = parseInt(tm[1], 10);
-      if (t > result.maxTime) {
-        result.maxTime = t;
-      }
-    }
-
-    // Parse signal declarations from the header (before $enddefinitions)
-    var endDefs = content.indexOf('$enddefinitions');
-    var header = endDefs >= 0 ? content.substring(0, endDefs) : content;
-    var tokens = header.split(/\s+/).filter(Boolean);
-    var scopeStack = [];
-    var seen = {};
-    for (var i = 0; i < tokens.length; i++) {
-      if (tokens[i] === '$scope' && i + 3 < tokens.length) {
-        // $scope <type> <name> $end
-        scopeStack.push(tokens[i + 2]);
-        i += 3;
-      } else if (tokens[i] === '$upscope') {
-        scopeStack.pop();
-        if (tokens[i + 1] === '$end') {
-          i++;
-        }
-      } else if (tokens[i] === '$var' && i + 4 < tokens.length) {
-        // $var <type> <width> <id> <name> [$bit_index] $end
-        var sigName = tokens[i + 4];
-        if (
-          sigName &&
-          sigName !== '$end' &&
-          sigName[0] !== '[' &&
-          sigName[0] !== '$'
-        ) {
-          var full =
-            (scopeStack.length ? scopeStack.join('.') + '.' : '') + sigName;
-          if (!seen[full]) {
-            seen[full] = true;
-            result.signals.push(full);
-          }
-        }
-        while (i < tokens.length - 1 && tokens[i] !== '$end') {
-          i++;
-        }
-      }
-    }
-  } catch (e) {
-    console.error('parseVCDForGTKWave:', e.message);
-  }
-  return result;
-}
-
-// Write a minimal .gtkw save file with zoom pre-set for zoom-to-fit.
-// GTKWave zoom formula: pxns = 10^zoom  (pixels per time unit)
-//   zoom-to-fit: zoom = log10(window_width_px / max_time)
-// We assume ~1200 px for the wave area; GTKWave will be slightly
-// zoomed-out if the window is narrower, which is fine.
-function writeGTKWSaveFile(saveFilePath, signals, maxTime) {
-  var zoom = maxTime > 0 ? Math.log10(1200.0 / maxTime) : 0;
-  var lines = [
-    '[timestart] 0',
-    '*' + zoom.toFixed(6) + ' 0',
-    '[signals_save_mode] 0',
-  ].concat(signals);
-  try {
-    fs.writeFileSync(saveFilePath, lines.join('\n') + '\n');
-    return true;
-  } catch (e) {
-    console.error('writeGTKWSaveFile:', e.message);
-    return false;
-  }
-}
-
-function _spawnGTKWave(gtkwave, gtkwaveDir) {
-  var tclScript = blockFile('gtkwave_init.tcl');
-
-  var tclContent = [
-    'set nfacs [ gtkwave::getNumFacs ]',
-    'set all_facs [list]',
-    'for {set i 0} {$i < $nfacs } {incr i} {',
-    '    set facname [ gtkwave::getFacName $i ]',
-    '    lappend all_facs "$facname"',
-    '}',
-    'set num_added [ gtkwave::addSignalsFromList $all_facs ]',
-    'gtkwave::/Time/Zoom/Zoom_Full',
-    '',
-  ].join('\n');
-
-  writeIfChanged(tclScript, tclContent);
-
-  var args = [vcdPath, '-S', tclScript];
-
-  showOk('Launching GTKWave');
-
-  var spawnOpts = { cwd: gtkwaveDir, stdio: 'ignore' };
-  if (!isWin32) {
-    spawnOpts.detached = true;
-  }
-
-  gtkwaveProc = childProcess.spawn(gtkwave, args, spawnOpts);
-  if (!isWin32) {
-    gtkwaveProc.unref();
-  }
-
-  gtkwaveProc.on('error', function (err) {
-    showError('GTKWave failed: ' + err.message + '\nPath: ' + gtkwave);
-    gtkwaveProc = null;
-    if (isWin32) {
-      var cmd = 'start "" "' + gtkwave + '" "' + vcdPath + '"';
-      childProcess.exec(cmd, function (err2) {
-        if (err2) {
-          showError('GTKWave fallback also failed: ' + err2.message);
-        }
-      });
-    }
-  });
-
-  gtkwaveProc.on('close', function () {
-    gtkwaveProc = null;
   });
 }
 
@@ -1434,16 +1230,6 @@ window.onload = function () {
       stopSimulation();
       showError('Simulation stopped.');
     });
-  document
-    .getElementById('btn-gtkwave')
-    .addEventListener('click', launchGTKWave);
-
-  // Disable GTKWave on start until simulation runs
-  var gtkBtn = document.getElementById('btn-gtkwave');
-  if (gtkBtn) {
-    gtkBtn.disabled = true;
-  }
-
   // Initialize waveform viewer (testbench mode only)
   if (mode === 'testbench' && typeof WaveformViewer === 'function') {
     var wvContainer = document.getElementById('waveform-viewer');
@@ -1496,13 +1282,6 @@ window.onload = function () {
     };
 
     _saveGeometry(win);
-
-    if (gtkwaveProc) {
-      try {
-        gtkwaveProc.kill();
-      } catch (e) {}
-      gtkwaveProc = null;
-    }
 
     if (codeEditor) {
       saveBlockFile('module.v', assembleVerilog());
@@ -1571,7 +1350,7 @@ window.onload = function () {
     };
   });
 
-  // Close this popup (and GTKWave via the close handler above) when the main window closes
+  // Close this popup when the main window closes
   findMainNWWindow(function (mainNWWin) {
     if (mainNWWin) {
       mainNWWin.on('close', function () {

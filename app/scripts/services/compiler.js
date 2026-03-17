@@ -17,7 +17,6 @@ angular
     var _verilog = window._icecompiler.verilog(ctx);
     var _constraints = window._icecompiler.constraints(ctx);
     var _testbench = window._icecompiler.testbench(ctx);
-    var _gtkwave = window._icecompiler.gtkwave(ctx);
     var _list = window._icecompiler.list(ctx);
     var _json = window._icecompiler.json(ctx);
 
@@ -78,14 +77,6 @@ angular
           content += _testbench.testbenchCompiler(project);
           files.push({
             name: 'main_tb.v',
-            content: content,
-          });
-          break;
-        case 'gtkwave':
-          content += _helpers.header('[*]', opt);
-          content += _gtkwave.gtkwaveCompiler(project);
-          files.push({
-            name: 'main_tb.gtkw',
             content: content,
           });
           break;

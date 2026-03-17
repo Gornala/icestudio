@@ -468,26 +468,6 @@ window._icegraph.interactions = function (ctx) {
               'tools-oss-cad-suite',
               'bin'
             ),
-            gtkwavePath: (function () {
-              try {
-                var isWin = process.platform === 'win32';
-                var exe = isWin ? 'gtkwave.exe' : 'gtkwave';
-                var appRoot = process.cwd();
-                var fsSync = require('fs');
-                var candidates = [
-                  nodePath.join(appRoot, 'GTKWave', 'bin', exe),
-                  nodePath.join(appRoot, 'gtkwave', 'bin', exe),
-                  nodePath.join(appRoot, 'GTKWave', exe),
-                ];
-                for (var ci = 0; ci < candidates.length; ci++) {
-                  try {
-                    fsSync.accessSync(candidates[ci]);
-                    return candidates[ci];
-                  } catch (e) {}
-                }
-              } catch (e) {}
-              return '';
-            })(),
             isWin32: process.platform === 'win32',
             formalVerifyPyPath: nodePath.resolve(
               nodePath.join('..', 'formal_verify', 'formal_verify.py')

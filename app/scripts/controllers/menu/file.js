@@ -328,10 +328,6 @@ window._icemenu.file = {
       exportFromCompiler('testbench', 'Testbench', '.v');
     };
 
-    $scope.exportGTKwave = function () {
-      exportFromCompiler('gtkwave', 'GTKWave', '.gtkw');
-    };
-
     $scope.exportBLIF = function () {
       exportFromBuilder('blif', 'BLIF', '.blif');
     };

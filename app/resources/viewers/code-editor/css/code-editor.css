@@ -848,8 +848,7 @@ body.mode-full #panel-sim-log,
 body.mode-full #panel-testbench {
   display: none;
 }
-body.mode-full #btn-run-sim,
-body.mode-full #btn-gtkwave {
+body.mode-full #btn-run-sim {
   display: none;
 }
 
@@ -864,8 +863,7 @@ body.mode-formal #panel-sim-log,
 body.mode-formal #panel-testbench {
   display: none;
 }
-body.mode-formal #btn-run-sim,
-body.mode-formal #btn-gtkwave {
+body.mode-formal #btn-run-sim {
   display: none;
 }
 /* Panels fill the handle gap — handle renders on top (z-index 10) */
