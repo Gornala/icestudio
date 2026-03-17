@@ -151,37 +151,42 @@
 
       <!-- MAIN AREA -->
       <main id="main-area">
-        <!-- RX PANEL -->
-        <div id="rx-panel" class="data-panel">
+        <!-- TERMINAL PANEL -->
+        <div id="rx-panel" class="data-panel" style="flex: 1">
           <div class="panel-toolbar">
-            <span class="panel-title">Received</span>
+            <span class="panel-title">Terminal</span>
             <div class="fmt-btns" data-panel="rx">
               <button class="fmt-btn active" data-fmt="ascii">ASCII</button>
               <button class="fmt-btn" data-fmt="hex">HEX</button>
               <button class="fmt-btn" data-fmt="bin">BIN</button>
               <button class="fmt-btn" data-fmt="multi">MULTI</button>
             </div>
-            <label
-              style="
-                display: flex;
-                align-items: center;
-                gap: 4px;
-                font-size: 11px;
-                color: var(--st-text);
-              "
-            >
+            <label class="toolbar-label">
               <input type="checkbox" id="chk-timestamp" /> Timestamp
             </label>
-            <label
-              style="
-                display: flex;
-                align-items: center;
-                gap: 4px;
-                font-size: 11px;
-                color: var(--st-text);
-              "
-            >
-              <input type="checkbox" id="chk-autoscroll" checked /> Auto-scroll
+            <label class="toolbar-label">
+              <input type="checkbox" id="chk-autoscroll" checked /> Scroll
+            </label>
+            <label class="toolbar-label"
+              >Break:
+              <select id="sel-rx-linebreak">
+                <option value="cr" selected>CR</option>
+                <option value="lf">LF</option>
+                <option value="crlf">CR+LF</option>
+                <option value="null">NULL</option>
+                <option value="none">None</option>
+              </select>
+            </label>
+            <label class="toolbar-label"
+              >Wrap:
+              <input
+                type="number"
+                id="inp-rx-wrap"
+                value="0"
+                min="0"
+                max="9999"
+                title="Wrap at N chars (0 = off)"
+              />
             </label>
             <span class="toolbar-spacer"></span>
             <button class="st-btn st-btn-sm" id="btn-rx-clear">Clear</button>
@@ -193,73 +198,35 @@
             id="rx-output"
             readonly
             spellcheck="false"
-            placeholder="Received data will appear here…"
+            placeholder="Terminal output will appear here…"
           ></textarea>
           <div id="rx-multi" class="hidden"></div>
         </div>
 
-        <!-- RX/TX resize handle -->
-        <div id="rxtx-handle"></div>
-
-        <!-- TX PANEL -->
-        <div id="tx-panel" class="data-panel">
-          <div class="panel-toolbar">
-            <span class="panel-title">Send</span>
-            <div class="fmt-btns" data-panel="tx">
-              <button class="fmt-btn active" data-fmt="ascii">ASCII</button>
-              <button class="fmt-btn" data-fmt="hex">HEX</button>
-              <button class="fmt-btn" data-fmt="bin">BIN</button>
-            </div>
-            <span class="toolbar-spacer"></span>
-            <button class="st-btn st-btn-sm" id="btn-tx-load">
-              Load&#x2026;
-            </button>
-            <button class="st-btn st-btn-sm" id="btn-tx-save">
-              Save&#x2026;
-            </button>
-          </div>
-          <textarea
+        <!-- Terminal command input -->
+        <div id="terminal-bar">
+          <span class="terminal-prompt">&gt;</span>
+          <input
+            type="text"
             id="tx-input"
             spellcheck="false"
-            placeholder="Type data to send…"
-          ></textarea>
-          <div id="send-bar">
-            <label
-              >Terminator:
-              <select id="sel-lineend">
-                <option value="crlf">CRLF (\r\n)</option>
-                <option value="cr">CR (\r)</option>
-                <option value="lf">LF (\n)</option>
-                <option value="tab">Tab (\t)</option>
-                <option value="none">None</option>
-                <option value="custom">Custom…</option>
-              </select>
-            </label>
-            <input
-              type="text"
-              id="inp-custom-term"
-              placeholder="\n\r or \x0D"
-              title="Escape sequences: \n \r \t \0 \xHH"
-              style="display: none"
-            />
-            <label><input type="checkbox" id="chk-echo" checked /> Echo</label>
-            <label
-              ><input type="checkbox" id="chk-hextrigger" /> Break on:
-              <select id="sel-hextrigger">
-                <option value="0a">0x0A (LF)</option>
-                <option value="0d">0x0D (CR)</option>
-                <option value="00">0x00 (NUL)</option>
-              </select>
-            </label>
-            <label
-              ><input type="checkbox" id="chk-flush-enter" checked /> Send on
-              Enter</label
-            >
-            <span id="send-bar-spacer"></span>
-            <button class="st-btn st-btn-primary" id="btn-send">
-              Send &#x21B5;
-            </button>
-          </div>
+            autocomplete="off"
+            placeholder="Type command and press Enter…"
+          />
+          <span class="terminal-label">Send on Enter</span>
+          <select id="sel-lineend" title="Send terminator">
+            <option value="crlf" selected>CRLF</option>
+            <option value="cr">CR</option>
+            <option value="lf">LF</option>
+            <option value="null">NULL</option>
+            <option value="none">None</option>
+          </select>
+          <label class="toolbar-label" title="Show sent commands in terminal">
+            <input type="checkbox" id="chk-echo" checked /> Echo
+          </label>
+          <button class="st-btn st-btn-primary st-btn-sm" id="btn-send">
+            Send &#x21B5;
+          </button>
         </div>
       </main>
     </div>

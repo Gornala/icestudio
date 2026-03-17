@@ -119,6 +119,11 @@ body {
   overflow: hidden;
 }
 
+/* Force black cursor in light-theme Ace editors */
+.ace-chrome .ace_cursor {
+  color: #000000 !important;
+}
+
 .output-area {
   flex: 1;
   overflow-y: auto;
@@ -742,6 +747,11 @@ body.mode-formal #formal-resize-handle {
   justify-content: center;
   z-index: 100;
   padding: 12px;
+}
+
+#unsent-dialog {
+  position: fixed;
+  z-index: 200;
 }
 
 .cp-modal-box {

@@ -11,7 +11,6 @@
   --st-red: var(--app-danger, #e08080);
   --st-yellow: var(--app-warning, #c0a060);
   --st-rx-bg: var(--app-bg, #2e2e2e);
-  --st-tx-bg: var(--app-bg2, #3a3a3a);
   --st-input-bg: var(--app-input-bg, #3a3a3a);
   --st-btn-bg: var(--app-btn-bg, #3a3a3a);
   --st-btn-hover: var(--app-btn-hover, #4a4a4a);
@@ -292,7 +291,7 @@ body {
   min-width: 0;
 }
 
-/* ---- Data panels (RX / TX) ---- */
+/* ---- Data panel (RX) ---- */
 .data-panel {
   display: flex;
   flex-direction: column;
@@ -301,9 +300,6 @@ body {
 }
 
 #rx-panel {
-  flex: 1;
-}
-#tx-panel {
   flex: 1;
 }
 
@@ -325,6 +321,30 @@ body {
   text-transform: uppercase;
   color: var(--st-text);
   margin-right: 4px;
+}
+
+/* ---- Toolbar labels (inline checkbox/select labels) ---- */
+.toolbar-label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--st-text);
+  white-space: nowrap;
+}
+
+.toolbar-label select {
+  background: var(--st-input-bg);
+  color: var(--st-text);
+  border: 1px solid var(--st-border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 11px;
+  outline: none;
+}
+
+.toolbar-label select:focus {
+  border-color: var(--st-accent);
 }
 
 .fmt-btns {
@@ -358,7 +378,30 @@ body {
   flex: 1;
 }
 
-/* ---- RX/TX textareas ---- */
+/* ---- Wrap-at input ---- */
+#inp-rx-wrap {
+  width: 48px;
+  background: var(--st-input-bg);
+  color: var(--st-text);
+  border: 1px solid var(--st-border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 11px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+#inp-rx-wrap::-webkit-inner-spin-button,
+#inp-rx-wrap::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+#inp-rx-wrap:focus {
+  border-color: var(--st-accent);
+}
+
+/* ---- RX textarea ---- */
 #rx-output {
   flex: 1;
   resize: none;
@@ -415,102 +458,105 @@ body {
   letter-spacing: 0.5px;
 }
 
-#tx-input {
-  flex: 1;
-  resize: none;
-  background: var(--st-tx-bg);
-  color: var(--st-text);
-  border: none;
-  outline: none;
-  padding: 6px 8px;
-  font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.5;
+/* ---- Multi-view timestamps & line breaks ---- */
+.multi-ts {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 6px;
+  font-size: 10px;
+  color: var(--st-yellow);
+  white-space: nowrap;
+  align-self: center;
 }
 
-#tx-input::placeholder {
-  color: var(--st-muted);
+.multi-ts-echo {
+  font-size: 11px;
+  color: var(--st-accent);
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  padding: 2px 6px;
 }
 
-/* ---- RX/TX resize handle ---- */
-#rxtx-handle {
-  position: relative;
-  height: 9px;
-  cursor: row-resize;
-  background: transparent;
+.multi-row {
+  width: 100%;
   flex-shrink: 0;
-  z-index: 10;
 }
 
-#rxtx-handle::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 1px;
-  background: var(--st-border);
-  transition:
-    height 0.12s,
-    background 0.12s;
+.multi-break {
+  width: 100%;
+  height: 0;
+  flex-basis: 100%;
 }
 
-#rxtx-handle:hover::before,
-#rxtx-handle.dragging::before {
-  height: 4px;
-  background: var(--st-accent);
-}
-
-/* ---- Send bar ---- */
-#send-bar {
+/* ---- Terminal command input bar ---- */
+#terminal-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
+  gap: 6px;
+  padding: 5px 8px;
   background: var(--st-bg2);
   border-top: 1px solid var(--st-border);
   flex-shrink: 0;
-  flex-wrap: wrap;
 }
 
-#send-bar label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.terminal-label {
+  color: #000000;
   font-size: 11px;
-  color: var(--st-text);
+  flex-shrink: 0;
+  user-select: none;
   white-space: nowrap;
 }
 
-#send-bar select {
-  background: var(--st-input-bg);
-  color: var(--st-text);
-  border: 1px solid var(--st-border);
-  border-radius: 3px;
-  padding: 2px 4px;
-  font-size: 11px;
-  outline: none;
-}
-
-#send-bar-spacer {
-  flex: 1;
-}
-
-#inp-custom-term {
-  background: var(--st-input-bg);
-  color: var(--st-text);
-  border: 1px solid var(--st-border);
-  border-radius: 3px;
-  padding: 2px 6px;
-  font-size: 11px;
+.terminal-prompt {
+  color: var(--st-accent);
   font-family: 'Cascadia Code', 'Consolas', monospace;
-  width: 90px;
-  outline: none;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+  user-select: none;
 }
 
-#inp-custom-term:focus {
+#terminal-bar #tx-input {
+  flex: 1;
+  background: var(--st-input-bg);
+  color: var(--st-text);
+  border: 1px solid var(--st-border);
+  border-radius: 3px;
+  padding: 5px 8px;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px;
+  outline: none;
+  cursor:
+    url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="16"><rect x="3" y="0" width="1" height="16" fill="black"/><rect x="1" y="0" width="5" height="1" fill="black"/><rect x="1" y="15" width="5" height="1" fill="black"/></svg>')
+      4 8,
+    text;
+  caret-color: #000000;
+}
+
+#terminal-bar #tx-input:focus {
   border-color: var(--st-accent);
+}
+
+#terminal-bar #tx-input::placeholder {
+  color: var(--st-muted);
+}
+
+#terminal-bar select {
+  background: var(--st-input-bg);
+  color: var(--st-text);
+  border: 1px solid var(--st-border);
+  border-radius: 3px;
+  padding: 3px 4px;
+  font-size: 11px;
+  outline: none;
+  flex-shrink: 0;
+}
+
+#terminal-bar select:focus {
+  border-color: var(--st-accent);
+}
+
+#terminal-bar .toolbar-label {
+  flex-shrink: 0;
 }
 
 /* ---- Status bar ---- */
@@ -536,6 +582,19 @@ body {
 }
 #status-bar .st-indicator.connected {
   background: var(--st-green);
+}
+#status-bar .st-indicator.reconnecting {
+  background: var(--st-yellow);
+  animation: reconnect-pulse 1s ease-in-out infinite;
+}
+@keyframes reconnect-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 #st-port {

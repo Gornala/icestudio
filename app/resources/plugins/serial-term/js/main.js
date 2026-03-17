@@ -1,11 +1,9 @@
 'use strict';
 
 // ─── Node.js modules (available in NW.js) ────────────────────────────────────
-// nodePath is NOT needed here (used in shared/theme.js which is loaded first)
 var nodeFs = require('fs');
 
 // ─── Plugin boilerplate ──────────────────────────────────────────────────────
-// Theme is handled by shared/theme.js (loaded before this script in index.html)
 var pluginUUID = 'serialTermV2UUID';
 var appEnv = null;
 
@@ -26,7 +24,6 @@ function registerEvents() {
 
 function setupEnvironment(data) {
   appEnv = data;
-  // Theme is managed by shared/theme.js; no per-window theme code needed here.
 }
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -34,7 +31,7 @@ var state = {
   connId: null,
   connPath: null,
   connBaud: 115200,
-  rxBytes: [], // raw byte arrays (Uint8Array chunks)
+  rxChunks: [], // [{data: Uint8Array, time: number, echo: boolean}]
   rxByteCount: 0,
   txByteCount: 0,
   rxFmt: 'ascii',
@@ -42,9 +39,8 @@ var state = {
   autoScroll: true,
   echo: true,
   timestamp: false,
-  flushOnEnter: true,
-  hexTrigger: false,
-  hexTriggerByte: 0x0a,
+  rxLineBreak: 'cr',
+  rxWrapAt: 0,
   lineEnd: 'crlf',
   customTerm: '',
   maxBufBytes: 102400,
@@ -63,7 +59,6 @@ var $ = function (id) {
 };
 
 var elPortList = $('port-list');
-var elPortEmpty = $('port-empty');
 var elBtnRefresh = $('btn-refresh');
 var elChkAutoRef = $('chk-auto-refresh');
 var elSelBaud = $('sel-baud');
@@ -82,19 +77,15 @@ var elChkRts = $('chk-rts');
 var elRxOutput = $('rx-output');
 var elRxMulti = $('rx-multi');
 var elTxInput = $('tx-input');
-var elInpCustomTerm = $('inp-custom-term');
 var elBtnRxClear = $('btn-rx-clear');
 var elBtnRxSave = $('btn-rx-save');
-var elBtnTxLoad = $('btn-tx-load');
-var elBtnTxSave = $('btn-tx-save');
 var elBtnSend = $('btn-send');
 var elChkTimestamp = $('chk-timestamp');
 var elChkAutoscroll = $('chk-autoscroll');
 var elChkEcho = $('chk-echo');
-var elChkHexTrig = $('chk-hextrigger');
-var elSelHexTrig = $('sel-hextrigger');
-var elChkFlushEnter = $('chk-flush-enter');
 var elSelLineend = $('sel-lineend');
+var elSelRxLinebreak = $('sel-rx-linebreak');
+var elInpRxWrap = $('inp-rx-wrap');
 
 var elStIndicator = $('st-indicator');
 var elStPort = $('st-port');
@@ -192,34 +183,54 @@ function lineEndBytes() {
   if (le === 'crlf') return new Uint8Array([0x0d, 0x0a]);
   if (le === 'cr') return new Uint8Array([0x0d]);
   if (le === 'lf') return new Uint8Array([0x0a]);
-  if (le === 'tab') return new Uint8Array([0x09]);
+  if (le === 'null') return new Uint8Array([0x00]);
   if (le === 'custom') return parseTerminator(state.customTerm || '');
-  return new Uint8Array([]);
+  return new Uint8Array([]); // 'none'
+}
+
+// ─── RX line break detection ────────────────────────────────────────────────
+function rxLineBreakSeq() {
+  var lb = state.rxLineBreak;
+  if (lb === 'cr') return [0x0d];
+  if (lb === 'lf') return [0x0a];
+  if (lb === 'crlf') return [0x0d, 0x0a];
+  if (lb === 'null') return [0x00];
+  return []; // 'none'
+}
+
+// ─── Timestamp formatting ───────────────────────────────────────────────────
+function formatTimestamp(ms) {
+  var d = new Date(ms);
+  var hh = String(d.getHours()).padStart(2, '0');
+  var mm = String(d.getMinutes()).padStart(2, '0');
+  var ss = String(d.getSeconds()).padStart(2, '0');
+  var mss = String(d.getMilliseconds()).padStart(3, '0');
+  return '[' + hh + ':' + mm + ':' + ss + '.' + mss + ']';
 }
 
 // ─── RX buffer management ────────────────────────────────────────────────────
 function getAllRxBytes() {
   var total = 0;
-  for (var i = 0; i < state.rxBytes.length; i++) {
-    total += state.rxBytes[i].length;
+  for (var i = 0; i < state.rxChunks.length; i++) {
+    total += state.rxChunks[i].data.length;
   }
   var out = new Uint8Array(total);
   var offset = 0;
-  for (var j = 0; j < state.rxBytes.length; j++) {
-    out.set(state.rxBytes[j], offset);
-    offset += state.rxBytes[j].length;
+  for (var j = 0; j < state.rxChunks.length; j++) {
+    out.set(state.rxChunks[j].data, offset);
+    offset += state.rxChunks[j].data.length;
   }
   return out;
 }
 
 function trimRxBuffer() {
   var total = 0;
-  for (var i = 0; i < state.rxBytes.length; i++) {
-    total += state.rxBytes[i].length;
+  for (var i = 0; i < state.rxChunks.length; i++) {
+    total += state.rxChunks[i].data.length;
   }
-  while (total > state.maxBufBytes && state.rxBytes.length > 0) {
-    total -= state.rxBytes[0].length;
-    state.rxBytes.shift();
+  while (total > state.maxBufBytes && state.rxChunks.length > 0) {
+    total -= state.rxChunks[0].data.length;
+    state.rxChunks.shift();
   }
 }
 
@@ -227,6 +238,225 @@ function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ─── ASCII display builder (with line breaks, timestamps, wrapping) ─────────
+function buildAsciiDisplay() {
+  var breakSeq = rxLineBreakSeq();
+  var result = '';
+  var atLineStart = true;
+  var lineCharCount = 0;
+  var pendingCR = false; // for cross-chunk CRLF detection
+
+  for (var ci = 0; ci < state.rxChunks.length; ci++) {
+    var chunk = state.rxChunks[ci];
+
+    if (chunk.echo) {
+      // Flush pending CR
+      if (pendingCR) {
+        if (breakSeq.length === 1 && breakSeq[0] === 0x0d) {
+          result += '\n';
+          atLineStart = true;
+          lineCharCount = 0;
+        }
+        pendingCR = false;
+      }
+      // Render echo text directly
+      var echoText = new TextDecoder('utf-8', { fatal: false }).decode(
+        chunk.data
+      );
+      if (state.timestamp) {
+        var ets = formatTimestamp(chunk.time) + ' ';
+        var eParts = echoText.split('\n');
+        for (var ep = 0; ep < eParts.length; ep++) {
+          if (eParts[ep].length > 0) {
+            result += ets + eParts[ep] + '\n';
+          }
+        }
+      } else {
+        result += echoText;
+      }
+      atLineStart = true;
+      lineCharCount = 0;
+      continue;
+    }
+
+    // Data chunk: process byte-by-byte
+    var data = chunk.data;
+    var ts = state.timestamp ? formatTimestamp(chunk.time) + ' ' : '';
+    var bi = 0;
+
+    // Handle pending CR from previous chunk (for CRLF mode)
+    if (pendingCR) {
+      pendingCR = false;
+      if (
+        breakSeq.length === 2 &&
+        breakSeq[0] === 0x0d &&
+        breakSeq[1] === 0x0a
+      ) {
+        if (data.length > 0 && data[0] === 0x0a) {
+          // CR+LF matched across chunks
+          result += '\n';
+          atLineStart = true;
+          lineCharCount = 0;
+          bi = 1;
+        }
+        // else: stray CR, already skipped
+      } else if (breakSeq.length === 1 && breakSeq[0] === 0x0d) {
+        // CR is the break, emit newline
+        result += '\n';
+        atLineStart = true;
+        lineCharCount = 0;
+      }
+    }
+
+    while (bi < data.length) {
+      // Check for line break sequence
+      if (breakSeq.length > 0) {
+        if (breakSeq.length === 2 && data[bi] === breakSeq[0]) {
+          // CRLF mode: check for full pair
+          if (bi + 1 < data.length) {
+            if (data[bi + 1] === breakSeq[1]) {
+              result += '\n';
+              atLineStart = true;
+              lineCharCount = 0;
+              bi += 2;
+              continue;
+            }
+            // CR not followed by LF: skip CR
+            bi++;
+            continue;
+          } else {
+            // CR at end of chunk: mark pending
+            pendingCR = true;
+            bi++;
+            continue;
+          }
+        }
+        if (breakSeq.length === 1 && data[bi] === breakSeq[0]) {
+          result += '\n';
+          atLineStart = true;
+          lineCharCount = 0;
+          bi++;
+          continue;
+        }
+      }
+
+      // Timestamp at line start
+      if (atLineStart && state.timestamp) {
+        result += ts;
+      }
+      atLineStart = false;
+
+      // Character output
+      var b = data[bi];
+      if (b >= 32 && b < 127) {
+        result += String.fromCharCode(b);
+        lineCharCount++;
+      } else if (b === 0x09) {
+        result += '\t';
+        lineCharCount++;
+      } else if (b === 0x0d || b === 0x0a || b === 0x00) {
+        // Stray control char not matched as line break — skip
+        bi++;
+        continue;
+      } else {
+        result += '.';
+        lineCharCount++;
+      }
+      bi++;
+
+      // Wrap at N chars
+      if (state.rxWrapAt > 0 && lineCharCount >= state.rxWrapAt) {
+        result += '\n';
+        atLineStart = true;
+        lineCharCount = 0;
+      }
+    }
+  }
+  return result;
+}
+
+// ─── HEX/BIN display builder (with line breaks, wrapping, timestamps) ───────
+function buildHexBinDisplay(fmt) {
+  var breakSeq = rxLineBreakSeq();
+  var lines = [];
+  var lineItems = [];
+  var lineTs = 0;
+  var atLineStart = true;
+
+  for (var ci = 0; ci < state.rxChunks.length; ci++) {
+    var chunk = state.rxChunks[ci];
+    if (chunk.echo) {
+      // Flush current line
+      if (lineItems.length > 0) {
+        var prefix =
+          state.timestamp && lineTs ? formatTimestamp(lineTs) + ' ' : '';
+        lines.push(prefix + lineItems.join(' '));
+        lineItems = [];
+      }
+      // Show echo as-is in hex/bin view too
+      var echoText = new TextDecoder('utf-8', { fatal: false })
+        .decode(chunk.data)
+        .replace(/\n$/, '');
+      var ePrefix = state.timestamp ? formatTimestamp(chunk.time) + ' ' : '';
+      lines.push(ePrefix + echoText);
+      atLineStart = true;
+      continue;
+    }
+
+    var data = chunk.data;
+    for (var i = 0; i < data.length; i++) {
+      // Check for line break sequence
+      if (breakSeq.length > 0 && i + breakSeq.length <= data.length) {
+        var match = true;
+        for (var k = 0; k < breakSeq.length; k++) {
+          if (data[i + k] !== breakSeq[k]) {
+            match = false;
+            break;
+          }
+        }
+        if (match) {
+          if (lineItems.length > 0) {
+            var tsPrefix =
+              state.timestamp && lineTs ? formatTimestamp(lineTs) + ' ' : '';
+            lines.push(tsPrefix + lineItems.join(' '));
+            lineItems = [];
+          }
+          atLineStart = true;
+          i += breakSeq.length - 1;
+          continue;
+        }
+      }
+
+      if (atLineStart) {
+        lineTs = chunk.time;
+        atLineStart = false;
+      }
+
+      if (fmt === 'hex') {
+        lineItems.push(data[i].toString(16).padStart(2, '0'));
+      } else {
+        lineItems.push(data[i].toString(2).padStart(8, '0'));
+      }
+
+      // Wrap at N items
+      if (state.rxWrapAt > 0 && lineItems.length >= state.rxWrapAt) {
+        var wPrefix =
+          state.timestamp && lineTs ? formatTimestamp(lineTs) + ' ' : '';
+        lines.push(wPrefix + lineItems.join(' '));
+        lineItems = [];
+        atLineStart = true;
+      }
+    }
+  }
+  if (lineItems.length > 0) {
+    var fPrefix =
+      state.timestamp && lineTs ? formatTimestamp(lineTs) + ' ' : '';
+    lines.push(fPrefix + lineItems.join(' '));
+  }
+  return lines.join('\n');
+}
+
+// ─── Render RX display ──────────────────────────────────────────────────────
 function rerenderRx() {
   if (state.rxFmt === 'multi') {
     rerenderMulti();
@@ -235,28 +465,11 @@ function rerenderRx() {
   elRxMulti.classList.add('hidden');
   elRxOutput.classList.remove('hidden');
 
-  var all = getAllRxBytes();
   var text;
-  if (state.hexTrigger) {
-    var lines = [];
-    var cur = [];
-    for (var i = 0; i < all.length; i++) {
-      cur.push(all[i]);
-      if (all[i] === state.hexTriggerByte) {
-        lines.push(new Uint8Array(cur));
-        cur = [];
-      }
-    }
-    if (cur.length) {
-      lines.push(new Uint8Array(cur));
-    }
-    text = lines
-      .map(function (l) {
-        return toDisplay(l, state.rxFmt);
-      })
-      .join('\n');
+  if (state.rxFmt === 'ascii') {
+    text = buildAsciiDisplay();
   } else {
-    text = toDisplay(all, state.rxFmt);
+    text = buildHexBinDisplay(state.rxFmt);
   }
   elRxOutput.value = text;
   if (state.autoScroll) {
@@ -268,26 +481,84 @@ function rerenderMulti() {
   elRxOutput.classList.add('hidden');
   elRxMulti.classList.remove('hidden');
 
-  var all = getAllRxBytes();
+  var breakSeq = rxLineBreakSeq();
   var html = '';
-  for (var i = 0; i < all.length; i++) {
-    var b = all[i];
-    var printable = b >= 32 && b < 127;
-    var ascii = printable ? escapeHtml(String.fromCharCode(b)) : '.';
-    var hex = '0x' + b.toString(16).toUpperCase().padStart(2, '0');
-    var bin = '0b' + b.toString(2).padStart(8, '0');
-    html +=
-      '<span class="byte-cell">' +
-      '<span class="bc-ascii">(' +
-      ascii +
-      ')</span>' +
-      '<span class="bc-hex">' +
-      hex +
-      '</span>' +
-      '<span class="bc-bin">' +
-      bin +
-      '</span>' +
-      '</span>';
+  var atLineStart = true;
+  var lineItemCount = 0;
+
+  for (var ci = 0; ci < state.rxChunks.length; ci++) {
+    var chunk = state.rxChunks[ci];
+
+    if (chunk.echo) {
+      var echoText = new TextDecoder('utf-8', { fatal: false })
+        .decode(chunk.data)
+        .replace(/\n$/, '');
+      var eTs = state.timestamp ? formatTimestamp(chunk.time) + ' ' : '';
+      html +=
+        '<div class="multi-row">' +
+        '<span class="multi-ts-echo">' +
+        escapeHtml(eTs + echoText) +
+        '</span></div>';
+      atLineStart = true;
+      lineItemCount = 0;
+      continue;
+    }
+
+    var data = chunk.data;
+    for (var i = 0; i < data.length; i++) {
+      // Check for line break sequence
+      if (breakSeq.length > 0 && i + breakSeq.length <= data.length) {
+        var match = true;
+        for (var k = 0; k < breakSeq.length; k++) {
+          if (data[i + k] !== breakSeq[k]) {
+            match = false;
+            break;
+          }
+        }
+        if (match) {
+          html += '<div class="multi-break"></div>';
+          atLineStart = true;
+          lineItemCount = 0;
+          i += breakSeq.length - 1;
+          continue;
+        }
+      }
+
+      // Timestamp at line start
+      if (atLineStart && state.timestamp) {
+        html +=
+          '<span class="multi-ts">' +
+          escapeHtml(formatTimestamp(chunk.time)) +
+          '</span>';
+      }
+      atLineStart = false;
+
+      var b = data[i];
+      var printable = b >= 32 && b < 127;
+      var ascii = printable ? escapeHtml(String.fromCharCode(b)) : '.';
+      var hexVal = '0x' + b.toString(16).toUpperCase().padStart(2, '0');
+      var binVal = '0b' + b.toString(2).padStart(8, '0');
+      html +=
+        '<span class="byte-cell">' +
+        '<span class="bc-ascii">(' +
+        ascii +
+        ')</span>' +
+        '<span class="bc-hex">' +
+        hexVal +
+        '</span>' +
+        '<span class="bc-bin">' +
+        binVal +
+        '</span>' +
+        '</span>';
+      lineItemCount++;
+
+      // Wrap at N items
+      if (state.rxWrapAt > 0 && lineItemCount >= state.rxWrapAt) {
+        html += '<div class="multi-break"></div>';
+        atLineStart = true;
+        lineItemCount = 0;
+      }
+    }
   }
   elRxMulti.innerHTML = html;
   if (state.autoScroll) {
@@ -301,7 +572,7 @@ chrome.serial.onReceive.addListener(function (info) {
     return;
   }
   var bytes = new Uint8Array(info.data);
-  state.rxBytes.push(bytes);
+  state.rxChunks.push({ data: bytes, time: Date.now(), echo: false });
   state.rxByteCount += bytes.length;
   trimRxBuffer();
   rerenderRx();
@@ -313,9 +584,98 @@ chrome.serial.onReceiveError.addListener(function (info) {
     return;
   }
   if (info.error === 'disconnected' || info.error === 'device_lost') {
-    doDisconnect();
+    startReconnect();
   }
 });
+
+// ─── Auto-reconnect on device reset ─────────────────────────────────────────
+var reconnectTimer = null;
+var reconnectPort = null;
+var reconnectOpts = null;
+var RECONNECT_INTERVAL = 1500;
+var RECONNECT_MAX_ATTEMPTS = 40;
+var reconnectAttempts = 0;
+
+function startReconnect() {
+  if (reconnectTimer) {
+    return;
+  }
+  reconnectPort = state.connPath;
+  reconnectOpts = {
+    bitrate: state.connBaud,
+    dataBits: elSelDatabits.value,
+    parityBit: elSelParity.value,
+    stopBits: elSelStopbits.value,
+    ctsFlowControl: elSelFlow.value === 'hardware',
+  };
+  reconnectAttempts = 0;
+
+  var oldId = state.connId;
+  state.connId = null;
+  if (oldId) {
+    chrome.serial.disconnect(oldId, function () {});
+  }
+
+  elStIndicator.classList.remove('connected');
+  elStIndicator.classList.add('reconnecting');
+  elStPort.textContent = reconnectPort + ' (reconnecting\u2026)';
+
+  reconnectTimer = setInterval(tryReconnect, RECONNECT_INTERVAL);
+  tryReconnect();
+}
+
+function tryReconnect() {
+  reconnectAttempts++;
+  if (reconnectAttempts > RECONNECT_MAX_ATTEMPTS) {
+    stopReconnect(true);
+    return;
+  }
+  elStPort.textContent =
+    reconnectPort +
+    ' (reconnecting ' +
+    reconnectAttempts +
+    '/' +
+    RECONNECT_MAX_ATTEMPTS +
+    '\u2026)';
+
+  chrome.serial.connect(reconnectPort, reconnectOpts, function (info) {
+    if (!info || !info.connectionId) {
+      return;
+    }
+    state.connId = info.connectionId;
+    state.connPath = reconnectPort;
+    stopReconnect(false);
+    elBtnConnect.classList.add('hidden');
+    elBtnDisconnect.classList.remove('hidden');
+    elStIndicator.classList.add('connected');
+    applySignals();
+    updateStatusBar();
+    refreshPorts();
+  });
+}
+
+function stopReconnect(gaveUp) {
+  if (reconnectTimer) {
+    clearInterval(reconnectTimer);
+    reconnectTimer = null;
+  }
+  elStIndicator.classList.remove('reconnecting');
+  if (gaveUp) {
+    state.connId = null;
+    state.connPath = null;
+    state.connectedAt = null;
+    elBtnConnect.classList.remove('hidden');
+    elBtnDisconnect.classList.add('hidden');
+    elStIndicator.classList.remove('connected');
+    elStPort.textContent = 'Reconnect failed';
+    elStBaud.textContent = '';
+    elStUptime.textContent = '';
+    refreshPorts();
+  }
+  reconnectPort = null;
+  reconnectOpts = null;
+  reconnectAttempts = 0;
+}
 
 // ─── Connect / Disconnect ────────────────────────────────────────────────────
 function doConnect() {
@@ -360,16 +720,28 @@ function doConnect() {
     elBtnDisconnect.classList.remove('hidden');
     elStIndicator.classList.add('connected');
 
-    // Apply DTR/RTS
     applySignals();
     saveSettings();
     updateStatusBar();
-    refreshPorts(); // re-scan to update port colors
+    refreshPorts();
   });
 }
 
 function doDisconnect() {
+  if (reconnectTimer) {
+    stopReconnect(false);
+  }
   if (!state.connId) {
+    state.connPath = null;
+    state.connectedAt = null;
+    elBtnConnect.classList.remove('hidden');
+    elBtnDisconnect.classList.add('hidden');
+    elStIndicator.classList.remove('connected');
+    elStIndicator.classList.remove('reconnecting');
+    elStPort.textContent = 'Not connected';
+    elStBaud.textContent = '';
+    elStUptime.textContent = '';
+    refreshPorts();
     return;
   }
   chrome.serial.disconnect(state.connId, function () {
@@ -380,6 +752,7 @@ function doDisconnect() {
     elBtnConnect.classList.remove('hidden');
     elBtnDisconnect.classList.add('hidden');
     elStIndicator.classList.remove('connected');
+    elStIndicator.classList.remove('reconnecting');
     elStPort.textContent = 'Not connected';
     elStBaud.textContent = '';
     elStUptime.textContent = '';
@@ -395,6 +768,9 @@ function doSend() {
     return;
   }
   var text = elTxInput.value;
+  if (!text && state.txFmt === 'ascii') {
+    // Send just the terminator (like pressing Enter in a real terminal)
+  }
   var data = fromDisplay(text, state.txFmt);
   var ending = lineEndBytes();
   var full = new Uint8Array(data.length + ending.length);
@@ -409,19 +785,26 @@ function doSend() {
     updateStatusBar();
 
     if (state.echo) {
-      var echoText = '\u2191 ' + toDisplay(full, state.rxFmt) + '\n';
-      state.rxBytes.push(new TextEncoder().encode(echoText));
+      var echoLine = '> ' + text + '\n';
+      state.rxChunks.push({
+        data: new TextEncoder().encode(echoLine),
+        time: Date.now(),
+        echo: true,
+      });
       rerenderRx();
     }
 
     // Save to history
     if (text.trim()) {
-      state.txHistory.unshift(text);
-      if (state.txHistory.length > 50) {
-        state.txHistory.pop();
+      // Don't add duplicates at the top
+      if (state.txHistory.length === 0 || state.txHistory[0] !== text) {
+        state.txHistory.unshift(text);
+        if (state.txHistory.length > 50) {
+          state.txHistory.pop();
+        }
       }
-      state.txHistIdx = -1;
     }
+    state.txHistIdx = -1;
 
     elTxInput.value = '';
   });
@@ -455,7 +838,6 @@ function refreshPorts() {
       return;
     }
 
-    // For each device, render a list item and probe its status
     devices.forEach(function (dev) {
       var li = document.createElement('li');
       var dot = document.createElement('span');
@@ -471,7 +853,6 @@ function refreshPorts() {
         dot.classList.add('active');
         li.classList.add('selected');
       } else {
-        // Probe port
         dot.classList.add('unknown');
         probePort(dev.path, dot);
       }
@@ -496,7 +877,6 @@ function refreshPorts() {
 
 function probePort(path, dotEl) {
   var timeout = setTimeout(function () {
-    // Still unknown after 400ms
     dotEl.classList.remove('unknown');
     dotEl.classList.add('unknown');
   }, 400);
@@ -504,7 +884,6 @@ function probePort(path, dotEl) {
   chrome.serial.connect(path, { bitrate: 9600 }, function (info) {
     clearTimeout(timeout);
     if (info && info.connectionId) {
-      // Port is free — disconnect the probe immediately
       chrome.serial.disconnect(info.connectionId, function () {});
       dotEl.classList.remove('unknown');
       dotEl.classList.add('free');
@@ -546,7 +925,7 @@ function updateStatusBar() {
 
 setInterval(updateStatusBar, 1000);
 
-// ─── Resize handles ───────────────────────────────────────────────────────────
+// ─── Resize handle (sidebar only) ───────────────────────────────────────────
 function initResizeHandle(handleEl, getSize, setSize, axis) {
   var dragging = false;
   var startPos = 0;
@@ -576,7 +955,6 @@ function initResizeHandle(handleEl, getSize, setSize, axis) {
   });
 }
 
-// Sidebar width
 var sidebar = document.getElementById('sidebar');
 initResizeHandle(
   document.getElementById('sidebar-handle'),
@@ -588,25 +966,6 @@ initResizeHandle(
     sidebar.style.width = clamped + 'px';
   },
   'x'
-);
-
-// RX/TX split
-var rxPanel = document.getElementById('rx-panel');
-var mainArea = document.getElementById('main-area');
-initResizeHandle(
-  document.getElementById('rxtx-handle'),
-  function () {
-    return rxPanel.offsetHeight;
-  },
-  function (h) {
-    var mainH = mainArea.offsetHeight;
-    // send-bar is roughly 32px, handle 9px
-    var available = mainH - 9 - 32;
-    var clamped = Math.max(60, Math.min(available - 60, h));
-    rxPanel.style.flex = 'none';
-    rxPanel.style.height = clamped + 'px';
-  },
-  'y'
 );
 
 // ─── Format button groups ─────────────────────────────────────────────────────
@@ -628,17 +987,9 @@ document.querySelectorAll('.fmt-btns').forEach(function (group) {
   });
 });
 
-// ─── Save / Load ─────────────────────────────────────────────────────────────
+// ─── Save RX ─────────────────────────────────────────────────────────────────
 function showSaveDialog(defaultName, callback) {
   nw.Window.get().showSaveDialog({ defaultFilename: defaultName }, callback);
-}
-
-function showOpenDialog(callback) {
-  nw.Window.get().showOpenDialog({ acceptTypes: ['*/*'] }, function (files) {
-    if (files && files.length) {
-      callback(files[0]);
-    }
-  });
 }
 
 elBtnRxSave.addEventListener('click', function () {
@@ -649,28 +1000,6 @@ elBtnRxSave.addEventListener('click', function () {
       } catch (e) {
         alert('Save failed: ' + e.message);
       }
-    }
-  });
-});
-
-elBtnTxSave.addEventListener('click', function () {
-  showSaveDialog('tx_data.txt', function (path) {
-    if (path) {
-      try {
-        nodeFs.writeFileSync(path, elTxInput.value, 'utf8');
-      } catch (e) {
-        alert('Save failed: ' + e.message);
-      }
-    }
-  });
-});
-
-elBtnTxLoad.addEventListener('click', function () {
-  showOpenDialog(function (path) {
-    try {
-      elTxInput.value = nodeFs.readFileSync(path, 'utf8');
-    } catch (e) {
-      alert('Load failed: ' + e.message);
     }
   });
 });
@@ -697,26 +1026,36 @@ elBtnDisconnect.addEventListener('click', doDisconnect);
 
 elBtnSend.addEventListener('click', doSend);
 
+// ─── Terminal input: Enter sends, Up/Down cycles history ─────────────────────
 elTxInput.addEventListener('keydown', function (e) {
-  if (state.flushOnEnter && e.key === 'Enter' && !e.shiftKey) {
+  if (e.key === 'Enter') {
     e.preventDefault();
     doSend();
     return;
   }
-  // Command history: Alt+Up / Alt+Down
-  if (e.altKey && e.key === 'ArrowUp') {
+  // Command history: Up / Down
+  if (e.key === 'ArrowUp') {
     e.preventDefault();
     if (state.txHistIdx < state.txHistory.length - 1) {
       state.txHistIdx++;
       elTxInput.value = state.txHistory[state.txHistIdx];
+      // Move cursor to end
+      elTxInput.setSelectionRange(
+        elTxInput.value.length,
+        elTxInput.value.length
+      );
     }
     return;
   }
-  if (e.altKey && e.key === 'ArrowDown') {
+  if (e.key === 'ArrowDown') {
     e.preventDefault();
     if (state.txHistIdx > 0) {
       state.txHistIdx--;
       elTxInput.value = state.txHistory[state.txHistIdx];
+      elTxInput.setSelectionRange(
+        elTxInput.value.length,
+        elTxInput.value.length
+      );
     } else {
       state.txHistIdx = -1;
       elTxInput.value = '';
@@ -725,7 +1064,7 @@ elTxInput.addEventListener('keydown', function (e) {
 });
 
 elBtnRxClear.addEventListener('click', function () {
-  state.rxBytes = [];
+  state.rxChunks = [];
   state.rxByteCount = 0;
   elRxOutput.value = '';
   elRxMulti.innerHTML = '';
@@ -738,34 +1077,25 @@ elChkAutoscroll.addEventListener('change', function () {
 
 elChkTimestamp.addEventListener('change', function () {
   state.timestamp = elChkTimestamp.checked;
+  rerenderRx();
 });
 
 elChkEcho.addEventListener('change', function () {
   state.echo = elChkEcho.checked;
 });
 
-elChkHexTrig.addEventListener('change', function () {
-  state.hexTrigger = elChkHexTrig.checked;
-  rerenderRx();
-});
-
-elSelHexTrig.addEventListener('change', function () {
-  state.hexTriggerByte = parseInt(elSelHexTrig.value, 16);
-  rerenderRx();
-});
-
 elSelLineend.addEventListener('change', function () {
   state.lineEnd = elSelLineend.value;
-  elInpCustomTerm.style.display =
-    state.lineEnd === 'custom' ? 'inline-block' : 'none';
 });
 
-elInpCustomTerm.addEventListener('input', function () {
-  state.customTerm = elInpCustomTerm.value;
+elSelRxLinebreak.addEventListener('change', function () {
+  state.rxLineBreak = elSelRxLinebreak.value;
+  rerenderRx();
 });
 
-elChkFlushEnter.addEventListener('change', function () {
-  state.flushOnEnter = elChkFlushEnter.checked;
+elInpRxWrap.addEventListener('change', function () {
+  state.rxWrapAt = parseInt(elInpRxWrap.value, 10) || 0;
+  rerenderRx();
 });
 
 elSelMaxbuf.addEventListener('change', function () {
@@ -798,8 +1128,10 @@ function saveSettings() {
         flow: elSelFlow.value,
         lineend: elSelLineend.value,
         echo: state.echo,
-        flushOnEnter: state.flushOnEnter,
         maxBufBytes: state.maxBufBytes,
+        rxLineBreak: state.rxLineBreak,
+        rxWrapAt: state.rxWrapAt,
+        timestamp: state.timestamp,
       })
     );
   } catch (e) {}
@@ -838,13 +1170,21 @@ function loadSettings() {
       state.echo = s.echo;
       elChkEcho.checked = s.echo;
     }
-    if (s.flushOnEnter !== undefined) {
-      state.flushOnEnter = s.flushOnEnter;
-      elChkFlushEnter.checked = s.flushOnEnter;
-    }
     if (s.maxBufBytes) {
       state.maxBufBytes = s.maxBufBytes;
       elSelMaxbuf.value = String(s.maxBufBytes);
+    }
+    if (s.rxLineBreak) {
+      state.rxLineBreak = s.rxLineBreak;
+      elSelRxLinebreak.value = s.rxLineBreak;
+    }
+    if (s.rxWrapAt !== undefined) {
+      state.rxWrapAt = s.rxWrapAt;
+      elInpRxWrap.value = String(s.rxWrapAt);
+    }
+    if (s.timestamp !== undefined) {
+      state.timestamp = s.timestamp;
+      elChkTimestamp.checked = s.timestamp;
     }
     var isCustom = elSelBaud.value === '-1';
     elCustomBaudRow.style.display = isCustom ? 'flex' : 'none';
@@ -855,4 +1195,3 @@ function loadSettings() {
 loadSettings();
 refreshPorts();
 registerEvents();
-// Theme is applied by shared/theme.js which runs before this script.
