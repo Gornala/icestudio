@@ -512,6 +512,14 @@ window._icemenu.toolbox = {
         case 'testbench':
           $scope.openTestbench();
           break;
+
+        case 'fitContent':
+          $scope.fitContent();
+          break;
+
+        case 'showLabelFinder':
+          $scope.showLabelFinder();
+          break;
       }
       return false;
     });

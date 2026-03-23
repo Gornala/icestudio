@@ -29,17 +29,18 @@ window._icemenu.labelfinder = {
 
     //-- Key bindings for the label finder panel
     $('body').keydown(function (e) {
-      if (e.which === 13 && $('.lFinder-popup').hasClass('lifted') === false) {
+      var finderFocused = $('.lFinder-field').is(':focus');
+      if (e.which === 13 && finderFocused) {
         $scope.fitContent();
         findItems();
       }
-      if (e.which === 37 && $('.lFinder-popup').hasClass('lifted') === false) {
+      if (e.which === 37 && finderFocused) {
         prevItem();
       }
-      if (e.which === 39 && $('.lFinder-popup').hasClass('lifted') === false) {
+      if (e.which === 39 && finderFocused) {
         nextItem();
       }
-      if (e.which === 9 && $('.lFinder-popup').hasClass('lifted') === false) {
+      if (e.which === 9 && finderFocused) {
         toggleAdvancedTab();
       }
     });
@@ -100,10 +101,11 @@ window._icemenu.labelfinder = {
     });
 
     $(document).on('mousedown', '.lFinder-replace--all', function () {
-      for (let i = 1; i <= foundItems; i++) {
+      for (var i = 1; i <= foundItems; i++) {
         actualItem = i;
         replaceLabelName();
       }
+      findItems();
     });
 
     $(document).on('mousedown', '.lf-dropdown-title', function () {
@@ -117,7 +119,7 @@ window._icemenu.labelfinder = {
     });
 
     $(document).on('mousedown', '.lf-dropdown-option', function () {
-      let selected = this;
+      var selected = this;
       $('.lf-dropdown-title').html(
         '<span class="lf-selected-color color-' +
           selected.dataset.color +
@@ -131,12 +133,8 @@ window._icemenu.labelfinder = {
     });
 
     function showLabelFinder() {
-      if ($('.lFinder-popup').hasClass('lifted')) {
-        $('.lFinder-popup').removeClass('lifted');
-        $('.lFinder-field').focus();
-      } else {
-        $('.lFinder-popup').addClass('lifted');
-        $('.lFinder-field').focusout();
+      if ($('.lFinder-field').is(':focus')) {
+        $('.lFinder-field').blur();
         $('.lFinder-field').val('');
         $('.highlight').removeClass('highlight');
         $('.greyedout').removeClass('greyedout');
@@ -146,6 +144,8 @@ window._icemenu.labelfinder = {
           $('.lFinder-advanced').removeClass('show');
         }
         findItems();
+      } else {
+        $('.lFinder-field').focus();
       }
     }
 
@@ -173,50 +173,41 @@ window._icemenu.labelfinder = {
       }
     }
 
+    function escapeRegExp(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
     function findItems() {
       $('.highlight').removeClass('highlight');
       $('.greyedout').removeClass('greyedout');
-      let searchName = $('.lFinder-field').val();
-      let parsedSearch = utils.parsePortLabel(
-        searchName,
-        common.PATTERN_PORT_LABEL
-      );
+      var searchName = $.trim($('.lFinder-field').val());
 
-      let reName = null;
-      if (parsedSearch && parsedSearch.name) {
-        reName = new RegExp(parsedSearch.name, 'i');
-        if (optionCase === true && optionExact === false) {
-          reName = new RegExp(parsedSearch.name);
-        } else if (optionCase === false && optionExact === true) {
-          reName = new RegExp('\\b' + parsedSearch.name + '\\b', 'i');
-        } else if (optionCase === true && optionExact === true) {
-          reName = new RegExp('\\b' + parsedSearch.name + '\\b');
-        }
-      } else {
-        if (searchName.length > 0) {
-          alertify.warning(gettextCatalog.getString('Invalid search name!'));
-        }
+      var reName = null;
+      if (searchName.length > 0) {
+        var escaped = escapeRegExp(searchName);
+        var flags = optionCase ? '' : 'i';
+        var pattern = optionExact ? '\\b' + escaped + '\\b' : escaped;
+        reName = new RegExp(pattern, flags);
       }
 
       foundItems = 0;
       actualItem = 0;
       itemList = [];
       itemHtmlList = [];
-      let graphCells = graph.getCells();
-      let htmlCells = $('.io-virtual-content');
-      let htmlIoBlocks = $('.io-block');
+      var graphCells = graph.getCells();
+      var htmlCells = $('.io-virtual-content');
+      var htmlIoBlocks = $('.io-block');
 
-      for (let i = 0; i < graphCells.length; i++) {
+      for (var i = 0; i < graphCells.length; i++) {
         if (
           graphCells[i].attributes.blockType === blocks.BASIC_INPUT_LABEL ||
           graphCells[i].attributes.blockType === blocks.BASIC_OUTPUT_LABEL
         ) {
           if (
-            parsedSearch &&
-            parsedSearch.name.length > 0 &&
+            reName !== null &&
             graphCells[i].attributes.data.name.match(reName) !== null
           ) {
-            for (let j = 0; j < htmlIoBlocks.length; j++) {
+            for (var j = 0; j < htmlIoBlocks.length; j++) {
               if (
                 htmlIoBlocks[j].dataset.blkid === graphCells[i].attributes.id
               ) {
@@ -230,10 +221,10 @@ window._icemenu.labelfinder = {
 
       foundItems = itemHtmlList.length;
       if (foundItems > 0) {
-        for (let k = 0; k < htmlCells.length; k++) {
+        for (var k = 0; k < htmlCells.length; k++) {
           htmlCells[k].classList.add('greyedout');
         }
-        for (let n = 0; n < foundItems; n++) {
+        for (var n = 0; n < foundItems; n++) {
           itemHtmlList[n].classList.remove('greyedout');
         }
       }
@@ -276,50 +267,67 @@ window._icemenu.labelfinder = {
     }
 
     function replaceLabelName() {
-      let newName = $('.lFinder-name--field').val();
-      let parsedNewName = utils.parsePortLabel(
+      var newName = $.trim($('.lFinder-name--field').val());
+      if (newName.length === 0) {
+        alertify.warning(
+          gettextCatalog.getString('Enter a new name in the replace field')
+        );
+        return;
+      }
+      if (actualItem === 0) {
+        alertify.warning(
+          gettextCatalog.getString('No label selected — search first')
+        );
+        return;
+      }
+
+      var parsedNewName = utils.parsePortLabel(
         newName,
         common.PATTERN_PORT_LABEL
       );
+      if (!parsedNewName || !parsedNewName.name) {
+        alertify.warning(gettextCatalog.getString('Invalid new name!'));
+        return;
+      }
 
-      if (parsedNewName && parsedNewName.name) {
-        if (actualItem > 0 && newName.length > 0) {
-          let matchName = $('.lFinder-field').val();
-          if (optionCase === false) {
-            matchName = new RegExp(matchName, 'i');
-          }
-          let actualName =
-            itemHtmlList[actualItem - 1].querySelector(
-              '.header label'
-            ).innerHTML;
+      var searchText = $.trim($('.lFinder-field').val());
+      var flags = optionCase ? '' : 'i';
+      var escaped = escapeRegExp(searchText);
+      var pattern = optionExact ? '\\b' + escaped + '\\b' : escaped;
+      var matchRe = new RegExp(pattern, flags);
 
-          let iBus = actualName.indexOf('[');
-          if (iBus > 0) {
-            actualName = actualName.slice(0, iBus);
-          }
-
-          newName = actualName.replace(matchName, newName);
-          graph.editLabelBlock(
-            itemList[actualItem - 1].attributes.id,
-            newName,
-            itemList[actualItem - 1].attributes.data.blockColor
-          );
-        }
-      } else {
-        if (newName.length > 0) {
-          alertify.warning(gettextCatalog.getString('Invalid new name!'));
-        }
+      try {
+        var cell = itemList[actualItem - 1];
+        var currentName = cell.attributes.data.name;
+        var replacedName = currentName.replace(matchRe, parsedNewName.name);
+        graph.editLabelBlock(
+          cell.attributes.id,
+          replacedName,
+          cell.attributes.data.blockColor
+        );
+      } catch (e) {
+        alertify.error('Replace failed: ' + e.message);
       }
     }
 
     function changeLabelColor() {
-      let newColor = $('.lf-selected-color').data('color');
-      if (actualItem > 0 && newColor.length > 0) {
-        graph.editLabelBlock(
-          itemList[actualItem - 1].attributes.id,
-          itemList[actualItem - 1].attributes.data.name,
-          newColor
+      var newColor = $('.lf-selected-color').data('color');
+      if (!newColor || foundItems === 0) {
+        alertify.warning(
+          gettextCatalog.getString('Search for labels first, then change color')
         );
+        return;
+      }
+      try {
+        for (var i = 0; i < foundItems; i++) {
+          graph.editLabelBlock(
+            itemList[i].attributes.id,
+            itemList[i].attributes.data.name,
+            newColor
+          );
+        }
+      } catch (e) {
+        alertify.error('Color change failed: ' + e.message);
       }
     }
   },

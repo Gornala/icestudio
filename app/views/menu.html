@@ -287,6 +287,86 @@
               <!-- Divisor line between sections of the menu -->
               <li class="divider"></li>
 
+              <!-- File/Preferences sub-menu -->
+              <li class="dropdown-submenu" uib-dropdown>
+                <a href uib-dropdown-toggle> {{ 'Preferences' | translate }}</a>
+
+                <ul uib-dropdown-menu>
+                  <!-- Preferences/Language sub-menu -->
+                  <li class="dropdown-submenu" uib-dropdown>
+                    <a href uib-dropdown-toggle>
+                      {{ 'Language' | translate }}</a
+                    >
+
+                    <ul
+                      uib-dropdown-menu
+                      ng-include="'views/languages.html'"
+                    ></ul>
+                  </li>
+
+                  <!-- Divisor line between sections of the menu -->
+                  <li class="divider"></li>
+
+                  <!-- Preferences/UI theme sub-menu -->
+                  <li class="dropdown-submenu" uib-dropdown>
+                    <a href uib-dropdown-toggle>
+                      {{ 'UI theme' | translate }}
+                    </a>
+
+                    <ul
+                      uib-dropdown-menu
+                      ng-include="'views/uithemes.html'"
+                    ></ul>
+                  </li>
+
+                  <!-- Divisor line between sections of the menu -->
+                  <li class="divider"></li>
+
+                  <!-- Preferences/Advanced features sub-menu -->
+                  <li class="dropdown-submenu" uib-dropdown>
+                    <a href uib-dropdown-toggle>
+                      {{ 'Advanced features' | translate }}
+                    </a>
+
+                    <ul
+                      uib-dropdown-menu
+                      ng-include="'views/advanced.html'"
+                    ></ul>
+                  </li>
+
+                  <!-- Divisor line between sections of the menu -->
+                  <li class="divider"></li>
+
+                  <!-- Preferences/External collections -->
+                  <li>
+                    <a href ng-click="setExternalCollections()">
+                      {{ 'External collections' | translate }}</a
+                    >
+                  </li>
+
+                  <!-- Preferences/Logging enable -->
+                  <li>
+                    <a href ng-click="toggleLoggingEnabled()">
+                      {{ 'Logging enabled' | translate }}&ensp;
+                      <span
+                        ng-show="profile.data.loggingEnabled"
+                        class="glyphicon glyphicon-ok-circle"
+                      ></span>
+                    </a>
+                  </li>
+
+                  <!-- Preferences/Logging file -->
+                  <li>
+                    <a href ng-click="setLoggingFile()">
+                      {{ 'Logging file' | translate }}</a
+                    >
+                  </li>
+                </ul>
+              </li>
+
+              <!-- Divisor line between sections of the menu -->
+              <li class="divider"></li>
+
               <!-- File/Quit -->
               <li>
                 <a href ng-click="quit()">
@@ -399,127 +479,46 @@
                   <span class="shortcut"> {{ 'selectAll' | shortcut }} </span>
                 </a>
               </li>
+            </ul>
+          </li>
 
-              <!-- Divisor line between sections of the menu -->
-              <li class="divider"></li>
+          <!-- PROJECT Menu -->
+          <li
+            uib-dropdown
+            ng-mouseover="showMenu('project')"
+            ng-mouseleave="hideMenu()"
+            ng-click="fixMenu('project')"
+            is-open="status.project"
+          >
+            <a href uib-dropdown-toggle>
+              {{ 'Project' | translate }}
+              <span class="caret"></span>
+            </a>
 
-              <!-- Edit/Fit content -->
-              <li>
-                <a href ng-click="fitContent()">
-                  {{ 'Fit content' | translate }}
-                  <span class="shortcut"> {{ 'fitContent' | shortcut }} </span>
-                </a>
-              </li>
-
-              <!-- Label-Finder -->
-              <li>
-                <a href ng-click="showLabelFinder()">
-                  {{ 'Label finder' | translate }}
-                  <span class="shortcut">
-                    {{ 'showLabelFinder' | shortcut }}
-                  </span>
-                </a>
-              </li>
-
-              <!-- ToolBox -->
-              <li>
-                <a href ng-click="showToolBox()">
-                  {{ 'Toolbox' | translate }}
-                  <span class="shortcut"> {{ 'showToolBox' | shortcut }} </span>
-                </a>
-              </li>
-              <!--------------------------------------------------------------------------->
-
-              <!-- Divisor line between sections of the menu -->
-              <li class="divider"></li>
-
-              <!-- Edit/Preferences sub-menu -->
-              <li class="dropdown-submenu" uib-dropdown>
-                <a href uib-dropdown-toggle> {{ 'Preferences' | translate }}</a>
-
-                <ul uib-dropdown-menu>
-                  <!-- Edit/Preferences/Language sub-menu -->
-                  <li class="dropdown-submenu" uib-dropdown>
-                    <a href uib-dropdown-toggle>
-                      {{ 'Language' | translate }}</a
-                    >
-
-                    <ul
-                      uib-dropdown-menu
-                      ng-include="'views/languages.html'"
-                    ></ul>
-                  </li>
-
-                  <!-- Divisor line between sections of the menu -->
-                  <li class="divider"></li>
-
-                  <!-- Edit/Preferences/UI theme sub-menu -->
-                  <li class="dropdown-submenu" uib-dropdown>
-                    <a href uib-dropdown-toggle>
-                      {{ 'UI theme' | translate }}
-                    </a>
-
-                    <ul
-                      uib-dropdown-menu
-                      ng-include="'views/uithemes.html'"
-                    ></ul>
-                  </li>
-
-                  <!-- Divisor line between sections of the menu -->
-                  <li class="divider"></li>
-
-                  <!-- Edit/Preferences/Advanced features sub-menu -->
-                  <li class="dropdown-submenu" uib-dropdown>
-                    <a href uib-dropdown-toggle>
-                      {{ 'Advanced features' | translate }}
-                    </a>
-
-                    <ul
-                      uib-dropdown-menu
-                      ng-include="'views/advanced.html'"
-                    ></ul>
-                  </li>
-
-                  <!-- Divisor line between sections of the menu -->
-                  <li class="divider"></li>
-
-                  <!-- Edit/Preferences/External collections -->
-                  <li>
-                    <a href ng-click="setExternalCollections()">
-                      {{ 'External collections' | translate }}</a
-                    >
-                  </li>
-
-                  <!-- Edit/Preferences/Logging enable -->
-                  <li>
-                    <a href ng-click="toggleLoggingEnabled()">
-                      {{ 'Logging enabled' | translate }}&ensp;
-                      <span
-                        ng-show="profile.data.loggingEnabled"
-                        class="glyphicon glyphicon-ok-circle"
-                      ></span>
-                    </a>
-                  </li>
-
-                  <!-- Edit/Preferences/Logging file -->
-                  <li>
-                    <a href ng-click="setLoggingFile()">
-                      {{ 'Logging file' | translate }}</a
-                    >
-                  </li>
-                </ul>
-              </li>
-
-              <!-- Edit/Preferences/Project information -->
+            <ul uib-dropdown-menu style="min-width: 200px">
+              <!-- Project/Project info -->
               <li>
                 <a href ng-click="setProjectInformation()">
-                  {{ 'Project information' | translate }}</a
+                  {{ 'Project info' | translate }}</a
                 >
+              </li>
+
+              <!-- Divisor line between sections of the menu -->
+              <li class="divider"></li>
+
+              <!-- Project/Project settings (placeholder) -->
+              <li class="disabled">
+                <a href>
+                  {{ 'Project settings' | translate }}
+                  <span style="font-size: 10px; opacity: 0.6">
+                    (coming soon)</span
+                  >
+                </a>
               </li>
             </ul>
           </li>
 
-          <!-- VIEW Menu -->
+          <!-- INFOS Menu (formerly View) -->
           <li
             uib-dropdown
             ng-mouseover="showMenu('view')"
@@ -528,7 +527,7 @@
             is-open="status.view"
           >
             <a href uib-dropdown-toggle>
-              {{ 'View' | translate }}
+              {{ 'Infos' | translate }}
               <span class="caret"></span
             ></a>
 

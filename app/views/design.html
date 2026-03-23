@@ -376,11 +376,14 @@
   </div>
 
   <!------------------------------------------------------------------------>
-  <!-- LabelFinder PopUp Menu                                             -->
+  <!-- LabelFinder bar — now lives in the footer (see .footer below)    -->
   <!------------------------------------------------------------------------>
-  <div class="lFinder-popup lifted">
-    <!-- Advacend Options on/off -->
-    <div class="lFinder-advanced--toggle"></div>
+  <div class="lFinder-popup">
+    <!-- Advanced Options on/off -->
+    <div
+      class="lFinder-advanced--toggle"
+      title="{{ 'Replace & Color options' | translate }}"
+    ></div>
 
     <!-- Case sensitive option on/off -->
     <div
@@ -395,7 +398,11 @@
     ></div>
 
     <!-- Input text field -->
-    <input type="text" class="lFinder-field" />
+    <input
+      type="text"
+      class="lFinder-field"
+      placeholder="{{ 'Search labels...' | translate }}"
+    />
 
     <!-- Find button -->
     <div class="lFinder-find" translate>Find</div>
@@ -907,6 +914,17 @@
           data-item="testbench"
         >
           <i class="icon--testbench"></i>
+        </a>
+
+        <!-- Fit content button -->
+        <a
+          href=""
+          class="shortcut-toolbox--item js-shortcut--action"
+          uib-tooltip="{{ 'Fit content' | translate }}"
+          tooltip-append-to-body="true"
+          data-item="fitContent"
+        >
+          <i class="fas fa-compress-arrows-alt shortcut-toolbox--fa"></i>
         </a>
       </div>
     </div>

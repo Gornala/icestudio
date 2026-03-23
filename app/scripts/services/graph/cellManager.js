@@ -167,7 +167,7 @@ window._icegraph.cellManager = function (ctx) {
 
   function editLabelBlock(itemId, newName, newColor) {
     var cellView = ctx.paper.findViewByModel(itemId);
-    ctx.blocks.editBasicLabel(cellView, newName, newColor);
+    ctx.blockforms.editBasicLabel(cellView, newName, newColor);
   }
 
   function triggerDblClick(cellId) {
