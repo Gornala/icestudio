@@ -117,18 +117,21 @@
   background: #f6f8fa;
 }
 
-.read-only {
+.footer-read-only {
   color: #444;
   background: #fb959e;
 }
 
-.back-button {
+.footer-back-button {
   color: #007aff;
-  background: #f6f8fa;
 }
 
-.edit-button {
-  background: rgba(0, 0, 0, 0);
+.footer-back-button:hover {
+  color: #005ecb;
+}
+
+.footer-edit-button .tooltiptext {
+  background-color: #333;
 }
 
 .io-block .io-virtual-content {

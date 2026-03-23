@@ -334,46 +334,8 @@
   </div>
 
   <!---------------------------------------------------->
-  <!-- Information Banners                            -->
+  <!-- Banners moved to footer bar below              -->
   <!---------------------------------------------------->
-  <div class="banner hidden">
-    <div class="info">
-      &nbsp;{{ information.name }}&nbsp; {{ information.version ? '-&nbsp;v' +
-      information.version + '&nbsp;' : '' }}
-    </div>
-
-    <div class="read-only">
-      <div class="leftColumn"></div>
-      <!-- prettier-ignore -->
-      <div class="rightColumn" translate>
-        <b>Read only</b><br>
-        Unlock to edit the block!
-      </div>
-    </div>
-
-    <a class="back-button" ng-click="breadcrumbsBack()">
-      &larr;&nbsp;{{ 'back' | translate }}&nbsp;
-    </a>
-  </div>
-
-  <div class="banner-submodule hidden">
-    <a class="edit-button" ng-click="editModeToggle($event)">
-      <img
-        src="resources/images/lock.png"
-        data-lock="resources/images/lock.png"
-        data-unlock="resources/images/unlock.png"
-      />
-      <!-- prettier-ignore -->
-      <span class="tooltiptext" translate>
-        <b>WARNING!</b><br>
-        The changes made here will also be applied to all the [
-        <b>{{ information.name }}</b>
-        ] blocks in the current design. If you DO NOT want them
-        to propagate, create a cloned block instead using<br>
-        <b>Edit → Clone</b>.
-      </span>
-    </a>
-  </div>
 
   <!------------------------------------------------------------------------>
   <!-- LabelFinder bar — now lives in the footer (see .footer below)    -->
@@ -754,6 +716,44 @@
   <!-- Bottom Toolbar                                                     -->
   <!------------------------------------------------------------------------>
   <div class="footer ice-bar">
+    <!-- Submodule: back button (toggled by appEnable via banner class) -->
+    <div class="banner hidden footer-submodule-controls">
+      <a class="footer-back-button" ng-click="breadcrumbsBack()">
+        &larr;&nbsp;{{ 'back' | translate }}
+      </a>
+    </div>
+
+    <!-- Submodule: lock/edit button (toggled by appEnable via banner-submodule class) -->
+    <div class="banner-submodule hidden footer-submodule-controls">
+      <a class="footer-edit-button" ng-click="editModeToggle($event)">
+        <img
+          src="resources/images/lock.png"
+          data-lock="resources/images/lock.png"
+          data-unlock="resources/images/unlock.png"
+        />
+        <!-- prettier-ignore -->
+        <span class="tooltiptext" translate>
+          <b>WARNING!</b><br>
+          The changes made here will also be applied to all the [
+          <b>{{ information.name }}</b>
+          ] blocks in the current design. If you DO NOT want them
+          to propagate, create a cloned block instead using<br>
+          <b>Edit → Clone</b>.
+        </span>
+      </a>
+    </div>
+
+    <!-- Submodule: read-only warning (toggled by appEnable via banner class) -->
+    <div class="banner hidden footer-submodule-controls">
+      <div class="footer-read-only">
+        <img src="resources/images/lock.png" class="footer-lock-icon" />
+        <!-- prettier-ignore -->
+        <span translate>
+          <b>Read only</b> — Unlock to edit!
+        </span>
+      </div>
+    </div>
+
     <div class="breadcrumbs-container">
       <!-- Show the design name and the path to the current sub-block -->
       <ol class="breadcrumb">

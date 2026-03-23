@@ -1397,6 +1397,114 @@ window.WaveformViewer = function (containerEl, options) {
     // Draw markers (triangle handles + dashed lines) on waveform
     drawMarkerOnWaveform(ctx, w, h, markerA, '#ff5722', 'A');
     drawMarkerOnWaveform(ctx, w, h, markerB, '#2196f3', 'B');
+
+    // Draw signal values at marker crossing points
+    drawMarkerValues(ctx, w, markerA, '#ff5722', 'left');
+    drawMarkerValues(ctx, w, markerB, '#2196f3', 'right');
+  }
+
+  function formatValueForDisplay(s, rawVal) {
+    if (rawVal === '\u2014') {
+      return rawVal;
+    }
+    if (s.sig.width === 1) {
+      return rawVal;
+    }
+    var binStr = maybeInvert(rawVal, s.invertBits);
+    switch (s.displayMode) {
+      case 'hex':
+        return binToHex(binStr);
+      case 'bin':
+        return binStr;
+      case 'int':
+        var intVal = parseInt(binStr, 2);
+        return isNaN(intVal) ? '?' : String(intVal);
+      case 'ascii':
+        return binToAscii(binStr);
+      default:
+        return binToHex(binStr);
+    }
+  }
+
+  function drawMarkerValues(ctx, w, time, color, preferSide) {
+    if (time === null || !data) {
+      return;
+    }
+    var range = viewEnd - viewStart;
+    if (range <= 0) {
+      return;
+    }
+    var x = ((time - viewStart) / range) * w;
+    if (x < -10 || x > w + 10) {
+      return;
+    }
+
+    var scrollY = signalListEl.scrollTop;
+    var yOffset = 0;
+    var canvasH = waveformCanvas.clientHeight;
+
+    ctx.save();
+    ctx.font = '10px monospace';
+    ctx.textBaseline = 'middle';
+
+    for (var i = 0; i < signals.length; i++) {
+      var s = signals[i];
+      if (!s.visible) {
+        continue;
+      }
+
+      var rh = s.rowHeight || signalRowHeight;
+      var laneTop = yOffset - scrollY;
+      var laneBottom = laneTop + rh;
+      yOffset += rh;
+
+      if (laneBottom < 0 || laneTop > canvasH) {
+        continue;
+      }
+
+      var rawVal = getValueAtTime(s.sig, time);
+      var displayVal = formatValueForDisplay(s, rawVal);
+
+      var textWidth = ctx.measureText(displayVal).width;
+      var pad = 4;
+      var boxW = textWidth + pad * 2;
+      var boxH = 14;
+      var yCenter = (laneTop + laneBottom) / 2;
+      var r = 3;
+
+      // Position label to preferred side of marker, flip if no room
+      var textX;
+      if (preferSide === 'right' || preferSide === undefined) {
+        textX = x + boxW + 6 < w ? x + 6 : x - boxW - 6;
+      } else {
+        textX = x - boxW - 6 >= 0 ? x - boxW - 6 : x + 6;
+      }
+
+      // Rounded-rect background pill
+      var rx = textX - pad;
+      var ry = yCenter - boxH / 2;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(rx + r, ry);
+      ctx.lineTo(rx + boxW - r, ry);
+      ctx.arcTo(rx + boxW, ry, rx + boxW, ry + r, r);
+      ctx.lineTo(rx + boxW, ry + boxH - r);
+      ctx.arcTo(rx + boxW, ry + boxH, rx + boxW - r, ry + boxH, r);
+      ctx.lineTo(rx + r, ry + boxH);
+      ctx.arcTo(rx, ry + boxH, rx, ry + boxH - r, r);
+      ctx.lineTo(rx, ry + r);
+      ctx.arcTo(rx, ry, rx + r, ry, r);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+
+      // Value text
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'left';
+      ctx.fillText(displayVal, textX, yCenter);
+    }
+    ctx.restore();
   }
 
   function renderDigitalSignal(ctx, s, w, laneTop, laneBottom, range) {
