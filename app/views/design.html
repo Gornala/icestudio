@@ -286,7 +286,7 @@
             class="lp-pin-select"
             ng-repeat="pin in port._pins"
             ng-model="pin.value"
-            ng-options="bp.value as bp.name for bp in (common.selectedBoard.pinout || [])"
+            ng-options="bp.value as bp.name for bp in lp.sortedPinout(port.name)"
             ng-change="lp.changePin(port, pin)"
             ng-click="$event.stopPropagation()"
           >

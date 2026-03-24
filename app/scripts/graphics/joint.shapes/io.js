@@ -5,6 +5,48 @@
 
 // I/O blocks
 
+// Sort pin dropdown options: pins matching the port name come first, rest alphabetical.
+// Match is case-insensitive and checks if either name contains the other.
+// E.g. port "clk" matches pins "CLK", "CLK_IN", "SYSTEM_CLK", etc.
+var sortPinOptions = function (htmlStr, portName) {
+  if (!portName) {
+    return htmlStr;
+  }
+  var tmp = document.createElement('select');
+  tmp.innerHTML = htmlStr;
+  var opts = Array.prototype.slice.call(tmp.options);
+  var empty = [];
+  var matched = [];
+  var rest = [];
+  for (var k = 0; k < opts.length; k++) {
+    var opt = opts[k];
+    if (!opt.value) {
+      empty.push(opt);
+      continue;
+    }
+    var pinLower = opt.text.toLowerCase();
+    if (
+      pinLower.indexOf(portName) !== -1 ||
+      portName.indexOf(pinLower) !== -1
+    ) {
+      matched.push(opt);
+    } else {
+      rest.push(opt);
+    }
+  }
+  var cmp = function (a, b) {
+    return a.text.localeCompare(b.text);
+  };
+  matched.sort(cmp);
+  rest.sort(cmp);
+  var result = '';
+  var all = empty.concat(matched, rest);
+  for (var j = 0; j < all.length; j++) {
+    result += all[j].outerHTML;
+  }
+  return result;
+};
+
 joint.shapes.ice.IO = joint.shapes.ice.Model.extend({
   defaults: joint.util.deepSupplement(
     joint.shapes.ice.Model.prototype.defaults
@@ -275,14 +317,16 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
   },
 
   applyChoices: function () {
-    //  console.log('applyChoices');
     var data = this.model.get('data');
     if (data.pins) {
+      var portName = (data.name || '').toLowerCase().replace(/[\[\]:]/g, '');
+      var choicesHtml = this.model.get('choices');
+      var sorted = sortPinOptions(choicesHtml, portName);
       for (var i in data.pins) {
         this.$box
           .find('#combo' + this.id + data.pins[i].index)
           .empty()
-          .append(this.model.get('choices'));
+          .append(sorted);
       }
     }
   },

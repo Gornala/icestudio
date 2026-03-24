@@ -642,6 +642,32 @@ cells.sort((a, b) => {
         refreshUnusedPins();
       };
 
+      // Sort board pinout: pins matching port name come first, rest alphabetical.
+      $scope.lp.sortedPinout = function (portName) {
+        var allPins =
+          (common.selectedBoard && common.selectedBoard.pinout) || [];
+        var pn = (portName || '').toLowerCase().replace(/[\[\]:]/g, '');
+        if (!pn) {
+          return allPins;
+        }
+        var matched = [];
+        var rest = [];
+        for (var k = 0; k < allPins.length; k++) {
+          var pinLower = allPins[k].name.toLowerCase();
+          if (pinLower.indexOf(pn) !== -1 || pn.indexOf(pinLower) !== -1) {
+            matched.push(allPins[k]);
+          } else {
+            rest.push(allPins[k]);
+          }
+        }
+        var cmp = function (a, b) {
+          return a.name.localeCompare(b.name);
+        };
+        matched.sort(cmp);
+        rest.sort(cmp);
+        return matched.concat(rest);
+      };
+
       // Build all panel lists from current graph cells
       $scope.lp.refresh = function () {
         $scope.lp.pinned = null;
