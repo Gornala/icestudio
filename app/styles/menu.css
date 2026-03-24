@@ -238,10 +238,17 @@
   left: 0;
 }
 
+.shortcut-toolbox {
+  display: flex;
+  align-items: center;
+}
+
 .shortcut-toolbox--item {
   width: 28px;
   height: 28px;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin-left: 2px;
   margin-right: 2px;
   opacity: 0.6;

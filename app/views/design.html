@@ -777,9 +777,8 @@
         ng-show="common.selectedBoard &&
                     topModule && profile.data.showFPGAResources"
       >
-        <div>
-          <!-- 3 next fields with percentage precision higher than
-               the nextpnr one -->
+        <!-- Top row: FPGA resource usage -->
+        <div class="fpga-row">
           <span>
             {{ (common.hasChangesSinceBuild || !common.FPGAResources.nextpnr) ?
             ('-') : (common.FPGAResources.nextpnr.Field0.name + ' : ' +
@@ -800,25 +799,21 @@
 
           <span>
             {{ (common.hasChangesSinceBuild || !common.FPGAResources.nextpnr) ?
-            ('-') : (common.FPGAResources.nextpnr.Field2.name +
-            '&nbsp;:&nbsp;&nbsp;' + common.FPGAResources.nextpnr.Field2.used +
-            '&nbsp;/' + common.FPGAResources.nextpnr.Field2.total +
-            '&nbsp;&nbsp;(&nbsp;' + (common.FPGAResources.nextpnr.Field2.used /
+            ('-') : (common.FPGAResources.nextpnr.Field2.name + ' : ' +
+            common.FPGAResources.nextpnr.Field2.used + ' / ' +
+            common.FPGAResources.nextpnr.Field2.total + ' ( ' +
+            (common.FPGAResources.nextpnr.Field2.used /
             common.FPGAResources.nextpnr.Field2.total*100).toFixed(1) + '%)') }}
           </span>
 
-          <!-- 3 next fields with percentage precision from nextpnr -->
           <span>
             {{ (common.hasChangesSinceBuild || !common.FPGAResources.nextpnr) ?
-            ('-') : (common.FPGAResources.nextpnr.Field3.name +
-            '&nbsp;:&nbsp;&nbsp;' + common.FPGAResources.nextpnr.Field3.used +
-            '&nbsp;/' + common.FPGAResources.nextpnr.Field3.total +
-            '&nbsp;&nbsp;(&nbsp;' +
+            ('-') : (common.FPGAResources.nextpnr.Field3.name + ' : ' +
+            common.FPGAResources.nextpnr.Field3.used + ' / ' +
+            common.FPGAResources.nextpnr.Field3.total + ' ( ' +
             common.FPGAResources.nextpnr.Field3.percentage + '%)') }}
           </span>
-        </div>
 
-        <div>
           <span>
             {{ (common.hasChangesSinceBuild || !common.FPGAResources.nextpnr) ?
             ('-') : (common.FPGAResources.nextpnr.Field10.name + ' : ' +
@@ -835,8 +830,6 @@
             common.FPGAResources.nextpnr.Field11.percentage + '%)') }}
           </span>
 
-          <!-- 2 next fields with no percentage -->
-
           <span>
             {{ (common.hasChangesSinceBuild || !common.FPGAResources.nextpnr) ?
             ('-') : (common.FPGAResources.nextpnr.Field12.name + ' : ' +
@@ -846,12 +839,14 @@
 
           <span>
             {{ (common.hasChangesSinceBuild || !common.FPGAResources.nextpnr) ?
-            ('-') : (common.FPGAResources.nextpnr.Field13.name +
-            '&nbsp;:&nbsp;&nbsp;' +
-            common.FPGAResources.nextpnr.Field13.used&nbsp;&nbsp; + '/' +
-            &nbsp;&nbsp;common.FPGAResources.nextpnr.Field13.total) }}
+            ('-') : (common.FPGAResources.nextpnr.Field13.name + ' : ' +
+            common.FPGAResources.nextpnr.Field13.used + ' / ' +
+            common.FPGAResources.nextpnr.Field13.total) }}
           </span>
+        </div>
 
+        <!-- Bottom row: MaxFreq + BuildTime -->
+        <div class="fpga-row">
           <span>
             MaxFreq.:&nbsp;&nbsp; {{ (common.hasChangesSinceBuild ||
             !common.FPGAResources.nextpnr) ? '-' :

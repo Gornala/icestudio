@@ -29,6 +29,7 @@
 
 .footer {
   display: flex;
+  align-items: center;
   cursor: default;
   position: absolute;
   bottom: 0;
@@ -51,11 +52,21 @@
 }
 
 .fpga-resources {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   color: #777;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.fpga-resources .fpga-row {
+  display: flex;
+  flex-wrap: wrap;
 }
 
 .fpga-resources span {
-  margin-right: 20px;
+  margin-right: 12px;
 }
 
 .breadcrumb {
@@ -76,6 +87,7 @@
 .footer-submodule-controls {
   display: flex;
   align-items: center;
+  align-self: stretch;
 }
 
 .footer-back-button {
@@ -137,12 +149,11 @@
 .footer-read-only {
   display: flex;
   align-items: center;
-  padding: 4px 10px;
+  align-self: stretch;
+  padding: 0 10px;
   font-size: 13px;
   color: white;
   background: #8a08085f;
-  border-radius: 4px;
-  margin: 0 6px;
   white-space: nowrap;
 }
 
