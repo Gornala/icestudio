@@ -198,7 +198,14 @@ window._icemenu.settings = {
     //---------------------------------------------------------------------
 
     $(document).on('infoChanged', function (evt, newValues) {
-      var values = getProjectInformation();
+      var pkg = getProjectPackage();
+      var values = [
+        pkg.name,
+        pkg.version,
+        pkg.description,
+        pkg.author,
+        pkg.image,
+      ];
       if (!_.isEqual(values, newValues)) {
         graph.setInfo(values, newValues, project);
         alertify.message(
@@ -215,26 +222,80 @@ window._icemenu.settings = {
     });
 
     $scope.setProjectInformation = function () {
-      var values = getProjectInformation();
-      utils.projectinfoprompt(values, function (evt, newValues) {
-        if (!_.isEqual(values, newValues)) {
+      var nodePath = require('path');
+
+      // Collect package info
+      var pkg = getProjectPackage();
+      var oldValues = [
+        pkg.name,
+        pkg.version,
+        pkg.description,
+        pkg.author,
+        pkg.image,
+      ];
+
+      // Collect design element counts from graph
+      var counts = getDesignCounts();
+
+      // Determine project directory (for git ops)
+      var projDir = '';
+      if (project.filepath) {
+        projDir = nodePath.dirname(project.filepath);
+      }
+
+      var configObj = {
+        packageInfo: {
+          name: pkg.name,
+          version: pkg.version,
+          description: pkg.description,
+          author: pkg.author,
+        },
+        fpgaResources: common.FPGAResources || {},
+        designCounts: counts,
+        boardName: common.selectedBoard ? common.selectedBoard.info.label : '—',
+        projectDir: projDir,
+      };
+
+      // Pass image data via global (too large for URL)
+      window.icestudioProjectImage = pkg.image || '';
+
+      // Expose save callback for the popup window
+      window.icestudioSaveProjectInfo = function (newValues) {
+        if (!_.isEqual(oldValues, newValues)) {
           if (
             typeof common.submoduleHeap !== 'undefined' &&
             common.submoduleHeap.length > 0
           ) {
-            graph.setBlockInfo(values, newValues, common.submoduleId);
+            graph.setBlockInfo(oldValues, newValues, common.submoduleId);
           } else {
-            graph.setInfo(values, newValues, project);
+            graph.setInfo(oldValues, newValues, project);
           }
+          // Update old values for subsequent saves
+          oldValues = newValues.slice();
           alertify.success(
             gettextCatalog.getString('Project information updated')
           );
         }
+      };
+
+      var configParam = encodeURIComponent(JSON.stringify(configObj));
+      var infoURL =
+        'resources/viewers/project-info/project-info.html?config=' +
+        configParam;
+
+      nw.Window.open(infoURL, {
+        title: 'Project Info — ' + (pkg.name || 'Untitled'),
+        focus: true,
+        resizable: true,
+        show: false,
+        width: 950,
+        height: 600,
+        icon: 'resources/images/icestudio-logo.png',
       });
     };
 
-    function getProjectInformation() {
-      var p = false;
+    function getProjectPackage() {
+      var p;
       if (
         typeof common.submoduleHeap !== 'undefined' &&
         common.submoduleHeap.length > 0
@@ -243,7 +304,59 @@ window._icemenu.settings = {
       } else {
         p = project.get('package');
       }
-      return [p.name, p.version, p.description, p.author, p.image];
+      return {
+        name: p.name || '',
+        version: p.version || '',
+        description: p.description || '',
+        author: p.author || '',
+        image: p.image || '',
+      };
+    }
+
+    function getDesignCounts() {
+      var cells = [];
+      try {
+        cells = graph.getCells();
+      } catch (e) {
+        cells = [];
+      }
+      var counts = {
+        generic: 0,
+        code: 0,
+        inputs: 0,
+        outputs: 0,
+        labels: 0,
+        constants: 0,
+        memory: 0,
+        info: 0,
+        json: 0,
+        wires: 0,
+      };
+      for (var i = 0; i < cells.length; i++) {
+        var type = cells[i].get('type');
+        if (cells[i].isLink()) {
+          counts.wires++;
+        } else if (type === 'ice.Generic') {
+          counts.generic++;
+        } else if (type === 'ice.Code') {
+          counts.code++;
+        } else if (type === 'ice.Input') {
+          counts.inputs++;
+        } else if (type === 'ice.Output') {
+          counts.outputs++;
+        } else if (type === 'ice.InputLabel' || type === 'ice.OutputLabel') {
+          counts.labels++;
+        } else if (type === 'ice.Constant') {
+          counts.constants++;
+        } else if (type === 'ice.Memory') {
+          counts.memory++;
+        } else if (type === 'ice.Info') {
+          counts.info++;
+        } else if (type === 'ice.JsonInput' || type === 'ice.JsonOutput') {
+          counts.json++;
+        }
+      }
+      return counts;
     }
 
     //---------------------------------------------------------------------

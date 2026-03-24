@@ -1,0 +1,514 @@
+/* Project Info popup — uses --app-* CSS vars from shared/theme.js */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, sans-serif;
+  font-size: 13px;
+  color: var(--app-text);
+  background: var(--app-bg);
+  overflow: hidden;
+  height: 100vh;
+}
+
+#app {
+  display: flex;
+  height: 100%;
+}
+
+/* ── Left Panel ───────────────────────────────────────────────────────── */
+
+#panel-left {
+  flex: 1;
+  min-width: 280px;
+  overflow-y: auto;
+  padding: 16px;
+  border-right: 1px solid var(--app-border);
+}
+
+/* ── Right Panel ──────────────────────────────────────────────────────── */
+
+#panel-right {
+  flex: 1.2;
+  min-width: 320px;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* ── Resize Handle ────────────────────────────────────────────────────── */
+
+#resize-handle {
+  width: 5px;
+  cursor: col-resize;
+  background: var(--app-border);
+  flex-shrink: 0;
+}
+
+#resize-handle:hover {
+  background: var(--app-accent);
+}
+
+/* ── Headings ─────────────────────────────────────────────────────────── */
+
+h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 16px 0 8px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--app-border);
+  color: var(--app-accent);
+}
+
+h2:first-child {
+  margin-top: 0;
+}
+
+/* ── Stat Section ─────────────────────────────────────────────────────── */
+
+.stat-section {
+  margin-bottom: 12px;
+}
+
+.stat-empty {
+  color: var(--app-muted);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* ── Stat Table ───────────────────────────────────────────────────────── */
+
+.stat-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stat-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.stat-table td:first-child {
+  font-weight: 500;
+  white-space: nowrap;
+  width: 1%;
+  color: var(--app-text);
+}
+
+.stat-table td:nth-child(2) {
+  text-align: right;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.stat-table td:nth-child(3) {
+  text-align: right;
+  color: var(--app-muted);
+  font-size: 12px;
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* ── Progress bar inside stat table ───────────────────────────────────── */
+
+.usage-bar {
+  display: inline-block;
+  width: 80px;
+  height: 10px;
+  background: var(--app-bg2);
+  border-radius: 5px;
+  overflow: hidden;
+  vertical-align: middle;
+  margin-left: 8px;
+  border: 1px solid var(--app-border);
+}
+
+.usage-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.3s ease;
+}
+
+.usage-low {
+  background: var(--app-success);
+}
+.usage-mid {
+  background: var(--app-warning);
+}
+.usage-high {
+  background: var(--app-danger);
+}
+
+/* ── Form Fields (Project Settings) ───────────────────────────────────── */
+
+.form-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.form-row label {
+  font-weight: 500;
+  min-width: 80px;
+  padding-top: 5px;
+  white-space: nowrap;
+}
+
+.form-row input[type='text'],
+.form-row textarea {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-input-bg);
+  color: var(--app-text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.form-row textarea {
+  resize: vertical;
+}
+
+.form-static {
+  padding-top: 5px;
+  color: var(--app-muted);
+}
+
+.form-btn {
+  padding: 5px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-btn-bg);
+  color: var(--app-text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.form-btn:hover {
+  background: var(--app-btn-hover);
+}
+
+.hidden-input {
+  display: none;
+}
+
+/* ── Thumbnail ────────────────────────────────────────────────────────── */
+
+.thumb-area {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+#thumb-preview {
+  width: 80px;
+  height: 80px;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-bg2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+#thumb-preview svg,
+#thumb-preview img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.thumb-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Thumbnail editor panel (ThumbnailMaker) */
+.thumb-editor-hidden {
+  display: none;
+}
+
+#thumb-editor-panel {
+  margin-top: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  padding: 12px;
+  background: var(--app-bg2);
+}
+
+/* ── ThumbnailMaker theme overrides for popup ─────────────────────────── */
+
+#thumb-editor-panel .tm-panel {
+  position: relative;
+  left: 0;
+  width: 100%;
+  height: auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+#thumb-editor-panel .tm-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+#thumb-editor-panel .tm-panel-header span {
+  color: var(--app-text);
+}
+
+#thumb-editor-panel .tm-close-btn {
+  background: var(--app-btn-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+#thumb-editor-panel .tm-close-btn:hover {
+  background: var(--app-btn-hover);
+}
+
+#thumb-editor-panel .tm-toolbar {
+  background: transparent;
+}
+
+#thumb-editor-panel .tm-tool-btn {
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+  line-height: 28px;
+  background: var(--app-btn-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+#thumb-editor-panel .tm-tool-btn.tm-icon-lg {
+  font-size: 16px;
+  line-height: 28px;
+}
+
+#thumb-editor-panel .tm-tool-btn:hover {
+  background: var(--app-btn-hover);
+}
+
+#thumb-editor-panel .tm-tool-btn.tm-active {
+  background: var(--app-accent);
+  color: #fff;
+  border-color: var(--app-accent-hover);
+}
+
+#thumb-editor-panel .tm-apply-btn {
+  background: var(--app-ok-bg);
+  color: var(--app-ok-text);
+  border-color: var(--app-success);
+}
+
+#thumb-editor-panel .tm-apply-btn:hover {
+  opacity: 0.85;
+}
+
+#thumb-editor-panel .tm-canvas-wrap {
+  text-align: center;
+  margin: 8px 0;
+}
+
+#thumb-editor-panel #tm-canvas-outer {
+  border: 1px solid var(--app-border);
+  background: #ffffff;
+}
+
+#thumb-editor-panel .tm-color-row label {
+  color: var(--app-text);
+}
+
+#thumb-editor-panel .tm-color-input {
+  border-color: var(--app-border);
+}
+
+#thumb-editor-panel .tm-status {
+  color: var(--app-muted);
+}
+
+#thumb-editor-panel .tm-align-btn {
+  background: var(--app-btn-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+#thumb-editor-panel .tm-align-btn:hover {
+  background: var(--app-btn-hover);
+}
+
+#thumb-editor-panel .tm-align-btn.tm-active {
+  background: var(--app-accent);
+  color: #fff;
+  border-color: var(--app-accent-hover);
+}
+
+#thumb-editor-panel .tm-select {
+  background: var(--app-input-bg);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+#thumb-editor-panel input[type='text'],
+#thumb-editor-panel select,
+#thumb-editor-panel textarea {
+  background: var(--app-input-bg);
+  border: 1px solid var(--app-border);
+  color: var(--app-text);
+  border-radius: 3px;
+  padding: 3px 6px;
+}
+
+/* ── Git Section ──────────────────────────────────────────────────────── */
+
+.git-url-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.git-url-row label {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.git-url-row input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-input-bg);
+  color: var(--app-text);
+  font-size: 12px;
+}
+
+.git-url-row button {
+  padding: 4px 8px;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-btn-bg);
+  color: var(--app-text);
+  cursor: pointer;
+}
+
+.git-url-row button:hover {
+  background: var(--app-btn-hover);
+}
+
+.git-info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.git-info-row label {
+  font-weight: 500;
+  width: 80px;
+}
+
+.git-actions {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.git-btn {
+  padding: 5px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-btn-bg);
+  color: var(--app-text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.git-btn:hover {
+  background: var(--app-btn-hover);
+}
+
+.git-log {
+  max-height: 160px;
+  overflow-y: auto;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  padding: 6px;
+  background: var(--app-bg2);
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  color: var(--app-muted);
+}
+
+/* ── Datasheets Section ───────────────────────────────────────────────── */
+
+.ds-toolbar {
+  margin-bottom: 8px;
+}
+
+.ds-btn {
+  padding: 5px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  background: var(--app-btn-bg);
+  color: var(--app-text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.ds-btn:hover {
+  background: var(--app-btn-hover);
+}
+
+.ds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ds-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--app-bg2);
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+}
+
+.ds-item-name {
+  flex: 1;
+  cursor: pointer;
+  color: var(--app-accent);
+}
+
+.ds-item-name:hover {
+  text-decoration: underline;
+}
+
+.ds-item-remove {
+  cursor: pointer;
+  color: var(--app-danger);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.ds-item-remove:hover {
+  opacity: 0.7;
+}

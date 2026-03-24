@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Project Info</title>
+    <script src="../../shared/theme.js"></script>
+    <link rel="stylesheet" href="project-info.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Left Panel: Build & Design Statistics -->
+      <div id="panel-left">
+        <h2>Build Statistics</h2>
+        <div id="build-stats" class="stat-section">
+          <div class="stat-empty">No build data available yet.</div>
+        </div>
+
+        <h2>Design Statistics</h2>
+        <div id="design-stats" class="stat-section">
+          <div class="stat-empty">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Resize handle -->
+      <div id="resize-handle"></div>
+
+      <!-- Right Panel: Project Settings, Git & Datasheets -->
+      <div id="panel-right">
+        <h2>Project Settings</h2>
+        <div id="project-settings" class="stat-section">
+          <div class="form-row">
+            <label for="proj-name">Name</label>
+            <input type="text" id="proj-name" />
+          </div>
+          <div class="form-row">
+            <label for="proj-version">Version</label>
+            <input type="text" id="proj-version" />
+          </div>
+          <div class="form-row">
+            <label for="proj-description">Description</label>
+            <textarea id="proj-description" rows="2"></textarea>
+          </div>
+          <div class="form-row">
+            <label for="proj-author">Author</label>
+            <input type="text" id="proj-author" />
+          </div>
+          <div class="form-row">
+            <label>Board</label>
+            <span id="proj-board" class="form-static">—</span>
+          </div>
+
+          <!-- Thumbnail -->
+          <div class="form-row">
+            <label>Thumbnail</label>
+            <div class="thumb-area">
+              <div id="thumb-preview"></div>
+              <div class="thumb-actions">
+                <input
+                  id="input-open-svg"
+                  type="file"
+                  accept=".svg"
+                  class="hidden-input"
+                />
+                <label for="input-open-svg" class="form-btn">Open SVG</label>
+                <button id="btn-thumb-reset" class="form-btn">Reset</button>
+                <button id="btn-thumb-editor" class="form-btn">
+                  &#x1F3A8; Editor
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thumbnail editor panel (hidden by default) -->
+          <div id="thumb-editor-panel" class="thumb-editor-hidden"></div>
+        </div>
+
+        <h2>Git Repository</h2>
+        <div id="git-section" class="stat-section">
+          <div class="git-url-row">
+            <label>Remote URL:</label>
+            <input
+              type="text"
+              id="git-remote-url"
+              placeholder="https://github.com/user/repo.git"
+            />
+            <button id="btn-git-open" title="Open in browser">&#x1F310;</button>
+          </div>
+          <div class="git-info-row">
+            <label>Branch:</label>
+            <span id="git-branch">—</span>
+          </div>
+          <div class="git-info-row">
+            <label>Status:</label>
+            <span id="git-status">—</span>
+          </div>
+          <div class="git-actions">
+            <button id="btn-git-pull" class="git-btn">Pull</button>
+            <button id="btn-git-push" class="git-btn">Push</button>
+            <button id="btn-git-branch" class="git-btn">New Branch</button>
+          </div>
+          <div id="git-log" class="git-log"></div>
+        </div>
+
+        <h2>Datasheets</h2>
+        <div id="datasheets-section" class="stat-section">
+          <div class="ds-toolbar">
+            <button id="btn-ds-add" class="ds-btn">+ Add Datasheet</button>
+          </div>
+          <div id="datasheet-list" class="ds-list">
+            <div class="stat-empty">No datasheets added yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Thumbnail maker (pure DOM, no jQuery) -->
+    <script src="../../../scripts/services/utils/thumbnail-maker.js"></script>
+    <script src="project-info.js"></script>
+  </body>
+</html>
