@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Module Export</title>
+    <style type="text/css">
+      :root {
+        --ce-error-bg: #3d1010;
+        --ce-error-text: #e07070;
+        --ce-ok-bg: #1e3d0a;
+        --ce-ok-text: #a0e060;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        overflow: hidden;
+        background-color: #1e1e1e;
+        color: #ccc;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #2d2d2d;
+        border-bottom: 1px solid #444;
+        flex-shrink: 0;
+      }
+      .toolbar button {
+        padding: 6px 14px;
+        border: 1px solid #555;
+        border-radius: 4px;
+        background: #3a3a3a;
+        color: #ddd;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .toolbar button:hover {
+        background: #4a4a4a;
+      }
+      .toolbar button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .toolbar .module-name {
+        font-size: 13px;
+        color: #aaa;
+        margin-left: auto;
+      }
+      #editor {
+        flex: 1;
+        width: 100%;
+      }
+      /* ---- Error Bar (same as code-editor) ---- */
+      #error-bar {
+        display: none;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        white-space: pre-wrap;
+        flex-shrink: 0;
+        max-height: 120px;
+        overflow-y: auto;
+      }
+      #error-bar.err {
+        display: block;
+        background: var(--ce-error-bg);
+        color: var(--ce-error-text);
+        border-top: 1px solid var(--ce-error-text);
+      }
+      #error-bar.ok {
+        display: block;
+        background: var(--ce-ok-bg);
+        color: var(--ce-ok-text);
+        border-top: 1px solid var(--ce-ok-text);
+      }
+
+      /* Light theme overrides */
+      body.light-theme {
+        background-color: #fff;
+        color: #333;
+        --ce-error-bg: #fde8e8;
+        --ce-error-text: #c0392b;
+        --ce-ok-bg: #e8fde8;
+        --ce-ok-text: #27ae60;
+      }
+      body.light-theme .toolbar {
+        background: #f0f0f0;
+        border-color: #ccc;
+      }
+      body.light-theme .toolbar button {
+        background: #e0e0e0;
+        color: #333;
+        border-color: #bbb;
+      }
+      body.light-theme .toolbar button:hover {
+        background: #d0d0d0;
+      }
+      body.light-theme .toolbar .module-name {
+        color: #666;
+      }
+    </style>
+    <script src="../../../node_modules/ace-builds/src-noconflict/ace.js"></script>
+  </head>
+  <body>
+    <div class="toolbar">
+      <button id="btn-verify" title="Verify syntax">Verify</button>
+      <button id="btn-copy" title="Copy to clipboard">Copy to Clipboard</button>
+      <span id="module-name" class="module-name"></span>
+    </div>
+    <div id="editor"></div>
+    <div id="error-bar"></div>
+    <script>
+      'use strict';
+
+      function getURLParameter(name) {
+        return (
+          decodeURIComponent(
+            (new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(
+              location.search
+            ) || [null, ''])[1].replace(/\+/g, '%20')
+          ) || null
+        );
+      }
+
+      function showError(msg) {
+        var bar = document.getElementById('error-bar');
+        bar.className = 'err';
+        bar.textContent = msg;
+      }
+
+      function showOk(msg) {
+        var bar = document.getElementById('error-bar');
+        bar.className = 'ok';
+        bar.textContent = msg;
+        setTimeout(function () {
+          if (bar.className === 'ok') {
+            bar.className = '';
+            bar.textContent = '';
+          }
+        }, 4000);
+      }
+
+      function findMainWindow(callback) {
+        nw.Window.getAll(function (wins) {
+          for (var i = 0; i < wins.length; i++) {
+            if (
+              wins[i].window &&
+              typeof wins[i].window.icestudioReceiveCodeSave === 'function'
+            ) {
+              callback(wins[i].window);
+              return;
+            }
+          }
+          callback(null);
+        });
+      }
+
+      window.onload = function () {
+        var configStr = getURLParameter('config');
+        if (!configStr) {
+          return;
+        }
+        var config = JSON.parse(configStr);
+
+        if (config.theme !== 'dark') {
+          document.body.classList.add('light-theme');
+        }
+
+        var editorTheme =
+          config.theme === 'dark' ? 'ace/theme/monokai' : 'ace/theme/chrome';
+
+        var editor = ace.edit('editor');
+        editor.setTheme(editorTheme);
+        editor.session.setMode('ace/mode/verilog');
+        editor.setReadOnly(true);
+        editor.setHighlightActiveLine(false);
+        editor.setHighlightGutterLine(false);
+        editor.setFontSize(14);
+        editor.renderer.setShowGutter(true);
+        editor.renderer.setOption('showPrintMargin', false);
+
+        editor.setValue(config.verilog, -1);
+
+        document.getElementById('module-name').textContent = config.moduleName;
+
+        // -- Copy button
+        document
+          .getElementById('btn-copy')
+          .addEventListener('click', function () {
+            editor.selectAll();
+            editor.focus();
+            document.execCommand('copy');
+            editor.clearSelection();
+            showOk('Copied!');
+          });
+
+        // -- Verify button
+        var verifyBtn = document.getElementById('btn-verify');
+        var myNWWin = nw.Window.get();
+
+        // Expose result receiver so main window can call back
+        myNWWin.window.icestudioVerifyResult = function (ok, outputText) {
+          verifyBtn.disabled = false;
+          editor.session.setAnnotations([]);
+
+          if (ok) {
+            showOk('Verify OK');
+            return;
+          }
+
+          // Parse errors (same logic as code-editor)
+          var allLines = (outputText || '').split('\n');
+          var errors = [];
+          var warnings = [];
+          var summary = [];
+
+          allLines.forEach(function (line) {
+            if (!line.trim()) {
+              return;
+            }
+            if (/error\(s\)|scons:|Took \d|={5}/.test(line)) {
+              summary.push(line);
+              return;
+            }
+            var isExternal =
+              /[/\\][^/\\]+[/\\][^/\\]+\.v:/.test(line) ||
+              /\.icestudio|packages|tools-oss|yosys|cells_sim/i.test(line);
+            if (isExternal) {
+              return;
+            }
+            if (/\berror\b/i.test(line)) {
+              errors.push(line);
+            } else if (/\bwarning\b/i.test(line)) {
+              warnings.push(line);
+            } else {
+              summary.push(line);
+            }
+          });
+
+          var display = errors.concat(warnings).concat(summary);
+          var msg = display.join('\n') || outputText || 'Verification failed.';
+          showError(msg);
+
+          // Annotate errors in the editor
+          if (errors.length > 0) {
+            var annotations = [];
+            var editorLines = editor.getValue().split('\n');
+            var seen = {};
+            errors.forEach(function (errLine) {
+              var match = errLine.match(/`(\w+)'/);
+              if (!match) {
+                return;
+              }
+              var ident = match[1];
+              if (seen[ident]) {
+                return;
+              }
+              seen[ident] = true;
+              var identRegex = new RegExp('\\b' + ident + '\\b');
+              editorLines.forEach(function (codeLine, rowIdx) {
+                var col = codeLine.search(identRegex);
+                if (col >= 0) {
+                  annotations.push({
+                    row: rowIdx,
+                    column: col,
+                    text: ident + ': ' + errLine.replace(/^[^:]+:\d+:\s*/, ''),
+                    type: 'error',
+                  });
+                }
+              });
+            });
+            if (annotations.length > 0) {
+              editor.session.setAnnotations(annotations);
+            }
+          }
+        };
+
+        verifyBtn.addEventListener('click', function () {
+          verifyBtn.disabled = true;
+          showOk('Verifying...');
+
+          findMainWindow(function (mainWin) {
+            if (
+              !mainWin ||
+              typeof mainWin.icestudioRequestVerify !== 'function'
+            ) {
+              showError('Cannot reach main window for verification.');
+              verifyBtn.disabled = false;
+              return;
+            }
+            mainWin.icestudioRequestVerify(
+              config.blockId,
+              config.code,
+              myNWWin
+            );
+          });
+        });
+      };
+    </script>
+  </body>
+</html>

@@ -416,6 +416,129 @@ window._icegraph.interactions = function (ctx) {
           mode = 'formal';
         } else if (target.matches('.js-codeblock-testbench')) {
           mode = 'testbench';
+        } else if (target.matches('.js-codeblock-export-module')) {
+          event.stopPropagation();
+          var exportBlockId = target.getAttribute('data-blkid');
+          if (!exportBlockId) {
+            break;
+          }
+          var exportCell = ctx.paper.getModelById(exportBlockId);
+          if (!exportCell) {
+            break;
+          }
+          var exportData = exportCell.attributes.data || {};
+          var exportName = (
+            exportData.label ||
+            exportData.name ||
+            exportBlockId
+          ).replace(/[^a-zA-Z0-9_]/g, '_');
+
+          var stripPrefix = function (name) {
+            return name.replace(/^[@#]+/, '');
+          };
+
+          // Build full Verilog module text
+          var verilog = '';
+          verilog += 'module ' + exportName;
+
+          // Parameters
+          var expParams = [];
+          var ep;
+          for (ep in exportData.params) {
+            if (exportData.params[ep] instanceof Object) {
+              var epName =
+                exportData.params[ep].name.charAt(0) === '@'
+                  ? exportData.params[ep].name.substr(1)
+                  : exportData.params[ep].name;
+              expParams.push(
+                ' parameter ' +
+                  epName +
+                  ' = ' +
+                  (exportData.params[ep].value
+                    ? exportData.params[ep].value
+                    : '0')
+              );
+            }
+          }
+          if (expParams.length > 0) {
+            verilog += ' #(\n' + expParams.join(',\n') + '\n)';
+          }
+
+          // Ports
+          var expPorts = [];
+          var expPortsObj = exportData.ports || {};
+          var ei, eo;
+          for (ei in expPortsObj.in) {
+            var pin = expPortsObj.in[ei];
+            expPorts.push(
+              ' input ' +
+                (pin.range ? pin.range + ' ' : '') +
+                stripPrefix(pin.name)
+            );
+          }
+          for (eo in expPortsObj.out) {
+            var pout = expPortsObj.out[eo];
+            expPorts.push(
+              ' output ' +
+                (pout.range ? pout.range + ' ' : '') +
+                stripPrefix(pout.name)
+            );
+          }
+          for (ei in expPortsObj.inoutLeft) {
+            var pioL = expPortsObj.inoutLeft[ei];
+            expPorts.push(
+              ' inout ' +
+                (pioL.range ? pioL.range + ' ' : '') +
+                stripPrefix(pioL.name)
+            );
+          }
+          for (eo in expPortsObj.inoutRight) {
+            var pioR = expPortsObj.inoutRight[eo];
+            expPorts.push(
+              ' inout ' +
+                (pioR.range ? pioR.range + ' ' : '') +
+                stripPrefix(pioR.name)
+            );
+          }
+          if (expPorts.length > 0) {
+            verilog += ' (\n' + expPorts.join(',\n') + '\n)';
+          }
+
+          verilog += ';\n';
+
+          // Content (indented)
+          if (exportData.code) {
+            var codeLines = exportData.code.split('\n');
+            for (var cl = 0; cl < codeLines.length; cl++) {
+              codeLines[cl] = ' ' + codeLines[cl];
+            }
+            verilog += codeLines.join('\n');
+          }
+
+          verilog += '\nendmodule\n';
+
+          var exportConfig = {
+            verilog: verilog,
+            moduleName: exportName,
+            blockId: exportBlockId,
+            code: exportData.code || '',
+            theme: ctx.profile.data.uiTheme || 'light',
+          };
+          var exportParam = encodeURIComponent(JSON.stringify(exportConfig));
+          var exportURL =
+            'resources/viewers/module-export/module-export.html?config=' +
+            exportParam;
+
+          nw.Window.open(exportURL, {
+            title: 'Module Export - ' + exportName,
+            focus: true,
+            resizable: true,
+            show: true,
+            width: 700,
+            height: 500,
+            icon: 'resources/images/icestudio-logo.png',
+          });
+          break;
         } else if (target.matches('.js-codeblock-push-collection')) {
           event.stopPropagation();
           var pushBlockId = target.getAttribute('data-blkid');
