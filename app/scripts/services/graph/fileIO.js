@@ -101,6 +101,7 @@ window._icegraph.fileIO = function (ctx) {
           case ctx.blocks.BASIC_OUTPUT_LABEL:
           case ctx.blocks.BASIC_INPUT_LABEL:
           case ctx.blocks.BASIC_CODE:
+          case ctx.blocks.BASIC_GENERATE:
           case ctx.blocks.BASIC_INPUT:
           case ctx.blocks.BASIC_OUTPUT:
           case ctx.blocks.BASIC_JSON_INPUT:

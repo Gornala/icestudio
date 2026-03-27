@@ -19,6 +19,7 @@ angular.module('icestudio').service('blocks', function () {
   this.InfoBlock = _b.InfoBlock;
   this.JsonInputBlock = _b.JsonInputBlock;
   this.JsonOutputBlock = _b.JsonOutputBlock;
+  this.GenerateBlock = _b.GenerateBlock;
 
   //-- Public functions
   this.getPins = _b.getPins;
@@ -38,4 +39,5 @@ angular.module('icestudio').service('blocks', function () {
   this.BASIC_INFO = _b.BASIC_INFO;
   this.BASIC_JSON_INPUT = _b.BASIC_JSON_INPUT;
   this.BASIC_JSON_OUTPUT = _b.BASIC_JSON_OUTPUT;
+  this.BASIC_GENERATE = _b.BASIC_GENERATE;
 });

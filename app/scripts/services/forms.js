@@ -59,6 +59,7 @@ angular
       var FormBasicCode = _blockForms.FormBasicCode;
       var FormBasicMemory = _blockForms.FormBasicMemory;
       var FormBasicConstant = _blockForms.FormBasicConstant;
+      var FormBasicGenerate = _blockForms.FormBasicGenerate;
 
       //-- Build JSON Input form class
       var _jsonForms = window._iceforms.jsonForms({
@@ -106,6 +107,7 @@ angular
       this.FormBasicCode = FormBasicCode;
       this.FormBasicMemory = FormBasicMemory;
       this.FormBasicConstant = FormBasicConstant;
+      this.FormBasicGenerate = FormBasicGenerate;
       this.FormBasicJsonInput = FormBasicJsonInput;
       this.FormBasicJsonOutput = FormBasicJsonOutput;
       this.FormSelectBoard = FormSelectBoard;

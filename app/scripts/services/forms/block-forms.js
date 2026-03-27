@@ -812,9 +812,461 @@ window._iceforms.blockForms = function (deps) {
     }
   }
 
+  //-------------------------------------------------------------------------
+  //-- CLASS: FormBasicGenerate — Creating/Editing a Generate Frame block
+  //-------------------------------------------------------------------------
+  class FormBasicGenerate extends Form {
+    constructor(portsIn, portsOut, instanceCount, label) {
+      super();
+
+      var portsInVal = portsIn !== undefined ? portsIn : '';
+      var portsOutVal = portsOut !== undefined ? portsOut : '';
+      var instanceCountVal =
+        instanceCount !== undefined ? String(instanceCount) : '4';
+      var labelVal = label !== undefined ? label : '';
+
+      this._updatingFromText = false;
+      this._updatingFromGrid = false;
+
+      var genSettingsLabel = gettextCatalog.getString('Generate Settings');
+
+      var fieldLabel = new TextField(
+        gettextCatalog.getString('Name'),
+        labelVal,
+        9
+      );
+      this.addField(fieldLabel, genSettingsLabel);
+      this._labelField = fieldLabel;
+      this.iniLabel = labelVal;
+
+      var fieldCount = new TextField(
+        gettextCatalog.getString('Instance count (m)'),
+        instanceCountVal,
+        10
+      );
+      this.addField(fieldCount, genSettingsLabel);
+      this._countField = fieldCount;
+      this.iniInstanceCount = instanceCountVal;
+
+      var modulePortsLabel = gettextCatalog.getString('Module Ports');
+
+      var field0 = new TextField(
+        gettextCatalog.getString('Input ports'),
+        portsInVal,
+        0
+      );
+
+      var field1 = new TextField(
+        gettextCatalog.getString('Output ports'),
+        portsOutVal,
+        1
+      );
+
+      this.addField(field0, modulePortsLabel);
+      this.addField(field1, modulePortsLabel);
+
+      var columns = [
+        { type: 'text', title: 'Name', width: 120 },
+        {
+          type: 'dropdown',
+          title: 'Type',
+          width: 70,
+          source: ['IN', 'OUT'],
+        },
+        { type: 'numeric', title: 'Bus width', width: 70 },
+        {
+          type: 'dropdown',
+          title: 'Gen Mode',
+          width: 100,
+          source: ['direct', 'iterable', 'iterative', 'muxed', 'or'],
+        },
+        { type: 'checkbox', title: 'Enable', width: 55 },
+      ];
+      var data = [['', 'IN', 1, 'direct', true]];
+
+      var genModesForIn = ['direct', 'iterable'];
+      var genModesForOut = ['iterative', 'muxed', 'or'];
+      this._genModesForIn = genModesForIn;
+      this._genModesForOut = genModesForOut;
+
+      var field7 = new GridField(7, 'gen-ports-table', columns, data);
+      field7.onEnter = () => this.onEnterIOPortsTable(field7.table);
+      this.addField(field7, modulePortsLabel);
+      this._field7 = field7;
+
+      field0.onChange((value) => {
+        if (this._updatingFromGrid) {
+          return;
+        }
+        this._updatingFromText = true;
+        this.updateGenPortsTable(field7.table, value, 'IN');
+        this._updatingFromText = false;
+      });
+      field1.onChange((value) => {
+        if (this._updatingFromGrid) {
+          return;
+        }
+        this._updatingFromText = true;
+        this.updateGenPortsTable(field7.table, value, 'OUT');
+        this._updatingFromText = false;
+      });
+
+      this.code = '';
+      this.resultAlert = null;
+
+      this.iniPortsIn = portsInVal;
+      this.iniPortsOut = portsOutVal;
+
+      // fieldLabel at [0], fieldCount at [1] in genSettingsLabel tab
+      // field0 at [0], field1 at [1] in modulePortsLabel tab
+      this.inInput = this.fields[modulePortsLabel][0];
+      this.outInput = this.fields[modulePortsLabel][1];
+    }
+
+    getPortInfo(names, evt) {
+      var portInfo;
+      var portInfos = [];
+
+      for (var i = 0; i < names.length; i++) {
+        portInfo = Form.parsePortName(names[i]);
+        if (!portInfo) {
+          evt.cancel = true;
+          this.resultAlert = alertify.warning(
+            gettextCatalog.getString('Wrong block name {{name}}', {
+              name: names[i],
+            })
+          );
+          return;
+        }
+        if (portInfo.name !== '') {
+          portInfos.push(portInfo);
+        }
+      }
+      evt.cancel = false;
+      return portInfos;
+    }
+
+    parseFields() {
+      this.values = this.readFields();
+
+      // Tab "Generate Settings": [0]=label, [1]=instanceCount
+      // Tab "Module Ports": [0]=portsIn, [1]=portsOut, [2]=grid, ...
+      // Read from text fields by reference
+      var inText = this.inInput.read().replace(/\s+/g, '');
+      var outText = this.outInput.read().replace(/\s+/g, '');
+
+      this.inPorts = Form.parseNames(inText);
+      this.outPorts = Form.parseNames(outText);
+    }
+
+    process(evt) {
+      if (this.resultAlert) {
+        this.resultAlert.dismiss(false);
+      }
+
+      this.parseFields();
+
+      this.inPortsInfo = this.getPortInfo(this.inPorts, evt);
+      this.outPortsInfo = this.getPortInfo(this.outPorts, evt);
+
+      // Parse instance count
+      var countStr = this._countField.read();
+      this.instanceCount = parseInt(countStr, 10);
+      if (isNaN(this.instanceCount) || this.instanceCount < 2) {
+        evt.cancel = true;
+        this.resultAlert = alertify.warning(
+          gettextCatalog.getString('Instance count must be >= 2')
+        );
+        return;
+      }
+
+      // Check for duplicate port names
+      var allPortnames = [];
+      var userPorts = (this.inPortsInfo || []).concat(this.outPortsInfo || []);
+
+      for (var i = 0; i < userPorts.length; i++) {
+        var portInfo = userPorts[i];
+        if (portInfo) {
+          if (allPortnames.indexOf(portInfo.name) !== -1) {
+            evt.cancel = true;
+            this.resultAlert = alertify.warning(
+              gettextCatalog.getString('Duplicate port name: {{name}}', {
+                name: portInfo.name,
+              })
+            );
+            return;
+          }
+          allPortnames.push(portInfo.name);
+        }
+      }
+
+      // Extract genMode from grid table
+      this.genModes = {};
+      if (this._field7 && this._field7.table) {
+        var gridData = this._field7.table.getData();
+        for (var j = 0; j < gridData.length; j++) {
+          var row = gridData[j];
+          var name = row[0] ? row[0].trim() : '';
+          var genMode = row[3] || 'direct';
+          if (name) {
+            this.genModes[name] = genMode;
+          }
+        }
+      }
+
+      // Validate: for iterable/iterative ports, bus width must be a multiple of m
+      // (the total width typed by user must divide evenly by m for clean slicing)
+      var m = this.instanceCount;
+      var allPorts = (this.inPortsInfo || []).concat(this.outPortsInfo || []);
+      for (var k = 0; k < allPorts.length; k++) {
+        var pInfo = allPorts[k];
+        if (!pInfo) {
+          continue;
+        }
+        var pMode = this.genModes[pInfo.name] || '';
+        var pSize = pInfo.size || 1;
+        if ((pMode === 'iterable' || pMode === 'iterative') && pSize > 1) {
+          if (pSize % m !== 0) {
+            evt.cancel = true;
+            this.resultAlert = alertify.warning(
+              gettextCatalog.getString(
+                'Port "{{name}}" ({{mode}}): bus width {{size}} must be a multiple of instance count {{m}}',
+                { name: pInfo.name, mode: pMode, size: pSize, m: m }
+              )
+            );
+            return;
+          }
+        }
+      }
+    }
+
+    changed() {
+      var inPortNames = blocks.portsInfo2Str(this.inPortsInfo || []);
+      var outPortNames = blocks.portsInfo2Str(this.outPortsInfo || []);
+      var countStr = this._countField.read();
+
+      // Check if genModes changed
+      var genModesChanged = false;
+      if (this.genModes && this._iniGenModes) {
+        var keys = Object.keys(this.genModes).concat(
+          Object.keys(this._iniGenModes)
+        );
+        for (var i = 0; i < keys.length; i++) {
+          if (this.genModes[keys[i]] !== this._iniGenModes[keys[i]]) {
+            genModesChanged = true;
+            break;
+          }
+        }
+      } else if (this.genModes || this._iniGenModes) {
+        genModesChanged = true;
+      }
+
+      return (
+        this.iniPortsIn !== inPortNames ||
+        this.iniPortsOut !== outPortNames ||
+        this.iniInstanceCount !== countStr ||
+        this.iniLabel !== this.label ||
+        genModesChanged
+      );
+    }
+
+    get label() {
+      return this._labelField ? this._labelField.read() : '';
+    }
+
+    init() {
+      super.init();
+
+      this._updatingFromText = true;
+      if (this.iniPortsIn) {
+        this.updateGenPortsTable(this._field7.table, this.iniPortsIn, 'IN');
+      }
+      if (this.iniPortsOut) {
+        this.updateGenPortsTable(this._field7.table, this.iniPortsOut, 'OUT');
+      }
+      this._updatingFromText = false;
+
+      // Single-click to open dropdown editors
+      var tableEl = document.getElementById(this._field7.tableId);
+      var table = this._field7.table;
+      var self = this;
+      if (tableEl && table) {
+        tableEl.addEventListener('click', function (e) {
+          var td = e.target.closest('td');
+          if (td && !td.classList.contains('jss_row')) {
+            var colIdx = td.dataset.x;
+            if (colIdx === '1' || colIdx === '3' || colIdx === '4') {
+              table.openEditor(td, true);
+            }
+          }
+        });
+      }
+
+      // Filter Gen Mode dropdown based on port Type
+      var genModeCol = table.options.columns[3];
+      var allGenModes = genModeCol.source.slice();
+      table.options.oneditionstart = function (el, cell, x, y) {
+        if (parseInt(x, 10) === 3) {
+          var portType = table.getValueFromCoords(1, y);
+          var filtered =
+            portType === 'OUT' ? self._genModesForOut : self._genModesForIn;
+          genModeCol.source = filtered;
+        } else {
+          genModeCol.source = allGenModes;
+        }
+      };
+
+      // Validate Gen Mode when Type changes
+      var origOnChange = this._field7.onEnter;
+      table.options.onchange = function (el, cell, x, y, value) {
+        var colIdx = parseInt(x, 10);
+        if (colIdx === 1) {
+          // Type column changed — reset Gen Mode if invalid
+          var currentGenMode = table.getValueFromCoords(3, y);
+          var validModes =
+            value === 'OUT' ? self._genModesForOut : self._genModesForIn;
+          if (validModes.indexOf(currentGenMode) === -1) {
+            table.setValueFromCoords(3, y, validModes[0]);
+          }
+        } else if (colIdx === 3) {
+          // Gen Mode column changed — validate against Type
+          var portType = table.getValueFromCoords(1, y);
+          var allowed =
+            portType === 'OUT' ? self._genModesForOut : self._genModesForIn;
+          if (allowed.indexOf(value) === -1) {
+            table.setValueFromCoords(3, y, allowed[0]);
+          }
+        }
+        if (typeof origOnChange === 'function') {
+          origOnChange();
+        }
+      };
+    }
+
+    onEnterIOPortsTable(table) {
+      if (this._updatingFromText) {
+        return;
+      }
+
+      var grouped = { IN: [], OUT: [] };
+
+      table.getData().forEach(function (row) {
+        var enabled = row[4] !== false;
+        if (!enabled) {
+          return;
+        }
+        var name = row[0] ? row[0].trim() : null;
+        var type = row[1] ? row[1].toUpperCase() : null;
+        var busWidth = parseInt(row[2], 10);
+
+        if (!name || !type) {
+          return;
+        }
+
+        if (!isNaN(busWidth) && busWidth > 1) {
+          name += '[' + (busWidth - 1) + ':0]';
+        }
+
+        if (grouped[type]) {
+          grouped[type].push(name);
+        }
+      });
+
+      this._updatingFromGrid = true;
+      this.inInput.write(grouped.IN.join(', '));
+      this.outInput.write(grouped.OUT.join(', '));
+      this._updatingFromGrid = false;
+    }
+
+    updateGenPortsTable(instance, textList, type) {
+      var parsedNames = textList
+        .split(',')
+        .map(function (n) {
+          var trimmed = n.trim().replace(/^[@#]+/, '');
+          var match = trimmed.match(/^(\w+)\[(\d+):(\d+)\]$/);
+          if (match) {
+            var portName = match[1];
+            var msb = parseInt(match[2], 10);
+            var lsb = parseInt(match[3], 10);
+            var busWidth = Math.abs(msb - lsb) + 1;
+            return { name: portName, busWidth: busWidth };
+          }
+          return { name: trimmed, busWidth: 1 };
+        })
+        .filter(function (p) {
+          return p.name !== '';
+        });
+
+      var defaultGenMode = type === 'IN' ? 'direct' : 'iterative';
+      var defaultRow = ['', 'IN', 1, 'direct', true];
+      var data = instance.getData();
+
+      var nameToRowIndex = {};
+      var usedIndexes = {};
+
+      data.forEach(function (r, index) {
+        var n = r[0];
+        if (n) {
+          nameToRowIndex[n] = index;
+        }
+      });
+
+      var newNames = parsedNames.map(function (p) {
+        return p.name;
+      });
+      parsedNames.forEach(function (item) {
+        if (nameToRowIndex.hasOwnProperty(item.name)) {
+          var i = nameToRowIndex[item.name];
+          var r = instance.getData()[i];
+          if (r[1] !== type) {
+            instance.setValueFromCoords(1, i, type);
+          }
+          if (r[2] !== item.busWidth) {
+            instance.setValueFromCoords(2, i, item.busWidth);
+          }
+          usedIndexes[i] = true;
+        } else {
+          instance.insertRow([
+            item.name,
+            type,
+            item.busWidth,
+            defaultGenMode,
+            true,
+          ]);
+        }
+      });
+
+      for (var i = instance.getData().length - 1; i >= 0; i--) {
+        var rowData = instance.getData()[i];
+        var rowName = rowData[0];
+        var rowType = rowData[1];
+        if (rowType === type && rowName && newNames.indexOf(rowName) === -1) {
+          instance.deleteRow(i);
+        }
+      }
+
+      var updated = instance.getData();
+      var hasEmptyRow = false;
+
+      for (var j = updated.length - 1; j >= 0; j--) {
+        var length = instance.getData().length;
+        if (!updated[j][0] && length > 1) {
+          instance.deleteRow(j);
+        } else if (!updated[j][0]) {
+          hasEmptyRow = true;
+        }
+      }
+
+      if (!hasEmptyRow) {
+        instance.insertRow([].concat(defaultRow));
+      }
+    }
+  }
+
   return {
     FormBasicCode: FormBasicCode,
     FormBasicMemory: FormBasicMemory,
     FormBasicConstant: FormBasicConstant,
+    FormBasicGenerate: FormBasicGenerate,
   };
 };

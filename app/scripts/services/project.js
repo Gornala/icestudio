@@ -708,6 +708,8 @@ angular
               case blocks.BASIC_INFO:
                 delete block.data.text;
                 break;
+              case blocks.BASIC_GENERATE:
+                break;
               default:
                 // Generic block
                 delete block.data;

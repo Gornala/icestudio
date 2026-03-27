@@ -42,7 +42,10 @@ window._icegraph.interactions = function (ctx) {
       'ice.Constant': ['ice.Constant', 'ice.Memory'],
       'ice.Memory': ['ice.Constant', 'ice.Memory'],
     }[lowerBlock.get('type')];
-    if (validReplacements.indexOf(upperBlock.get('type')) === -1) {
+    if (
+      !validReplacements ||
+      validReplacements.indexOf(upperBlock.get('type')) === -1
+    ) {
       return;
     }
     return lowerBlock;
@@ -383,7 +386,10 @@ window._icegraph.interactions = function (ctx) {
     document.addEventListener('click', function (event) {
       var target = event.target;
       while (target && target !== this) {
-        if (target.matches('.js-codeblock-io-edit')) {
+        if (
+          target.matches('.js-codeblock-io-edit') ||
+          target.matches('.js-generate-io-edit')
+        ) {
           event.stopPropagation();
           var modelId = target.getAttribute('data-blkid');
           if (!modelId) {
@@ -398,6 +404,80 @@ window._icegraph.interactions = function (ctx) {
             return;
           }
           ctx.paper.trigger('cell:pointerdblclick', cellView, event, 0, 0);
+          break;
+        }
+        target = target.parentNode;
+      }
+    });
+
+    //-- Generate frame: Export Module button
+    document.addEventListener('click', function (event) {
+      var target = event.target;
+      while (target && target !== document) {
+        if (target.matches('.js-generate-export-module')) {
+          event.stopPropagation();
+          var genBlockId = target.getAttribute('data-blkid');
+          if (!genBlockId) {
+            break;
+          }
+          var genCell = ctx.paper.getModelById(genBlockId);
+          if (!genCell) {
+            break;
+          }
+
+          // Build compiler context from available services
+          var compCtx = {
+            common: ctx.common,
+            utils: ctx.utils,
+            blocks: ctx.blocks,
+            _package: {},
+            currentLibrary: false,
+          };
+          var compHelpers = window._icecompiler.helpers(compCtx);
+          compCtx.header = compHelpers.header;
+          compCtx.module = compHelpers.module;
+          compCtx.mainIO = compHelpers.mainIO;
+          compCtx.findBlock = compHelpers.findBlock;
+          compCtx.getInitPorts = compHelpers.getInitPorts;
+          compCtx.getInitPins = compHelpers.getInitPins;
+          var compVerilog = window._icecompiler.verilog(compCtx);
+
+          // Build project from current graph state
+          var graphData = ctx.graph.toJSON();
+          var project = ctx.utils.cellsToProject(graphData.cells);
+          project.dependencies = ctx.common.allDependencies || {};
+          compCtx.currentLibrary = project.dependencies;
+
+          // Compile entire project to get generate frame code
+          var fullCode = compVerilog.verilogCompiler('main', project);
+
+          var genData = genCell.attributes.data || {};
+          var genName = (genData.label || 'generate').replace(
+            /[^a-zA-Z0-9_]/g,
+            '_'
+          );
+
+          var exportConfig = {
+            verilog: fullCode,
+            moduleName: genName,
+            blockId: genBlockId,
+            code: fullCode,
+            theme: ctx.profile.data.uiTheme || 'light',
+          };
+          var exportParam = encodeURIComponent(JSON.stringify(exportConfig));
+          var exportURL =
+            'resources/viewers/module-export/module-export.html?config=' +
+            exportParam;
+
+          nw.Window.open(exportURL, {
+            title: 'Generate Export - ' + genName,
+            focus: true,
+            resizable: true,
+            show: true,
+            width: 700,
+            height: 500,
+            icon: 'resources/images/icestudio-logo.png',
+          });
           break;
         }
         target = target.parentNode;

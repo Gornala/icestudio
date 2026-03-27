@@ -817,6 +817,18 @@ cells.sort((a, b) => {
               expanded: false,
               _depBlocks: null,
             });
+          } else if (blockType === 'basic.generate') {
+            var m = data.instanceCount || 4;
+            nodes.push({
+              id: cell.id,
+              type: blockType,
+              cellType: 'generate',
+              label: (data.label || 'generate') + ' x' + m,
+              depth: 0,
+              hasChildren: false,
+              expanded: false,
+              _depBlocks: null,
+            });
           }
         });
 

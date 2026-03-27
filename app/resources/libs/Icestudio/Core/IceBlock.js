@@ -31,7 +31,12 @@ class IceBlock {
 
   busLoadFromFile(args) {
     this.fs.readFile(args.path, function (path, content) {
-      args.obj = JSON.parse(content);
+      try {
+        args.obj = JSON.parse(content);
+      } catch (e) {
+        console.warn('IceBlock: invalid JSON in ' + path + ': ' + e.message);
+        return;
+      }
       //--  ICEpm.publishAt(args.id, "block.loadedFromFile", args);
       iceStudio.bus.events.publish('block.loadedFromFile', args);
     });

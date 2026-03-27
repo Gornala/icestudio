@@ -445,6 +445,9 @@ joint.shapes.ice.ModelView = joint.dia.ElementView.extend({
     if (type === 'ice.Code' || type === 'ice.Memory') {
       minSize = { width: 96, height: 64 };
     }
+    if (type === 'ice.Generate') {
+      minSize = { width: 200, height: 150 };
+    }
 
     var clientCoords = snapToGrid({ x: event.clientX, y: event.clientY });
     var oldClientCoords = snapToGrid({ x: self._clientX, y: self._clientY });

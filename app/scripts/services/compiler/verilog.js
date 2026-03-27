@@ -215,6 +215,9 @@ window._icecompiler.verilog = function (ctx) {
 
     for (w in graph.wires) {
       var wire = graph.wires[w];
+      if (wire._genInternal) {
+        continue; // Skip wires inside generate frames
+      }
       if (
         wire.source.port === 'constant-out' ||
         wire.source.port === 'memory-out'
@@ -279,9 +282,15 @@ window._icecompiler.verilog = function (ctx) {
     var numWires = graph.wires.length;
     var gwi, gwj;
     for (i = 1; i < numWires; i++) {
+      gwi = graph.wires[i];
+      if (gwi._genInternal) {
+        continue; // Skip wires inside generate frames
+      }
       for (j = 0; j < i; j++) {
-        gwi = graph.wires[i];
         gwj = graph.wires[j];
+        if (gwj._genInternal) {
+          continue;
+        }
         var dedupSrc = ctx.findBlock(gwi.source.block, graph);
         var isParamSrc =
           gwi.source.port === 'constant-out' ||
@@ -300,6 +309,11 @@ window._icecompiler.verilog = function (ctx) {
     // Block instances
 
     content = content.concat(getInstances(name, project.design.graph));
+
+    // Generate-for instantiations
+    content = content.concat(
+      getGenerateInstances(name, project.design.graph, graph.wires)
+    );
 
     // Restore original graph
     // delete temporal wires
@@ -354,7 +368,9 @@ window._icecompiler.verilog = function (ctx) {
         block.type !== ctx.blocks.BASIC_INPUT_LABEL &&
         block.type !== ctx.blocks.BASIC_OUTPUT_LABEL &&
         block.type !== ctx.blocks.BASIC_JSON_INPUT &&
-        block.type !== ctx.blocks.BASIC_JSON_OUTPUT
+        block.type !== ctx.blocks.BASIC_JSON_OUTPUT &&
+        block.type !== ctx.blocks.BASIC_GENERATE &&
+        !block._genContained
       ) {
         // Header
         var instance;
@@ -448,6 +464,105 @@ window._icecompiler.verilog = function (ctx) {
     }
 
     return instances;
+  }
+
+  //-------------------------------------------------------------------
+  //-- Instantiate generate frame modules (single instance each —
+  //-- the generate-for loop lives inside the frame sub-module)
+  //-------------------------------------------------------------------
+  function getGenerateInstances(name, graph, wires) {
+    var instances = [];
+    var blockArray = graph.blocks;
+
+    for (var b in blockArray) {
+      var genBlock = blockArray[b];
+      if (genBlock.type !== ctx.blocks.BASIC_GENERATE) {
+        continue;
+      }
+
+      var genId = ctx.utils.digestId(genBlock.id);
+      var frameName = name + '_gen_' + genId;
+      var portData = genBlock.data.ports || { in: [], out: [] };
+
+      // Single instantiation of the frame module
+      var genLabel = genBlock.data.label || 'gen_' + genId;
+      var instance =
+        '//-- Generated frame: ' +
+        genLabel +
+        '\n ' +
+        frameName +
+        ' ' +
+        ctx.utils.digestId(genBlock.id);
+      var ports = [];
+
+      for (var pi in portData.in) {
+        var inPort = portData.in[pi];
+        var extWireIdx = findExternalWire(
+          genBlock.id,
+          inPort.name + '-ext',
+          wires,
+          'target'
+        );
+        var wireRef = extWireIdx !== null ? 'w' + extWireIdx : "'0";
+        ports.push(' .' + inPort.name + '(' + wireRef + ')');
+      }
+
+      for (var po in portData.out) {
+        var outPort = portData.out[po];
+        var outExtWireIdx = findExternalWire(
+          genBlock.id,
+          outPort.name + '-ext',
+          wires,
+          'source'
+        );
+        if (outExtWireIdx !== null) {
+          ports.push(' .' + outPort.name + '(w' + outExtWireIdx + ')');
+        }
+        // Wire up mux select input for muxed outputs
+        if ((outPort.genMode || 'iterative') === 'muxed') {
+          var selPortName = outPort.name + '_sel';
+          var selExtWireIdx = findExternalWire(
+            genBlock.id,
+            selPortName + '-ext',
+            wires,
+            'target'
+          );
+          var selWireRef = selExtWireIdx !== null ? 'w' + selExtWireIdx : "'0";
+          ports.push(' .' + selPortName + '(' + selWireRef + ')');
+        }
+      }
+
+      if (ports.length > 0) {
+        instance += ' (\n' + ports.join(',\n') + '\n);';
+      } else {
+        instance += ' ();';
+      }
+      instances.push(instance);
+    }
+
+    return instances;
+  }
+
+  //-- Find the wire index connected to a generate frame port
+  function findExternalWire(genBlockId, portName, wires, direction) {
+    for (var w in wires) {
+      var wire = wires[w];
+      if (wire._genInternal) {
+        continue;
+      }
+      if (direction === 'target') {
+        // Looking for wire where target is the generate frame
+        if (wire.target.block === genBlockId && wire.target.port === portName) {
+          return w;
+        }
+      } else {
+        // Looking for wire where source is the generate frame
+        if (wire.source.block === genBlockId && wire.source.port === portName) {
+          return w;
+        }
+      }
+    }
+    return null;
   }
 
   //-------------------------------------------------------------------
@@ -601,7 +716,7 @@ window._icecompiler.verilog = function (ctx) {
       for (i in blockArray) {
         block = blockArray[i];
         if (block) {
-          if (block.type === ctx.blocks.BASIC_CODE) {
+          if (block.type === ctx.blocks.BASIC_CODE && !block._genContained) {
             data = {
               name: name + '_' + ctx.utils.digestId(block.id),
               params: block.data.params,
@@ -612,9 +727,473 @@ window._icecompiler.verilog = function (ctx) {
           }
         }
       }
+
+      // Generate frame sub-modules
+      for (i in blockArray) {
+        block = blockArray[i];
+        if (block && block.type === ctx.blocks.BASIC_GENERATE) {
+          code += compileGenerateFrame(name, block, project);
+        }
+      }
+
+      // Clean up temporary generate-frame flags
+      for (i in blockArray) {
+        if (blockArray[i]) {
+          delete blockArray[i]._genContained;
+        }
+      }
+      var graphWires = project.design.graph.wires;
+      for (i in graphWires) {
+        if (graphWires[i]) {
+          delete graphWires[i]._genInternal;
+        }
+      }
     }
 
     return code;
+  }
+
+  //-------------------------------------------------------------------
+  //-- Compile a generate frame block into:
+  //-- 1. A wrapper module with generate-for loop
+  //-- 2. An inner iteration module (from contained blocks)
+  //-- The parent instantiates the wrapper once; the loop is inside.
+  //-------------------------------------------------------------------
+  function compileGenerateFrame(parentName, genBlock, project) {
+    var graph = project.design.graph;
+    var genId = ctx.utils.digestId(genBlock.id);
+    var frameName = parentName + '_gen_' + genId;
+    var iterName = frameName + '_iter';
+    var m = genBlock.data.instanceCount || 4;
+    var genLabel = genBlock.data.label || 'gen_' + genId;
+    var genVarName = 'gen_i_' + genId;
+    var portData = genBlock.data.ports || { in: [], out: [] };
+
+    // Find contained blocks by bounding rect
+    var genRect = {
+      x: genBlock.position.x,
+      y: genBlock.position.y,
+      width: genBlock.size.width,
+      height: genBlock.size.height,
+    };
+
+    var containedIds = {};
+    var containedBlocks = [];
+    for (var b in graph.blocks) {
+      var blk = graph.blocks[b];
+      if (blk.id === genBlock.id) {
+        continue;
+      }
+      if (blk.type === ctx.blocks.BASIC_GENERATE) {
+        continue;
+      }
+      if (isBlockInsideRect(blk, genRect)) {
+        containedIds[blk.id] = true;
+        blk._genContained = true;
+        containedBlocks.push(blk);
+      }
+    }
+
+    // Classify wires
+    var internalWires = [];
+    var boundaryInWires = []; // frame port → contained block
+    var boundaryOutWires = []; // contained block → frame port
+    var frameToFrameWires = []; // direct inner port → inner port
+    for (var w in graph.wires) {
+      var wire = graph.wires[w];
+      var srcIsFrame = wire.source.block === genBlock.id;
+      var tgtIsFrame = wire.target.block === genBlock.id;
+
+      if (srcIsFrame && tgtIsFrame) {
+        // Direct frame-to-frame connection (inner port passthrough)
+        frameToFrameWires.push(wire);
+        wire._genInternal = true;
+      } else if (srcIsFrame && containedIds[wire.target.block]) {
+        boundaryInWires.push(wire);
+        wire._genInternal = true;
+      } else if (containedIds[wire.source.block] && tgtIsFrame) {
+        boundaryOutWires.push(wire);
+        wire._genInternal = true;
+      } else if (
+        containedIds[wire.source.block] &&
+        containedIds[wire.target.block]
+      ) {
+        internalWires.push(wire);
+        wire._genInternal = true;
+      }
+    }
+
+    // Build virtual sub-project for the inner iteration module
+    var subBlocks = JSON.parse(JSON.stringify(containedBlocks));
+    var subWires = JSON.parse(JSON.stringify(internalWires));
+
+    var portIdx = 0;
+    // Maps: frame port name → { digest, iterSize } for inner module connections
+    var iterInMap = {};
+    var iterOutMap = {};
+
+    for (var bi in boundaryInWires) {
+      var bwIn = boundaryInWires[bi];
+      var inPName = (bwIn.source.port || '')
+        .replace(/-ext$/, '')
+        .replace(/-int$/, '');
+      var inputBlockId = '_gen_input_' + portIdx;
+      subBlocks.push({
+        id: inputBlockId,
+        type: ctx.blocks.BASIC_INPUT,
+        data: {
+          name: inPName,
+          virtual: true,
+          pins: [{ index: '0', value: '0' }],
+        },
+        position: { x: genRect.x, y: genRect.y + portIdx * 50 },
+      });
+      subWires.push({
+        source: { block: inputBlockId, port: 'out' },
+        target: { block: bwIn.target.block, port: bwIn.target.port },
+        size: bwIn.size,
+      });
+      if (!iterInMap[inPName]) {
+        iterInMap[inPName] = {
+          digest: ctx.utils.digestId(inputBlockId),
+          iterSize: bwIn.size || 1,
+        };
+      }
+      portIdx++;
+    }
+
+    for (var bo in boundaryOutWires) {
+      var bwOut = boundaryOutWires[bo];
+      var outPName = (bwOut.target.port || '')
+        .replace(/-ext$/, '')
+        .replace(/-int$/, '');
+      var outputBlockId = '_gen_output_' + portIdx;
+      subBlocks.push({
+        id: outputBlockId,
+        type: ctx.blocks.BASIC_OUTPUT,
+        data: {
+          name: outPName,
+          virtual: true,
+          pins: [{ index: '0', value: '0' }],
+        },
+        position: {
+          x: genRect.x + genRect.width,
+          y: genRect.y + portIdx * 50,
+        },
+      });
+      subWires.push({
+        source: { block: bwOut.source.block, port: bwOut.source.port },
+        target: { block: outputBlockId, port: 'in' },
+        size: bwOut.size,
+      });
+      if (!iterOutMap[outPName]) {
+        iterOutMap[outPName] = {
+          digest: ctx.utils.digestId(outputBlockId),
+          iterSize: bwOut.size || 1,
+        };
+      }
+      portIdx++;
+    }
+
+    // Handle frame-to-frame wires (direct inner port passthrough)
+    for (var ff in frameToFrameWires) {
+      var ffWire = frameToFrameWires[ff];
+      var ffInName = (ffWire.source.port || '')
+        .replace(/-ext$/, '')
+        .replace(/-int$/, '');
+      var ffOutName = (ffWire.target.port || '')
+        .replace(/-ext$/, '')
+        .replace(/-int$/, '');
+
+      var ffInputBlockId = '_gen_input_' + portIdx;
+      subBlocks.push({
+        id: ffInputBlockId,
+        type: ctx.blocks.BASIC_INPUT,
+        data: {
+          name: ffInName,
+          virtual: true,
+          pins: [{ index: '0', value: '0' }],
+        },
+        position: { x: genRect.x, y: genRect.y + portIdx * 50 },
+      });
+      if (!iterInMap[ffInName]) {
+        iterInMap[ffInName] = {
+          digest: ctx.utils.digestId(ffInputBlockId),
+          iterSize: ffWire.size || 1,
+        };
+      }
+      portIdx++;
+
+      var ffOutputBlockId = '_gen_output_' + portIdx;
+      subBlocks.push({
+        id: ffOutputBlockId,
+        type: ctx.blocks.BASIC_OUTPUT,
+        data: {
+          name: ffOutName,
+          virtual: true,
+          pins: [{ index: '0', value: '0' }],
+        },
+        position: {
+          x: genRect.x + genRect.width,
+          y: genRect.y + portIdx * 50,
+        },
+      });
+      subWires.push({
+        source: { block: ffInputBlockId, port: 'out' },
+        target: { block: ffOutputBlockId, port: 'in' },
+        size: ffWire.size,
+      });
+      if (!iterOutMap[ffOutName]) {
+        iterOutMap[ffOutName] = {
+          digest: ctx.utils.digestId(ffOutputBlockId),
+          iterSize: ffWire.size || 1,
+        };
+      }
+      portIdx++;
+    }
+
+    // Compile inner iteration module
+    var subProject = {
+      design: {
+        graph: {
+          blocks: subBlocks,
+          wires: subWires,
+        },
+      },
+      dependencies: {}, // Empty — parent already emits dependency modules
+    };
+    var innerCode = verilogCompiler(iterName, subProject);
+
+    // --- Build wrapper frame module ---
+    // Frame ports: use actual wire sizes from boundary, not portData sizes
+    var framePorts = { in: [], out: [] };
+
+    for (var fpi in portData.in) {
+      var fip = portData.in[fpi];
+      var fipGenMode = fip.genMode || 'direct';
+      var fipTotal;
+      if (iterInMap[fip.name]) {
+        var fipIterSize = iterInMap[fip.name].iterSize;
+        fipTotal = fipGenMode === 'iterable' ? fipIterSize * m : fipIterSize;
+      } else {
+        // No boundary wire — use portData size as total
+        fipTotal = fip.size || 1;
+      }
+      framePorts.in.push({
+        name: fip.name,
+        range: fipTotal > 1 ? '[' + (fipTotal - 1) + ':0]' : '',
+      });
+    }
+
+    for (var fpo in portData.out) {
+      var fop = portData.out[fpo];
+      var fopGenMode = fop.genMode || 'iterative';
+      var fopTotal;
+      if (iterOutMap[fop.name]) {
+        var fopIterSize = iterOutMap[fop.name].iterSize;
+        if (fopGenMode === 'iterative') {
+          fopTotal = fopIterSize * m;
+        } else {
+          // muxed/or: output is reduced to per-iteration size
+          fopTotal = fopIterSize;
+        }
+      } else {
+        // No boundary wire — use portData size as total
+        fopTotal = fop.size || 1;
+      }
+      framePorts.out.push({
+        name: fop.name,
+        range: fopTotal > 1 ? '[' + (fopTotal - 1) + ':0]' : '',
+      });
+    }
+
+    // Add mux select input ports for muxed outputs
+    var muxSelWidth = Math.ceil(Math.log2(m));
+    if (muxSelWidth < 1) {
+      muxSelWidth = 1;
+    }
+    for (var fpm in portData.out) {
+      var fmp = portData.out[fpm];
+      if ((fmp.genMode || 'iterative') === 'muxed') {
+        var selRange = muxSelWidth > 1 ? '[' + (muxSelWidth - 1) + ':0]' : '';
+        framePorts.in.push({
+          name: fmp.name + '_sel',
+          range: selRange,
+        });
+      }
+    }
+
+    // Generate wrapper module content
+    var lines = [];
+
+    // Internal wires for muxed/or reduction
+    for (var pmx in portData.out) {
+      var mxP = portData.out[pmx];
+      var mxMode = mxP.genMode || 'iterative';
+      if (mxMode === 'muxed' || mxMode === 'or') {
+        var mxIterSize = iterOutMap[mxP.name]
+          ? iterOutMap[mxP.name].iterSize
+          : mxP.size || 1;
+        var mxTotal = mxIterSize * m;
+        var mxRange = mxTotal > 1 ? ' [' + (mxTotal - 1) + ':0]' : '';
+        lines.push('wire' + mxRange + ' ' + mxP.name + '_all;');
+      }
+    }
+
+    // Genvar + generate-for
+    lines.push('genvar ' + genVarName + ';');
+    lines.push('generate');
+    lines.push(
+      '  for (' +
+        genVarName +
+        ' = 0; ' +
+        genVarName +
+        ' < ' +
+        m +
+        '; ' +
+        genVarName +
+        ' = ' +
+        genVarName +
+        ' + 1) begin : ' +
+        genLabel
+    );
+
+    // Inner iteration module instantiation
+    var instPorts = [];
+
+    for (var ipi in portData.in) {
+      var iip = portData.in[ipi];
+      var iipMap = iterInMap[iip.name];
+      if (!iipMap) {
+        continue;
+      }
+      var iipGenMode = iip.genMode || 'direct';
+      var iipIterSize = iipMap.iterSize;
+
+      if (iipGenMode === 'direct') {
+        instPorts.push('    .' + iipMap.digest + '(' + iip.name + ')');
+      } else {
+        if (iipIterSize > 1) {
+          instPorts.push(
+            '    .' +
+              iipMap.digest +
+              '(' +
+              iip.name +
+              '[' +
+              genVarName +
+              '*' +
+              iipIterSize +
+              ' +: ' +
+              iipIterSize +
+              '])'
+          );
+        } else {
+          instPorts.push(
+            '    .' + iipMap.digest + '(' + iip.name + '[' + genVarName + '])'
+          );
+        }
+      }
+    }
+
+    for (var ipo in portData.out) {
+      var iop = portData.out[ipo];
+      var iopMap = iterOutMap[iop.name];
+      if (!iopMap) {
+        continue;
+      }
+      var iopGenMode = iop.genMode || 'iterative';
+      var iopIterSize = iopMap.iterSize;
+      var targetWire =
+        iopGenMode === 'iterative' ? iop.name : iop.name + '_all';
+
+      if (iopIterSize > 1) {
+        instPorts.push(
+          '    .' +
+            iopMap.digest +
+            '(' +
+            targetWire +
+            '[' +
+            genVarName +
+            '*' +
+            iopIterSize +
+            ' +: ' +
+            iopIterSize +
+            '])'
+        );
+      } else {
+        instPorts.push(
+          '    .' + iopMap.digest + '(' + targetWire + '[' + genVarName + '])'
+        );
+      }
+    }
+
+    lines.push('    ' + iterName + ' u_' + genLabel + ' (');
+    lines.push(instPorts.join(',\n'));
+    lines.push('    );');
+    lines.push('  end');
+    lines.push('endgenerate');
+
+    // Post-generate reduction logic
+    for (var pf in portData.out) {
+      var fp = portData.out[pf];
+      var fpMode = fp.genMode || 'iterative';
+      if (fpMode === 'muxed') {
+        lines.push('//-- Mux for ' + fp.name);
+        var fpIterSize = iterOutMap[fp.name]
+          ? iterOutMap[fp.name].iterSize
+          : fp.size || 1;
+        if (fpIterSize > 1) {
+          lines.push(
+            'assign ' +
+              fp.name +
+              ' = ' +
+              fp.name +
+              '_all[' +
+              fp.name +
+              '_sel * ' +
+              fpIterSize +
+              ' +: ' +
+              fpIterSize +
+              '];'
+          );
+        } else {
+          lines.push(
+            'assign ' + fp.name + ' = ' + fp.name + '_all[' + fp.name + '_sel];'
+          );
+        }
+      } else if (fpMode === 'or') {
+        lines.push('//-- OR-reduce for ' + fp.name);
+        lines.push('assign ' + fp.name + ' = |' + fp.name + '_all;');
+      }
+    }
+
+    // Build frame module
+    var frameData = {
+      name: frameName,
+      params: [],
+      ports: framePorts,
+      content: lines.join('\n'),
+    };
+
+    var code = '\n//-- Generated frame: ' + genLabel + '\n';
+    code += ctx.module(frameData);
+    code += innerCode;
+    return code;
+  }
+
+  //-------------------------------------------------------------------
+  //-- Check if a block's bounding rect is inside a given rectangle
+  //-------------------------------------------------------------------
+  function isBlockInsideRect(block, rect) {
+    if (!block.position || !block.size) {
+      return false;
+    }
+    return (
+      block.position.x >= rect.x &&
+      block.position.y >= rect.y &&
+      block.position.x + block.size.width <= rect.x + rect.width &&
+      block.position.y + block.size.height <= rect.y + rect.height
+    );
   }
 
   return {

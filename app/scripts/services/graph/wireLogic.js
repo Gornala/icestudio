@@ -367,7 +367,9 @@ window._icegraph.wireLogic = function (ctx) {
     var portId = magnetT.getAttribute('port');
     var sourcePortId = magnetS.getAttribute('port') ?? false;
     var tLeftPorts = cellViewT.model.get('leftPorts');
+    var tRightPorts = cellViewT.model.get('rightPorts');
     var sRightPorts = cellViewS.model.get('rightPorts');
+    var sLeftPorts = cellViewS.model.get('leftPorts');
     var isParametric = false;
     var tport = false;
     for (i in tLeftPorts) {
@@ -375,6 +377,16 @@ window._icegraph.wireLogic = function (ctx) {
       if (portId === tport.id) {
         tsize = tport.size;
         break;
+      }
+    }
+    // Also check rightPorts for target (Generate frame inner-right ports are inputs)
+    if (!tsize && tRightPorts) {
+      for (i in tRightPorts) {
+        tport = tRightPorts[i];
+        if (portId === tport.id) {
+          tsize = tport.size;
+          break;
+        }
       }
     }
     // Could be parametric
@@ -385,6 +397,16 @@ window._icegraph.wireLogic = function (ctx) {
         if (sourcePortId === sport.id) {
           lsize = sport.size;
           break;
+        }
+      }
+      // Also check leftPorts for source (Generate frame inner-left ports are outputs)
+      if (!sport && sLeftPorts) {
+        for (i in sLeftPorts) {
+          sport = sLeftPorts[i];
+          if (sourcePortId === sport.id) {
+            lsize = sport.size;
+            break;
+          }
         }
       }
 

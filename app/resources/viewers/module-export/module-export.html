@@ -283,6 +283,21 @@
           }
         };
 
+        // Close this popup when the main window closes
+        nw.Window.getAll(function (wins) {
+          for (var i = 0; i < wins.length; i++) {
+            if (
+              wins[i].window &&
+              typeof wins[i].window.icestudioReceiveCodeSave === 'function'
+            ) {
+              wins[i].on('close', function () {
+                myNWWin.close(true);
+              });
+              break;
+            }
+          }
+        });
+
         verifyBtn.addEventListener('click', function () {
           verifyBtn.disabled = true;
           showOk('Verifying...');

@@ -19,7 +19,8 @@
 .joint-type-ice-output,
 .joint-type-ice-input,
 .joint-type-ice-jsoninput,
-.joint-type-ice-jsonoutput {
+.joint-type-ice-jsonoutput,
+.joint-type-ice-generate {
   .body {
     width: 1px;
     height: 1px;
@@ -53,6 +54,12 @@
     stroke-width: var(--wire-width);
   }
 } /* .joint-type-ice-generic*/
+
+/* Generate frame: make interior click-through so contained blocks are accessible */
+.joint-type-ice-generate .body {
+  fill: none;
+  pointer-events: none;
+}
 
 .wire-bus {
   stroke-width: var(--wire-bus-width, 1);

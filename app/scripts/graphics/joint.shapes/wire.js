@@ -109,7 +109,8 @@ joint.shapes.ice.WireView = joint.dia.LinkView.extend({
       var size = this.model.get('size');
 
       if (!size) {
-        // New wire
+        // New wire — find source port size from rightPorts or leftPorts
+        // (Generate frame inner-left ports are magnets in leftPorts)
         var i,
           port,
           portName = this.model.get('source').port;
@@ -120,6 +121,17 @@ joint.shapes.ice.WireView = joint.dia.LinkView.extend({
             size = port.size;
             this.model.attributes.size = size;
             break;
+          }
+        }
+        if (!size) {
+          var leftPorts = this.sourceView.model.get('leftPorts');
+          for (i in leftPorts) {
+            port = leftPorts[i];
+            if (portName === port.id) {
+              size = port.size;
+              this.model.attributes.size = size;
+              break;
+            }
           }
         }
       }
