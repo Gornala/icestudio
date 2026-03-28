@@ -410,6 +410,10 @@ cells.sort((a, b) => {
         $scope.lp.tab = tab;
       };
 
+      $scope.lp.addGenerate = function () {
+        project.addBasicBlock('basic.generate');
+      };
+
       //----------------------------------------------------------------
       //-- Right Panel
       //----------------------------------------------------------------
