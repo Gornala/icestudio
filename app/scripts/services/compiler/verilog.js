@@ -1127,6 +1127,13 @@ window._icecompiler.verilog = function (ctx) {
       }
     }
 
+    // Add iterator (genvar) port if connected inside the frame
+    if (iterInMap['gen_i']) {
+      instPorts.push(
+        '    .' + iterInMap['gen_i'].digest + '(' + genVarName + ')'
+      );
+    }
+
     lines.push('    ' + iterName + ' u_' + genLabel + ' (');
     lines.push(instPorts.join(',\n'));
     lines.push('    );');

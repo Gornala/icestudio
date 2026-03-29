@@ -13,7 +13,7 @@ joint.shapes.ice.Generate = joint.shapes.ice.Model.extend({
              </g>\
              <g class="leftPorts"/>\
              <g class="rightPorts"/>\
-             <g class="topPorts disable-port"/>\
+             <g class="topPorts"/>\
              <g class="bottomPorts"/>\
            </g>',
   defaults: joint.util.deepSupplement(
@@ -74,7 +74,9 @@ joint.shapes.ice.Generate = joint.shapes.ice.Model.extend({
     // Outer left ports are inputs (receive wires from external blocks)
     // Outer right ports are outputs (source wires to external blocks)
     var isMagnet;
-    if (type === 'left') {
+    if (type === 'top') {
+      isMagnet = true; // iterator port is always an output
+    } else if (type === 'left') {
       isMagnet = isInner; // inner-left = output (true), outer-left = input (false)
     } else {
       isMagnet = !isInner; // outer-right = output (true), inner-right = input (false)
@@ -83,7 +85,9 @@ joint.shapes.ice.Generate = joint.shapes.ice.Model.extend({
     // Inner ports swap pos so validateConnection directional rules work:
     // inner-left acts as output (pos='right'), inner-right acts as input (pos='left')
     var portPos;
-    if (isInner) {
+    if (type === 'top') {
+      portPos = 'right'; // iterator acts as output
+    } else if (isInner) {
       portPos = type === 'left' ? 'right' : 'left';
     } else {
       portPos = type;
@@ -134,6 +138,17 @@ joint.shapes.ice.Generate = joint.shapes.ice.Model.extend({
         attrs[portLabelSelector]['text-anchor'] = 'start';
         attrs[portWireSelector]['d'] = 'M 0 0 L -16 0';
       }
+    } else if (type === 'top') {
+      // Iterator port: inside frame, below the 32px HTML header overlay
+      // Label rendered horizontally (no rotation) so it's fully readable
+      attrs[portSelector]['ref-y'] = 44;
+      attrs[portSelector]['ref-x'] = position;
+      attrs[portLabelSelector]['dx'] = 10;
+      attrs[portLabelSelector]['y'] = 4;
+      attrs[portLabelSelector]['text-anchor'] = 'start';
+      attrs[portWireSelector]['x'] = position;
+      attrs[portWireSelector]['d'] = 'M 0 0 L 0 -8';
+      attrs[portBodySelector]['port']['fill'] = '#f39c12';
     }
 
     this._portSelectors = this._portSelectors || [];

@@ -141,6 +141,20 @@ window._iceblockforms.generateForms = function (ctx) {
       }
     }
 
+    // Iterator constant output on top of frame
+    var topPorts = [];
+    var iterWidth = Math.ceil(Math.log2(m));
+    if (iterWidth < 1) {
+      iterWidth = 1;
+    }
+    var iterRange = iterWidth > 1 ? '[' + (iterWidth - 1) + ':0]' : '';
+    topPorts.push({
+      id: 'gen_i-int',
+      name: 'gen_i-int',
+      label: 'i' + iterRange,
+      size: iterWidth,
+    });
+
     var cell = new ctx.joint.shapes.ice.Generate({
       id: instance.id,
       blockType: instance.type,
@@ -150,7 +164,7 @@ window._iceblockforms.generateForms = function (ctx) {
       disabled: disabled,
       leftPorts: leftPorts,
       rightPorts: rightPorts,
-      topPorts: [],
+      topPorts: topPorts,
     });
 
     return cell;
