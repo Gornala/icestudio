@@ -318,6 +318,44 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
       }
     });
 
+    // Highlight already-used pins in the dropdown when it opens
+    selector.on('select2:open', function (event) {
+      var selectId = event.target.id;
+      setTimeout(function () {
+        var $ul = $('#select2-' + selectId + '-results');
+        if (!$ul.length) {
+          return;
+        }
+
+        function applyHighlights() {
+          $ul.children('.select2-results__option').each(function () {
+            var optData = $(this).data('data');
+            if (
+              optData &&
+              optData.id &&
+              window._icePinsInUse &&
+              window._icePinsInUse[optData.id]
+            ) {
+              $(this).addClass('pin-already-used');
+            } else {
+              $(this).removeClass('pin-already-used');
+            }
+          });
+        }
+
+        applyHighlights();
+
+        // Re-apply after every search-filter re-render via MutationObserver
+        if (window.MutationObserver) {
+          var observer = new MutationObserver(applyHighlights);
+          observer.observe($ul[0], { childList: true });
+          $(event.target).one('select2:close', function () {
+            observer.disconnect();
+          });
+        }
+      }, 0);
+    });
+
     this.updateBox();
 
     this.updating = false;
@@ -436,6 +474,9 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
         }
       }
     }
+
+    // Keep global map current so dropdown highlighting is always fresh
+    window._icePinsInUse = pinValueCount;
 
     // Apply or remove duplicate indicator on each pin selector in this block
     var pins = data.pins;

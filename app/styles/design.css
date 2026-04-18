@@ -484,8 +484,8 @@ g {
 
 /* Duplicate pin warning */
 .select2-container.pin-duplicate .select2-selection {
-  border: 1px solid #d32f2f !important;
-  box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.28) !important;
+  border: 2px solid #d32f2f !important;
+  box-shadow: 0 0 0 2px #d32f2f !important;
 }
 
 .select2-container.pin-duplicate:hover .select2-selection {
@@ -501,6 +501,15 @@ g {
 .bigdrop {
   font-size: 13px;
   width: auto !important;
+}
+
+/* Already-used pin options in the dropdown */
+.select2-results__option.pin-already-used {
+  background-color: #dceefb !important;
+}
+
+.select2-results__option.pin-already-used.select2-results__option--highlighted {
+  background-color: #90caf9 !important;
 }
 
 .constant-block {
