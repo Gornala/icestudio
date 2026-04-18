@@ -732,9 +732,26 @@ angular
       this.update = function (opt, callback) {
         let graphData = graph.toJSON();
         let p = utils.cellsToProject(graphData.cells, opt);
-        project.design.board = p.design.board;
-        project.design.graph = p.design.graph;
-        project.dependencies = p.dependencies;
+
+        if (subModuleActive) {
+          // We're editing a submodule — update its dependency entry, not the
+          // top-level design (which would corrupt the parent on back-navigation).
+          var crumbs = graph.breadcrumbs;
+          var blockType =
+            crumbs.length > 0 ? crumbs[crumbs.length - 1].type : null;
+          if (blockType) {
+            if (common.allDependencies[blockType]) {
+              common.allDependencies[blockType].design.graph = p.design.graph;
+            }
+            if (project.dependencies && project.dependencies[blockType]) {
+              project.dependencies[blockType].design.graph = p.design.graph;
+            }
+          }
+        } else {
+          project.design.board = p.design.board;
+          project.design.graph = p.design.graph;
+          project.dependencies = p.dependencies;
+        }
 
         if (
           subModuleActive &&
