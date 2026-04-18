@@ -837,7 +837,7 @@ window._icecompiler.verilog = function (ctx) {
       var inPName = (bwIn.source.port || '')
         .replace(/-ext$/, '')
         .replace(/-int$/, '');
-      var inputBlockId = '_gen_input_' + portIdx;
+      var inputBlockId = 'gen-input-' + portIdx;
       subBlocks.push({
         id: inputBlockId,
         type: ctx.blocks.BASIC_INPUT,
@@ -867,7 +867,7 @@ window._icecompiler.verilog = function (ctx) {
       var outPName = (bwOut.target.port || '')
         .replace(/-ext$/, '')
         .replace(/-int$/, '');
-      var outputBlockId = '_gen_output_' + portIdx;
+      var outputBlockId = 'gen-output-' + portIdx;
       subBlocks.push({
         id: outputBlockId,
         type: ctx.blocks.BASIC_OUTPUT,
@@ -905,7 +905,7 @@ window._icecompiler.verilog = function (ctx) {
         .replace(/-ext$/, '')
         .replace(/-int$/, '');
 
-      var ffInputBlockId = '_gen_input_' + portIdx;
+      var ffInputBlockId = 'gen-input-' + portIdx;
       subBlocks.push({
         id: ffInputBlockId,
         type: ctx.blocks.BASIC_INPUT,
@@ -924,7 +924,7 @@ window._icecompiler.verilog = function (ctx) {
       }
       portIdx++;
 
-      var ffOutputBlockId = '_gen_output_' + portIdx;
+      var ffOutputBlockId = 'gen-output-' + portIdx;
       subBlocks.push({
         id: ffOutputBlockId,
         type: ctx.blocks.BASIC_OUTPUT,
