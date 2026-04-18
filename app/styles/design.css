@@ -482,6 +482,16 @@ g {
   border: 1px solid #aaa;
 }
 
+/* Duplicate pin warning */
+.select2-container.pin-duplicate .select2-selection {
+  border: 1px solid #d32f2f !important;
+  box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.28) !important;
+}
+
+.select2-container.pin-duplicate:hover .select2-selection {
+  border-color: #b71c1c !important;
+}
+
 .select2-dropdown .select2-search__field {
   outline: none;
   border-radius: 3px;

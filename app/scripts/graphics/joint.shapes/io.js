@@ -330,6 +330,18 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
     this.applyShape();
     this.applyClock();
     this.setupLeftResizer();
+
+    // Listen for any data change across the graph to recheck pin duplicates
+    if (this.model.graph) {
+      this._graphRef = this.model.graph;
+      this._boundCheckDuplicatePins = this.checkDuplicatePins.bind(this);
+      this._graphRef.on('change:data', this._boundCheckDuplicatePins);
+      // Defer initial check so all blocks are in the graph first
+      var self2 = this;
+      setTimeout(function () {
+        self2.checkDuplicatePins();
+      }, 0);
+    }
   },
 
   setupLeftResizer: function () {
@@ -395,6 +407,62 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
     data.customWidth = self.model.get('size').width;
     self.model.set('data', data, { silent: true });
     self.model.graph.trigger('batch:stop');
+  },
+
+  checkDuplicatePins: function () {
+    var data = this.model.get('data');
+    if (
+      !data ||
+      !data.pins ||
+      data.virtual ||
+      this.model.get('disabled') ||
+      !this.model.graph
+    ) {
+      return;
+    }
+
+    // Count how many times each physical pin value is used across all IO blocks
+    var pinValueCount = {};
+    var cells = this.model.graph.getCells();
+    for (var ci = 0; ci < cells.length; ci++) {
+      var cellData = cells[ci].get('data');
+      if (!cellData || !cellData.pins || cellData.virtual) {
+        continue;
+      }
+      for (var pi = 0; pi < cellData.pins.length; pi++) {
+        var pv = cellData.pins[pi].value;
+        if (pv && pv !== '0') {
+          pinValueCount[pv] = (pinValueCount[pv] || 0) + 1;
+        }
+      }
+    }
+
+    // Apply or remove duplicate indicator on each pin selector in this block
+    var pins = data.pins;
+    for (var i = 0; i < pins.length; i++) {
+      var pin = pins[i];
+      var $select = this.$box.find('#combo' + this.id + pin.index);
+      var $container = $select.next('.select2-container');
+      if (!$container.length) {
+        continue;
+      }
+      var count =
+        pin.value && pin.value !== '0' ? pinValueCount[pin.value] || 0 : 0;
+      if (count > 1) {
+        $container.addClass('pin-duplicate');
+        $container.attr(
+          'title',
+          'Pin "' +
+            (pin.name || pin.value) +
+            '" is already used ' +
+            count +
+            ' times in this design'
+        );
+      } else {
+        $container.removeClass('pin-duplicate');
+        $container.removeAttr('title');
+      }
+    }
   },
 
   applyChoices: function () {
@@ -551,6 +619,9 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
     //console.log('removeBox');
     $(document).off('mousemove.ioresize');
     $(document).off('mouseup.ioresize');
+    if (this._graphRef && this._boundCheckDuplicatePins) {
+      this._graphRef.off('change:data', this._boundCheckDuplicatePins);
+    }
     // Close select options on remove
     this.$box.find('select').select2('close');
     this.$box.remove();
