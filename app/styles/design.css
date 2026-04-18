@@ -398,6 +398,21 @@ g {
   padding: 2px 4px 2px 0;
 }
 
+.io-block .io-fpga-content.multi-pin .fpga-row label {
+  display: none;
+}
+
+.io-block .io-fpga-content .fpga-pins .fpga-pin-name {
+  font-size: 12px;
+  color: #222;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
 .io-block .io-fpga-content .fpga-pins .select2 {
   position: relative;
   width: 100% !important;

@@ -85,8 +85,7 @@ joint.shapes.ice.IO = joint.shapes.ice.Model.extend({
         blockName.length > 0 ? context.measureText(blockName).width : 0;
       newWidth = Math.round(Math.max(textWidth + 50, minW, customWidth));
     } else {
-      // FPGA mode: name section + pin-selector section side by side
-      const nameAreaW = Math.round(context.measureText(blockName).width) + 16;
+      const multiPin = pins.length > 1;
       let maxPinW = 0;
       for (let i in pins) {
         if (pins[i].name) {
@@ -95,9 +94,21 @@ joint.shapes.ice.IO = joint.shapes.ice.Model.extend({
         }
       }
       const pinAreaW = Math.max(Math.round(maxPinW) + 24, 55);
-      newWidth = Math.round(
-        Math.max(nameAreaW + pinAreaW + 2, minW, customWidth)
-      );
+      if (multiPin) {
+        // FPGA multi-pin: name shown above dropdowns, arrow on left
+        const fullName = blockName + (data.range || '');
+        const nameW = Math.round(context.measureText(fullName).width) + 16;
+        const arrowW = 16;
+        newWidth = Math.round(
+          Math.max(arrowW + Math.max(nameW, pinAreaW), minW, customWidth)
+        );
+      } else {
+        // FPGA single-pin: name section + pin-selector side by side
+        const nameAreaW = Math.round(context.measureText(blockName).width) + 16;
+        newWidth = Math.round(
+          Math.max(nameAreaW + pinAreaW + 2, minW, customWidth)
+        );
+      }
     }
 
     this.resize(newWidth, this.size().height);
@@ -212,8 +223,12 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
     let selectScript = '';
     let data = this.model.get('data');
     let name = data.name + (data.range || '');
+    let multiPin = data.pins && data.pins.length > 1;
 
     if (data.pins) {
+      if (multiPin) {
+        selectCode += '<label class="fpga-pin-name">' + name + '</label>';
+      }
       for (var i in data.pins) {
         selectCode += '<select id="' + comboId + data.pins[i].index + '"';
         selectCode += 'class="select2" i="' + i + '">';
@@ -259,6 +274,7 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
         </div>\
         <div class="io-fpga-content' +
           (virtual ? ' hidden' : '') +
+          (multiPin ? ' multi-pin' : '') +
           '">\
           <div class="fpga-row">\
             <label>' +
