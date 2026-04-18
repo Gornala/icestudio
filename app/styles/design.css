@@ -447,6 +447,36 @@ g {
   color: #777;
 }
 
+.io-block .io-resize-handle-left {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.io-block .io-resize-handle-left::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 15%;
+  width: 3px;
+  height: 70%;
+  background: rgba(30, 120, 220, 0.18);
+  border-radius: 2px;
+  transition:
+    background 0.15s,
+    width 0.1s;
+}
+
+.io-block .io-resize-handle-left:hover::after {
+  background: rgba(30, 120, 220, 0.55);
+  width: 4px;
+}
+
 .select2-container--default .select2-selection--single {
   outline: none;
   border: 1px solid #aaa;

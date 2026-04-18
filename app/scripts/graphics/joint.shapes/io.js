@@ -59,34 +59,48 @@ joint.shapes.ice.IO = joint.shapes.ice.Model.extend({
   },
 
   updateSize: function () {
-    let name = this.get('data').name;
+    const data = this.get('data');
     const blockType = this.get('blockType') || '';
     const isLabel =
       blockType === 'basic.inputLabel' ||
       blockType === 'basic.outputLabel' ||
       blockType === 'basic.pairedLabel';
     const fontSize = isLabel ? 12 : 14;
+    const minW = isLabel ? 64 : 96;
+    const customWidth = data.customWidth || 0;
+    const blockName = data.name || '';
+    const pins = data.pins || [];
+    const isVirtual = data.virtual;
 
-    const pins = this.get('data').pins;
+    const context = document.createElement('canvas').getContext('2d');
+    context.font = `${fontSize}px Monaco`;
 
-    if (!isLabel) {
+    let newWidth;
+    if (isLabel) {
+      const textWidth =
+        blockName.length > 0 ? context.measureText(blockName).width : 0;
+      newWidth = Math.round(Math.max(textWidth + 60, minW, customWidth));
+    } else if (isVirtual) {
+      const textWidth =
+        blockName.length > 0 ? context.measureText(blockName).width : 0;
+      newWidth = Math.round(Math.max(textWidth + 50, minW, customWidth));
+    } else {
+      // FPGA mode: name section + pin-selector section side by side
+      const nameAreaW = Math.round(context.measureText(blockName).width) + 16;
+      let maxPinW = 0;
       for (let i in pins) {
-        name =
-          pins[i].name !== null && pins[i].name.length > name.length
-            ? pins[i].name
-            : name;
+        if (pins[i].name) {
+          const pw = context.measureText(pins[i].name).width;
+          if (pw > maxPinW) maxPinW = pw;
+        }
       }
+      const pinAreaW = Math.max(Math.round(maxPinW) + 24, 55);
+      newWidth = Math.round(
+        Math.max(nameAreaW + pinAreaW + 2, minW, customWidth)
+      );
     }
 
-    if (name.length > 0) {
-      const context = document.createElement('canvas').getContext('2d');
-      context.font = `${fontSize}px Monaco`;
-      const textWidth = context.measureText(name).width;
-      var minW = isLabel ? 64 : 96;
-      var pad = isLabel ? 60 : 50;
-      const newWidth = Math.round(Math.max(textWidth + pad, minW));
-      this.resize(newWidth, this.size().height);
-    }
+    this.resize(newWidth, this.size().height);
   },
 });
 
@@ -250,6 +264,7 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
           selectScript +
           '</script>\
         </div>\
+        <div class="io-resize-handle-left"></div>\
       </div>\
       '
       )()
@@ -314,6 +329,72 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
     }
     this.applyShape();
     this.applyClock();
+    this.setupLeftResizer();
+  },
+
+  setupLeftResizer: function () {
+    if (this.model.get('disabled')) {
+      return;
+    }
+    this.leftResizing = false;
+    this.$leftResizeHandle = this.$box.find('.io-resize-handle-left');
+    this.$leftResizeHandle.on(
+      'mousedown',
+      { self: this },
+      this.startLeftResizing
+    );
+  },
+
+  startLeftResizing: function (event) {
+    event.stopPropagation();
+    var self = event.data.self;
+    self.leftResizing = true;
+    self.model.graph.trigger('batch:start');
+    self._leftResizeStartX = event.clientX;
+    self._leftResizeStartWidth = self.model.get('size').width;
+    self._leftResizeStartPosX = self.model.get('position').x;
+    $(document).on(
+      'mousemove.ioresize',
+      { self: self },
+      self.performLeftResizing
+    );
+    $(document).on('mouseup.ioresize', { self: self }, self.stopLeftResizing);
+  },
+
+  performLeftResizing: function (event) {
+    var self = event.data.self;
+    if (!self.leftResizing) {
+      return;
+    }
+    var state = self.model.get('state');
+    var zoom = state && state.zoom ? state.zoom : 1;
+    var gridstep = 8;
+    var dx_model =
+      Math.round((event.clientX - self._leftResizeStartX) / zoom / gridstep) *
+      gridstep;
+    var newWidth = Math.max(96, self._leftResizeStartWidth - dx_model);
+    var newX =
+      self._leftResizeStartPosX + (self._leftResizeStartWidth - newWidth);
+    self.model.set('size', {
+      width: newWidth,
+      height: self.model.get('size').height,
+    });
+    self.model.set('position', { x: newX, y: self.model.get('position').y });
+  },
+
+  stopLeftResizing: function (event) {
+    var self = event.data.self;
+    if (!self.leftResizing) {
+      return;
+    }
+    self.leftResizing = false;
+    $(document).off('mousemove.ioresize');
+    $(document).off('mouseup.ioresize');
+    // Persist the user's chosen width so auto-size respects it as a floor
+    var data = JSON.parse(JSON.stringify(self.model.get('data')));
+    data.customWidth = self.model.get('size').width;
+    self.model.set('data', data, { silent: true });
+    self.model.graph.trigger('batch:stop');
   },
 
   applyChoices: function () {
@@ -468,6 +549,8 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
   },
   removeBox: function () {
     //console.log('removeBox');
+    $(document).off('mousemove.ioresize');
+    $(document).off('mouseup.ioresize');
     // Close select options on remove
     this.$box.find('select').select2('close');
     this.$box.remove();
