@@ -733,21 +733,13 @@ angular
         let graphData = graph.toJSON();
         let p = utils.cellsToProject(graphData.cells, opt);
 
-        if (subModuleActive) {
-          // We're editing a submodule — update its dependency entry, not the
-          // top-level design (which would corrupt the parent on back-navigation).
-          var crumbs = graph.breadcrumbs;
-          var blockType =
-            crumbs.length > 0 ? crumbs[crumbs.length - 1].type : null;
-          if (blockType) {
-            if (common.allDependencies[blockType]) {
-              common.allDependencies[blockType].design.graph = p.design.graph;
-            }
-            if (project.dependencies && project.dependencies[blockType]) {
-              project.dependencies[blockType].design.graph = p.design.graph;
-            }
-          }
-        } else {
+        if (!subModuleActive) {
+          // Only update the top-level design when we are not inside a submodule
+          // edit session. When subModuleActive is true the graph currently
+          // displayed is the submodule, not the top-level design — overwriting
+          // project.design.graph or common.allDependencies here would corrupt
+          // the parent design. editModeToggle already saves submodule changes
+          // to common.allDependencies when the user exits edit mode.
           project.design.board = p.design.board;
           project.design.graph = p.design.graph;
           project.dependencies = p.dependencies;
