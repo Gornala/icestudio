@@ -110,7 +110,7 @@ window._icecompiler.verilog = function (ctx) {
   function getContent(name, project) {
     var i, j, w;
     var content = [];
-    var graph = project.design.graph;
+    var graph = ctx.utils.clone(project.design.graph);
     var connections = {
       localparam: [],
       wire: [],

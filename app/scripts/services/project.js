@@ -732,9 +732,18 @@ angular
       this.update = function (opt, callback) {
         let graphData = graph.toJSON();
         let p = utils.cellsToProject(graphData.cells, opt);
-        project.design.board = p.design.board;
-        project.design.graph = p.design.graph;
-        project.dependencies = p.dependencies;
+
+        if (!subModuleActive) {
+          // Only update the top-level design when we are not inside a submodule
+          // edit session. When subModuleActive is true the graph currently
+          // displayed is the submodule, not the top-level design — overwriting
+          // project.design.graph or common.allDependencies here would corrupt
+          // the parent design. editModeToggle already saves submodule changes
+          // to common.allDependencies when the user exits edit mode.
+          project.design.board = p.design.board;
+          project.design.graph = p.design.graph;
+          project.dependencies = p.dependencies;
+        }
 
         if (
           subModuleActive &&
