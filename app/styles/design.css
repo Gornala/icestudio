@@ -503,6 +503,19 @@ g {
   width: auto !important;
 }
 
+/* Already-used pin — light blue background in dropdown list */
+.pin-in-use-result {
+  display: block;
+  margin: -6px;
+  padding: 6px;
+  background-color: #dceefb;
+}
+
+.select2-results__option--highlighted .pin-in-use-result {
+  background-color: #90caf9;
+  color: #222;
+}
+
 .constant-block {
   position: absolute;
   pointer-events: none;
