@@ -228,7 +228,16 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
         selectScript += '  params.term = params.term || "";';
         selectScript +=
           '  if (data.text.toUpperCase().indexOf(params.term.toUpperCase()) == 0) { return data; }';
-        selectScript += '  return false; } });';
+        selectScript += '  return false; },';
+        // Highlight already-used pins in the dropdown with light blue background
+        selectScript += 'templateResult: function(opt) {';
+        selectScript += '  if (!opt.id || !opt.element) return opt.text;';
+        selectScript += '  if ($(opt.element).hasClass("pin-in-use")) {';
+        selectScript +=
+          '    return $("<span class=\'pin-in-use-result\'>").text(opt.text);';
+        selectScript += '  }';
+        selectScript += '  return opt.text;';
+        selectScript += '} });';
       }
     }
 
@@ -504,6 +513,22 @@ joint.shapes.ice.IOView = joint.shapes.ice.ModelView.extend({
         $container.removeAttr('title');
       }
     }
+
+    // Mark <option> elements so templateResult can highlight them in the dropdown.
+    // Uses count >= 1 so every assigned pin is visible as taken.
+    var self = this;
+    this.$box.find('.select2').each(function () {
+      $(this)
+        .find('option')
+        .each(function () {
+          var val = $(this).val();
+          if (val && val !== '0' && pinValueCount[val]) {
+            $(this).addClass('pin-in-use');
+          } else {
+            $(this).removeClass('pin-in-use');
+          }
+        });
+    });
   },
 
   applyChoices: function () {

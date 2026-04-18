@@ -503,13 +503,17 @@ g {
   width: auto !important;
 }
 
-/* Already-used pin options in the dropdown */
-.select2-results__option.pin-already-used {
-  background-color: #dceefb !important;
+/* Already-used pin — light blue background in dropdown list */
+.pin-in-use-result {
+  display: block;
+  margin: -6px;
+  padding: 6px;
+  background-color: #dceefb;
 }
 
-.select2-results__option.pin-already-used.select2-results__option--highlighted {
-  background-color: #90caf9 !important;
+.select2-results__option--highlighted .pin-in-use-result {
+  background-color: #90caf9;
+  color: #222;
 }
 
 .constant-block {
