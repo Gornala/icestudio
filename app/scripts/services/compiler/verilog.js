@@ -308,12 +308,10 @@ window._icecompiler.verilog = function (ctx) {
 
     // Block instances
 
-    content = content.concat(getInstances(name, project.design.graph));
+    content = content.concat(getInstances(name, graph));
 
     // Generate-for instantiations
-    content = content.concat(
-      getGenerateInstances(name, project.design.graph, graph.wires)
-    );
+    content = content.concat(getGenerateInstances(name, graph, graph.wires));
 
     // Restore original graph
     // delete temporal wires
