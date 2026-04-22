@@ -653,6 +653,16 @@ window._icegraph.interactions = function (ctx) {
           );
           var moduleName = rawName || 'ice_code_module';
 
+          if (
+            ctx.service.breadcrumbs.length > 1 &&
+            ctx.common.isEditingSubmodule !== true
+          ) {
+            alertify.warning(
+              'Cannot open code editor inside a write-protected submodule. Unlock it for editing first.'
+            );
+            break;
+          }
+
           var configObj = {
             mode: mode,
             blockId: blockId,

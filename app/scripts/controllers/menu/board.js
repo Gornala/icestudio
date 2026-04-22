@@ -340,6 +340,16 @@ window._icemenu.board = {
     //-----------------------------------------------------------------
 
     $scope.verifyCode = function () {
+      if (graph.breadcrumbs.length > 1 && !common.isEditingSubmodule) {
+        alertify.alert(
+          gettextCatalog.getString('Verify'),
+          gettextCatalog.getString(
+            'Cannot verify inside a write-protected submodule. Press <strong>Back</strong> to return to the top-level design.'
+          ),
+          function () {}
+        );
+        return;
+      }
       var startMessage = gettextCatalog.getString('Start verification');
       var endMessage = gettextCatalog.getString('Verification done');
       iceStudio.bus.events.publish('graph:loadJsonInputs');
