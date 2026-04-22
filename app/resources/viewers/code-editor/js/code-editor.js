@@ -288,15 +288,20 @@ function initAceEditors() {
         migrMarkerPos !== -1 &&
         /\$dumpvars/.test(tbContent.substring(0, migrMarkerPos));
       if (!dumpBeforeMarker) {
+        var migrParams = mergeParams(
+          getParams(),
+          parseTestbenchParams(tbContent)
+        );
         var dvMatch = tbContent.match(/\$dumpvars\([^)]*\);\s*\n/);
         if (dvMatch) {
           var stimBody = tbContent.substring(dvMatch.index + dvMatch[0].length);
           tbContent =
-            generateTestbenchHeader() + '\n  initial begin\n\n' + stimBody;
+            generateTestbenchHeader(null, null, migrParams) +
+            '\n  initial begin\n\n' +
+            stimBody;
         } else if (migrMarkerPos !== -1) {
-          // Marker exists but no dump block anywhere — keep user body as-is.
           tbContent =
-            generateTestbenchHeader() +
+            generateTestbenchHeader(null, null, migrParams) +
             tbContent.substring(migrMarkerPos + AUTO_MARKER.length);
         } else {
           tbContent = generateTestbench();
@@ -319,14 +324,75 @@ function sanitizeVerilogId(name) {
 }
 
 // ============================================================
+// Module parameter helpers
+// ============================================================
+
+// Parse #(parameter NAME = VALUE, ...) from a Verilog module declaration.
+// Returns [{name, value}, ...] or [].
+function parseModuleParams(verilogCode) {
+  var m = verilogCode.match(/module\s+\w+\s*#\s*\(([\s\S]*?)\)\s*\(/);
+  if (!m) {
+    return [];
+  }
+  var params = [];
+  var re = /\bparameter\b\s+(?:\w+\s+)?(\w+)\s*=\s*([^,\n)]+)/g;
+  var pm;
+  while ((pm = re.exec(m[1])) !== null) {
+    params.push({ name: pm[1].trim(), value: pm[2].trim() });
+  }
+  return params;
+}
+
+// Parse the existing .NAME(value) entries from the #(...) block in a testbench.
+// Returns {NAME: 'value', ...} so callers can look up current user values.
+function parseTestbenchParams(tbContent) {
+  var m = tbContent.match(/#\s*\(([\s\S]*?)\)\s*dut\s*\(/);
+  if (!m) {
+    return {};
+  }
+  var result = {};
+  var re = /\.(\w+)\s*\(\s*([^)]+?)\s*\)/g;
+  var pm;
+  while ((pm = re.exec(m[1])) !== null) {
+    result[pm[1]] = pm[2].trim();
+  }
+  return result;
+}
+
+// Get the module's parameter list from config.params (if set) or by parsing
+// the DUT code panel.  Returns [{name, value}, ...].
+function getParams() {
+  if (config.params && config.params.length > 0) {
+    return config.params;
+  }
+  var code = codeEditor ? codeEditor.getValue() : config.code || '';
+  return parseModuleParams(code);
+}
+
+// Merge default params with values the user may have edited in the testbench.
+// Any param name present in userValues replaces the default.
+function mergeParams(defaultParams, userValues) {
+  return defaultParams.map(function (p) {
+    return {
+      name: p.name,
+      value: userValues.hasOwnProperty(p.name) ? userValues[p.name] : p.value,
+    };
+  });
+}
+
+// ============================================================
 // Testbench auto-generator
 // ============================================================
 
 // Generates only the auto-managed header (timescale → module instance → marker).
 // The marker line is the split point between auto-generated and user-editable code.
-function generateTestbenchHeader(ports, moduleName) {
+function generateTestbenchHeader(ports, moduleName, params) {
   ports = ports || config.ports || { in: [], out: [] };
   moduleName = sanitizeVerilogId(moduleName || config.moduleName || 'dut');
+  // params undefined → auto-detect; null → force no params; array → use as-is
+  if (params === undefined) {
+    params = getParams();
+  }
   var portsIn = ports.in || [];
   var portsOut = ports.out || [];
   var AUTO_MARKER = '// --- END AUTO-GENERATED --- //';
@@ -357,7 +423,19 @@ function generateTestbenchHeader(ports, moduleName) {
       return '    .' + pname + '(' + pname + ')';
     })
     .join(',\n');
-  lines.push('  ' + moduleName + ' dut (');
+
+  if (params && params.length > 0) {
+    var paramList = params
+      .map(function (p) {
+        return '    .' + p.name + '(' + p.value + ')';
+      })
+      .join(',\n');
+    lines.push('  ' + moduleName + ' #(');
+    lines.push(paramList);
+    lines.push('  ) dut (');
+  } else {
+    lines.push('  ' + moduleName + ' dut (');
+  }
   if (portList) {
     lines.push(portList);
   }
@@ -377,9 +455,10 @@ function generateTestbench() {
   var ports = config.ports || { in: [], out: [] };
   var portsIn = ports.in || [];
   var moduleName = sanitizeVerilogId(config.moduleName || 'dut');
+  var params = getParams();
 
   var lines = [];
-  lines.push(generateTestbenchHeader(ports, moduleName));
+  lines.push(generateTestbenchHeader(ports, moduleName, params));
   lines.push('  initial begin');
   lines.push('');
   portsIn.forEach(function (p) {
@@ -526,12 +605,17 @@ function updateTestbenchHeader() {
       );
     });
   } else {
-    // Block-level testbench: regenerate header from the ports known to this editor session.
-    // Strip any $dumpfile/$dumpvars lines from userBody — they now live in the header.
+    // Block-level testbench: regenerate header from the ports known to this editor
+    // session, preserving any parameter values the user has already edited.
+    var currentParamValues = parseTestbenchParams(currentTb);
+    var updatedParams = mergeParams(getParams(), currentParamValues);
     userBody = userBody
       .replace(/[ \t]*\$dumpfile\b[^\n]*\n/g, '')
       .replace(/[ \t]*\$dumpvars\b[^\n]*\n/g, '');
-    testbenchEditor.setValue(generateTestbenchHeader() + userBody, -1);
+    testbenchEditor.setValue(
+      generateTestbenchHeader(null, null, updatedParams) + userBody,
+      -1
+    );
     showOk('Testbench header updated.');
   }
 }
