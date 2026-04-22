@@ -553,6 +553,13 @@ window._icemenu.board = {
         .catch(function () {});
     };
 
+    // Expose for code-editor popup: re-compile testbench with current design state
+    // and return the fresh content so the editor can update only the header section.
+    nw.Window.get().window.icestudioGetFreshTestbench = function () {
+      var tbFiles = project.compile('testbench');
+      return tbFiles && tbFiles.length ? tbFiles[0].content : '';
+    };
+
     //-----------------------------------------------------------------
     //-- Collections management
     //-----------------------------------------------------------------

@@ -276,18 +276,60 @@ function initAceEditors() {
     } else {
       tbContent = generateTestbench();
     }
+
+    // Migrate block testbenches where the dump block ($dumpvars) is not yet
+    // inside the auto-generated header (i.e. it appears after the marker, or
+    // there is no marker at all).  Both cases need the same restructuring:
+    // take everything after the $dumpvars line as the user stimulus body and
+    // prepend a fresh header that already contains the dump block.
+    if (!config.projectTestbench) {
+      var migrMarkerPos = tbContent.indexOf(AUTO_MARKER);
+      var dumpBeforeMarker =
+        migrMarkerPos !== -1 &&
+        /\$dumpvars/.test(tbContent.substring(0, migrMarkerPos));
+      if (!dumpBeforeMarker) {
+        var dvMatch = tbContent.match(/\$dumpvars\([^)]*\);\s*\n/);
+        if (dvMatch) {
+          var stimBody = tbContent.substring(dvMatch.index + dvMatch[0].length);
+          tbContent =
+            generateTestbenchHeader() + '\n  initial begin\n\n' + stimBody;
+        } else if (migrMarkerPos !== -1) {
+          // Marker exists but no dump block anywhere — keep user body as-is.
+          tbContent =
+            generateTestbenchHeader() +
+            tbContent.substring(migrMarkerPos + AUTO_MARKER.length);
+        } else {
+          tbContent = generateTestbench();
+        }
+      }
+    }
+
     testbenchEditor.session.setValue(tbContent);
   }
 }
 
 // ============================================================
+// Verilog identifier sanitizer
+// ============================================================
+// Verilog identifiers must start with a letter or underscore. UUID-based block
+// names (e.g. "0e0732b8_ae33_...") start with a digit and cause syntax errors.
+// Prefix with "m" to make them legal without changing anything else.
+function sanitizeVerilogId(name) {
+  return /^[0-9]/.test(name) ? 'm' + name : name;
+}
+
+// ============================================================
 // Testbench auto-generator
 // ============================================================
-function generateTestbench() {
-  var ports = config.ports || { in: [], out: [] };
+
+// Generates only the auto-managed header (timescale → module instance → marker).
+// The marker line is the split point between auto-generated and user-editable code.
+function generateTestbenchHeader(ports, moduleName) {
+  ports = ports || config.ports || { in: [], out: [] };
+  moduleName = sanitizeVerilogId(moduleName || config.moduleName || 'dut');
   var portsIn = ports.in || [];
   var portsOut = ports.out || [];
-  var moduleName = config.moduleName || 'dut';
+  var AUTO_MARKER = '// --- END AUTO-GENERATED --- //';
 
   var lines = [];
   lines.push('`timescale 1ns/1ps');
@@ -295,7 +337,6 @@ function generateTestbench() {
   lines.push('module tb_' + moduleName + ';');
   lines.push('');
 
-  // Declare regs for inputs, wires for outputs
   portsIn.forEach(function (p) {
     var pname = p.name.charAt(0) === '@' ? p.name.substr(1) : p.name;
     var r = p.range && p.range !== '' ? p.range + ' ' : '';
@@ -309,7 +350,6 @@ function generateTestbench() {
 
   lines.push('');
 
-  // Instantiate DUT
   var portList = portsIn
     .concat(portsOut)
     .map(function (p) {
@@ -323,13 +363,25 @@ function generateTestbench() {
   }
   lines.push('  );');
   lines.push('');
-
-  // Initial block
+  lines.push('');
   lines.push('  initial begin');
   lines.push('    $dumpfile("ce_sim.vcd");');
   lines.push('    $dumpvars(0, tb_' + moduleName + ');');
+  lines.push('  end');
+  lines.push(AUTO_MARKER);
+
+  return lines.join('\n');
+}
+
+function generateTestbench() {
+  var ports = config.ports || { in: [], out: [] };
+  var portsIn = ports.in || [];
+  var moduleName = sanitizeVerilogId(config.moduleName || 'dut');
+
+  var lines = [];
+  lines.push(generateTestbenchHeader(ports, moduleName));
+  lines.push('  initial begin');
   lines.push('');
-  // Initialize inputs
   portsIn.forEach(function (p) {
     var pname = p.name.charAt(0) === '@' ? p.name.substr(1) : p.name;
     lines.push('    ' + pname + ' = 0;');
@@ -424,6 +476,67 @@ function loadCode() {
 }
 
 // ============================================================
+// Update testbench header from current design state
+// Re-fetches fresh testbench from main window, replaces only the
+// auto-generated header section, preserves the user's test logic.
+// ============================================================
+function updateTestbenchHeader() {
+  if (!testbenchEditor) {
+    return;
+  }
+  var AUTO_MARKER = '// --- END AUTO-GENERATED --- //';
+  var currentTb = testbenchEditor.getValue();
+  var markerIdx = currentTb.indexOf(AUTO_MARKER);
+  var userBody =
+    markerIdx !== -1
+      ? currentTb.substring(markerIdx + AUTO_MARKER.length)
+      : '\n  initial begin\n\n    // Add stimulus here\n    #1000;\n    $finish;\n  end\n\nendmodule\n';
+
+  if (config.projectTestbench) {
+    // Project testbench: re-compile from the current design via the main window
+    findMainWindow(function (mainWin) {
+      if (
+        !mainWin ||
+        typeof mainWin.icestudioGetFreshTestbench !== 'function'
+      ) {
+        showError('Cannot reach main window to refresh testbench header.');
+        return;
+      }
+      var freshTb = mainWin.icestudioGetFreshTestbench();
+      if (!freshTb) {
+        showError(
+          'Main window returned an empty testbench — is the design valid?'
+        );
+        return;
+      }
+      var freshMarkerIdx = freshTb.indexOf(AUTO_MARKER);
+      if (freshMarkerIdx === -1) {
+        showError(
+          'Fresh testbench has no auto-generated marker — cannot split header.'
+        );
+        return;
+      }
+      var freshHeader = freshTb.substring(
+        0,
+        freshMarkerIdx + AUTO_MARKER.length
+      );
+      testbenchEditor.setValue(freshHeader + userBody, -1);
+      showOk(
+        'Testbench header updated — port/parameter UUIDs are now current.'
+      );
+    });
+  } else {
+    // Block-level testbench: regenerate header from the ports known to this editor session.
+    // Strip any $dumpfile/$dumpvars lines from userBody — they now live in the header.
+    userBody = userBody
+      .replace(/[ \t]*\$dumpfile\b[^\n]*\n/g, '')
+      .replace(/[ \t]*\$dumpvars\b[^\n]*\n/g, '');
+    testbenchEditor.setValue(generateTestbenchHeader() + userBody, -1);
+    showOk('Testbench header updated.');
+  }
+}
+
+// ============================================================
 // Write temp file helper
 // ============================================================
 function writeIfChanged(filepath, content) {
@@ -453,7 +566,7 @@ function assembleVerilog() {
   var ports = config.ports || { in: [], out: [] };
   var portsIn = ports.in || [];
   var portsOut = ports.out || [];
-  var moduleName = config.moduleName || 'ice_code_module';
+  var moduleName = sanitizeVerilogId(config.moduleName || 'ice_code_module');
   var code = codeEditor ? codeEditor.getValue() : config.code || '';
 
   var portDefs = [];
@@ -1230,6 +1343,13 @@ window.onload = function () {
       stopSimulation();
       showError('Simulation stopped.');
     });
+  var updateTbHeaderBtn = document.getElementById('btn-update-tb-header');
+  if (updateTbHeaderBtn) {
+    if (mode === 'testbench') {
+      updateTbHeaderBtn.style.display = '';
+    }
+    updateTbHeaderBtn.addEventListener('click', updateTestbenchHeader);
+  }
   // Initialize waveform viewer (testbench mode only)
   if (mode === 'testbench' && typeof WaveformViewer === 'function') {
     var wvContainer = document.getElementById('waveform-viewer');
