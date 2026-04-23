@@ -313,112 +313,109 @@ window._icemenu.toolbox = {
 
             //-- Defer so the projectinfoprompt dialog fully closes first
             setTimeout(function () {
-              alertify
-                .confirm(collHtml.join('\n'))
-                .set('onok', function () {
-                  var sel = document.getElementById('coll-select');
-                  var inp = document.getElementById('coll-new-name');
-                  var collectionName =
-                    sel.value === '__new__'
-                      ? (inp.value || '').trim()
-                      : sel.value;
-                  if (!collectionName) {
-                    alertify.warning(
-                      gettextCatalog.getString(
-                        'Collection name cannot be empty'
-                      )
-                    );
-                    return false;
-                  }
-
-                  var collDir = path.join(
-                    common.INTERNAL_COLLECTIONS_DIR,
-                    collectionName
+              var collDlg = alertify.confirm();
+              collDlg.setContent(collHtml.join('\n'));
+              collDlg.set('onok', function () {
+                var sel = document.getElementById('coll-select');
+                var inp = document.getElementById('coll-new-name');
+                var collectionName =
+                  sel.value === '__new__'
+                    ? (inp.value || '').trim()
+                    : sel.value;
+                if (!collectionName) {
+                  alertify.warning(
+                    gettextCatalog.getString('Collection name cannot be empty')
                   );
-                  var blocksDir = path.join(collDir, 'blocks');
+                  return false;
+                }
 
+                var collDir = path.join(
+                  common.INTERNAL_COLLECTIONS_DIR,
+                  collectionName
+                );
+                var blocksDir = path.join(collDir, 'blocks');
+
+                try {
+                  fs.mkdirSync(blocksDir, { recursive: true });
+                } catch (e) {
+                  alertify.error('Failed to create collection directory: ' + e);
+                  return;
+                }
+
+                //-- Create package.json for new collections
+                var pkgPath = path.join(collDir, 'package.json');
+                if (!fs.existsSync(pkgPath)) {
+                  var pkgData = {
+                    name: collectionName,
+                    version: '1.0.0',
+                    description: 'Custom collection',
+                    keywords: ['custom', 'collection'],
+                    license: 'GPL-2.0',
+                  };
+                  fs.writeFileSync(pkgPath, JSON.stringify(pkgData, null, 2));
+                }
+
+                var safeName = projectName
+                  .replace(/[^a-zA-Z0-9_\-\s]/g, '_')
+                  .trim();
+                if (!safeName) {
+                  safeName = 'Untitled';
+                }
+                var filePath = path.join(blocksDir, safeName + '.ice');
+
+                var doSave = function () {
                   try {
-                    fs.mkdirSync(blocksDir, { recursive: true });
+                    fs.writeFileSync(
+                      filePath,
+                      JSON.stringify(iceData, null, 2)
+                    );
+                    alertify.success(
+                      gettextCatalog.getString('Block saved to collection') +
+                        ': ' +
+                        projectName
+                    );
+
+                    //-- Clear cached package.json so collection reloads properly
+                    var pkgCachePath = path.resolve(pkgPath);
+                    if (require.cache[pkgCachePath]) {
+                      delete require.cache[pkgCachePath];
+                    }
+
+                    collections.loadAllCollections();
+                    collections.selectCollection(collDir);
+                    iceStudio.updateEnv(common);
+                    utils.rootScopeSafeApply();
                   } catch (e) {
                     alertify.error(
-                      'Failed to create collection directory: ' + e
+                      gettextCatalog.getString('Failed to save block') +
+                        ': ' +
+                        e
                     );
-                    return;
                   }
-
-                  //-- Create package.json for new collections
-                  var pkgPath = path.join(collDir, 'package.json');
-                  if (!fs.existsSync(pkgPath)) {
-                    var pkgData = {
-                      name: collectionName,
-                      version: '1.0.0',
-                      description: 'Custom collection',
-                      keywords: ['custom', 'collection'],
-                      license: 'GPL-2.0',
-                    };
-                    fs.writeFileSync(pkgPath, JSON.stringify(pkgData, null, 2));
-                  }
-
-                  var safeName = projectName
-                    .replace(/[^a-zA-Z0-9_\-\s]/g, '_')
-                    .trim();
-                  if (!safeName) {
-                    safeName = 'Untitled';
-                  }
-                  var filePath = path.join(blocksDir, safeName + '.ice');
-
-                  var doSave = function () {
-                    try {
-                      fs.writeFileSync(
-                        filePath,
-                        JSON.stringify(iceData, null, 2)
-                      );
-                      alertify.success(
-                        gettextCatalog.getString('Block saved to collection') +
-                          ': ' +
-                          projectName
-                      );
-
-                      //-- Clear cached package.json so collection reloads properly
-                      var pkgCachePath = path.resolve(pkgPath);
-                      if (require.cache[pkgCachePath]) {
-                        delete require.cache[pkgCachePath];
-                      }
-
-                      collections.loadAllCollections();
-                      collections.selectCollection(collDir);
-                      iceStudio.updateEnv(common);
-                      utils.rootScopeSafeApply();
-                    } catch (e) {
-                      alertify.error(
-                        gettextCatalog.getString('Failed to save block') +
-                          ': ' +
-                          e
-                      );
-                    }
-                    //-- Process next file
-                    processFile(idx + 1);
-                  };
-
-                  if (fs.existsSync(filePath)) {
-                    alertify.confirm(
-                      gettextCatalog.getString(
-                        'A block named "' +
-                          safeName +
-                          '" already exists. Overwrite?'
-                      ),
-                      function () {
-                        doSave();
-                      }
-                    );
-                  } else {
-                    doSave();
-                  }
-                })
-                .set('oncancel', function () {
-                  //-- Process next file even if cancelled
+                  //-- Process next file
                   processFile(idx + 1);
-                });
+                };
+
+                if (fs.existsSync(filePath)) {
+                  alertify.confirm(
+                    gettextCatalog.getString(
+                      'A block named "' +
+                        safeName +
+                        '" already exists. Overwrite?'
+                    ),
+                    function () {
+                      doSave();
+                    }
+                  );
+                } else {
+                  doSave();
+                }
+              });
+              collDlg.set('oncancel', function () {
+                //-- Process next file even if cancelled
+                processFile(idx + 1);
+              });
+              collDlg.show();
 
               //-- Wire up the dropdown toggle after the dialog is in the DOM
               setTimeout(function () {

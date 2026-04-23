@@ -585,157 +585,154 @@ window._icegraph.fileIO = function (ctx) {
 
       //-- Defer so the projectinfoprompt confirm dialog fully closes first
       setTimeout(function () {
-        alertify
-          .confirm(collHtml.join('\n'))
-          .set('onok', function () {
-            var sel = document.getElementById('coll-select');
-            var inp = document.getElementById('coll-new-name');
-            var collectionName =
-              sel.value === '__new__' ? (inp.value || '').trim() : sel.value;
-            if (!collectionName) {
-              alertify.warning(
-                ctx.gettextCatalog.getString('Collection name cannot be empty')
-              );
-              return false;
-            }
-
-            var collDir = nodePath.join(
-              ctx.common.INTERNAL_COLLECTIONS_DIR,
-              collectionName
+        var collDlg = alertify.confirm();
+        collDlg.setContent(collHtml.join('\n'));
+        collDlg.set('onok', function () {
+          var sel = document.getElementById('coll-select');
+          var inp = document.getElementById('coll-new-name');
+          var collectionName =
+            sel.value === '__new__' ? (inp.value || '').trim() : sel.value;
+          if (!collectionName) {
+            alertify.warning(
+              ctx.gettextCatalog.getString('Collection name cannot be empty')
             );
-            var blocksDir = nodePath.join(collDir, 'blocks');
+            return false;
+          }
 
+          var collDir = nodePath.join(
+            ctx.common.INTERNAL_COLLECTIONS_DIR,
+            collectionName
+          );
+          var blocksDir = nodePath.join(collDir, 'blocks');
+
+          try {
+            nodeFse.mkdirpSync(blocksDir);
+          } catch (e) {
+            alertify.error('Failed to create collection directory: ' + e);
+            return;
+          }
+
+          var pkgPath = nodePath.join(collDir, 'package.json');
+          if (!nodeFs.existsSync(pkgPath)) {
+            var pkgData = {
+              name: collectionName,
+              version: '1.0.0',
+              description: 'Custom collection',
+              keywords: ['custom', 'collection'],
+              license: 'GPL-2.0',
+            };
+            nodeFs.writeFileSync(pkgPath, JSON.stringify(pkgData, null, 2));
+          }
+
+          var safeName = projectName.replace(/[^a-zA-Z0-9_\-\s]/g, '_').trim();
+          if (!safeName) {
+            safeName = 'Untitled';
+          }
+          var filePath = nodePath.join(blocksDir, safeName + '.ice');
+
+          var priorSourcePath = codeBlockData.sourcePath || '';
+
+          var doSave = function () {
             try {
-              nodeFse.mkdirpSync(blocksDir);
-            } catch (e) {
-              alertify.error('Failed to create collection directory: ' + e);
-              return;
-            }
+              nodeFs.writeFileSync(
+                filePath,
+                JSON.stringify(iceProject, null, 2)
+              );
+              alertify.success(
+                ctx.gettextCatalog.getString('Block saved to collection') +
+                  ': ' +
+                  projectName
+              );
 
-            var pkgPath = nodePath.join(collDir, 'package.json');
-            if (!nodeFs.existsSync(pkgPath)) {
-              var pkgData = {
-                name: collectionName,
-                version: '1.0.0',
-                description: 'Custom collection',
-                keywords: ['custom', 'collection'],
-                license: 'GPL-2.0',
-              };
-              nodeFs.writeFileSync(pkgPath, JSON.stringify(pkgData, null, 2));
-            }
+              var savedCell = ctx.paper.getModelById(blockId);
+              if (savedCell) {
+                savedCell.attributes.data.sourcePath = filePath;
+              }
 
-            var safeName = projectName
-              .replace(/[^a-zA-Z0-9_\-\s]/g, '_')
-              .trim();
-            if (!safeName) {
-              safeName = 'Untitled';
-            }
-            var filePath = nodePath.join(blocksDir, safeName + '.ice');
-
-            var priorSourcePath = codeBlockData.sourcePath || '';
-
-            var doSave = function () {
+              var statusFile = nodePath.join(
+                nw.App.dataPath,
+                'block-status.json'
+              );
+              var blockStatus = {};
+              try {
+                blockStatus = JSON.parse(
+                  nodeFs.readFileSync(statusFile, 'utf8')
+                );
+              } catch (eRead) {}
+              if (!blockStatus[filePath]) {
+                blockStatus[filePath] = {
+                  V: null,
+                  F: null,
+                  T: null,
+                  B: null,
+                };
+              }
+              var srcStatus =
+                (priorSourcePath && blockStatus[priorSourcePath]) ||
+                blockStatus[blockId] ||
+                {};
+              if (srcStatus.V !== null && srcStatus.V !== undefined) {
+                blockStatus[filePath].V = srcStatus.V;
+              }
+              if (srcStatus.F !== null && srcStatus.F !== undefined) {
+                blockStatus[filePath].F = srcStatus.F;
+              } else if (
+                nodeFs.existsSync(nodePath.join(blockDir, 'formal.md'))
+              ) {
+                blockStatus[filePath].F = true;
+              }
+              if (srcStatus.T !== null && srcStatus.T !== undefined) {
+                blockStatus[filePath].T = srcStatus.T;
+              } else if (
+                nodeFs.existsSync(nodePath.join(blockDir, 'sim.vcd'))
+              ) {
+                blockStatus[filePath].T = true;
+              }
+              if (srcStatus.B !== null && srcStatus.B !== undefined) {
+                blockStatus[filePath].B = srcStatus.B;
+              }
               try {
                 nodeFs.writeFileSync(
-                  filePath,
-                  JSON.stringify(iceProject, null, 2)
+                  statusFile,
+                  JSON.stringify(blockStatus, null, 2)
                 );
-                alertify.success(
-                  ctx.gettextCatalog.getString('Block saved to collection') +
-                    ': ' +
-                    projectName
-                );
+              } catch (eWrite) {}
 
-                var savedCell = ctx.paper.getModelById(blockId);
-                if (savedCell) {
-                  savedCell.attributes.data.sourcePath = filePath;
-                }
-
-                var statusFile = nodePath.join(
-                  nw.App.dataPath,
-                  'block-status.json'
-                );
-                var blockStatus = {};
-                try {
-                  blockStatus = JSON.parse(
-                    nodeFs.readFileSync(statusFile, 'utf8')
-                  );
-                } catch (eRead) {}
-                if (!blockStatus[filePath]) {
-                  blockStatus[filePath] = {
-                    V: null,
-                    F: null,
-                    T: null,
-                    B: null,
-                  };
-                }
-                var srcStatus =
-                  (priorSourcePath && blockStatus[priorSourcePath]) ||
-                  blockStatus[blockId] ||
-                  {};
-                if (srcStatus.V !== null && srcStatus.V !== undefined) {
-                  blockStatus[filePath].V = srcStatus.V;
-                }
-                if (srcStatus.F !== null && srcStatus.F !== undefined) {
-                  blockStatus[filePath].F = srcStatus.F;
-                } else if (
-                  nodeFs.existsSync(nodePath.join(blockDir, 'formal.md'))
-                ) {
-                  blockStatus[filePath].F = true;
-                }
-                if (srcStatus.T !== null && srcStatus.T !== undefined) {
-                  blockStatus[filePath].T = srcStatus.T;
-                } else if (
-                  nodeFs.existsSync(nodePath.join(blockDir, 'sim.vcd'))
-                ) {
-                  blockStatus[filePath].T = true;
-                }
-                if (srcStatus.B !== null && srcStatus.B !== undefined) {
-                  blockStatus[filePath].B = srcStatus.B;
-                }
-                try {
-                  nodeFs.writeFileSync(
-                    statusFile,
-                    JSON.stringify(blockStatus, null, 2)
-                  );
-                } catch (eWrite) {}
-
-                var pkgCachePath = nodePath.resolve(pkgPath);
-                if (require.cache[pkgCachePath]) {
-                  delete require.cache[pkgCachePath];
-                }
-
-                var collections = angular
-                  .element(document.body)
-                  .injector()
-                  .get('collections');
-                collections.loadAllCollections();
-                collections.selectCollection(collDir);
-
-                iceStudio.updateEnv(ctx.common);
-              } catch (e) {
-                alertify.error(
-                  ctx.gettextCatalog.getString('Failed to save block') +
-                    ': ' +
-                    e
-                );
+              var pkgCachePath = nodePath.resolve(pkgPath);
+              if (require.cache[pkgCachePath]) {
+                delete require.cache[pkgCachePath];
               }
-            };
 
-            if (nodeFs.existsSync(filePath)) {
-              alertify.confirm(
-                ctx.gettextCatalog.getString(
-                  'A block named "' + safeName + '" already exists. Overwrite?'
-                ),
-                function () {
-                  doSave();
-                }
+              var collections = angular
+                .element(document.body)
+                .injector()
+                .get('collections');
+              collections.loadAllCollections();
+              collections.selectCollection(collDir);
+
+              iceStudio.updateEnv(ctx.common);
+            } catch (e) {
+              alertify.error(
+                ctx.gettextCatalog.getString('Failed to save block') + ': ' + e
               );
-            } else {
-              doSave();
             }
-          })
-          .set('oncancel', function () {});
+          };
+
+          if (nodeFs.existsSync(filePath)) {
+            alertify.confirm(
+              ctx.gettextCatalog.getString(
+                'A block named "' + safeName + '" already exists. Overwrite?'
+              ),
+              function () {
+                doSave();
+              }
+            );
+          } else {
+            doSave();
+          }
+        });
+        collDlg.set('oncancel', function () {});
+        collDlg.show();
         //-- Wire up the dropdown toggle after the dialog is in the DOM
         setTimeout(function () {
           var sel = document.getElementById('coll-select');
