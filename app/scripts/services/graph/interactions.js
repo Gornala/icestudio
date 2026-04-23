@@ -829,6 +829,12 @@ window._icegraph.interactions = function (ctx) {
             '#',
           type: pointerdblclickCellType,
         });
+      } else if (args.fromNewSubmodule && args.submodule) {
+        var dep = ctx.common.allDependencies[args.submodule];
+        ctx.service.breadcrumbs.push({
+          name: (dep && dep.package && dep.package.name) || args.submodule,
+          type: args.submodule,
+        });
       }
       ctx.utils.rootScopeSafeApply();
     });

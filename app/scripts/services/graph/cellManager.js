@@ -50,10 +50,224 @@ window._icegraph.cellManager = function (ctx) {
   }
 
   function createBasicBlock(type) {
+    if (type === window._iceblocks.BASIC_SUBMODULE) {
+      createSubmodule();
+      return;
+    }
     var allowInoutPorts =
       ctx.profile.get('allowInoutPorts') || ctx.common.allowProjectInoutPorts;
     ctx.blockforms.newBasic(type, allowInoutPorts, function (cells) {
       ctx.service.addDraggableCells(cells);
+    });
+  }
+
+  //-- Build pin array from a Verilog range string like "[7:0]"
+  function buildSubmodulePins(range) {
+    if (!range) {
+      return [{ index: '0', name: '', value: '0' }];
+    }
+    var m = range.match(/\[(\d+):(\d+)\]/);
+    if (!m) {
+      return [{ index: '0', name: '', value: '0' }];
+    }
+    var hi = parseInt(m[1], 10);
+    var lo = parseInt(m[2], 10);
+    var width = Math.abs(hi - lo) + 1;
+    var pins = [];
+    for (var i = width - 1; i >= 0; i--) {
+      pins.push({ index: String(i), name: '', value: '0' });
+    }
+    return pins;
+  }
+
+  function createSubmodule() {
+    //-- Step 1: Module Ports dialog — define inputs / outputs / params + optional code
+    ctx.blockforms.getCodeFormData(function (formData) {
+      var portsIn = formData.inPortsInfo || [];
+      var portsOut = formData.outPortsInfo || [];
+      var params = formData.inParamsInfo || [];
+      var code = (formData.code || '').trim();
+      var label = formData.label || 'submodule';
+
+      //-- Step 2: defer so the first alertify dialog fully closes before opening the next
+      setTimeout(function () {
+        var infoValues = [label, '1.0.0', '', '', ''];
+        ctx.utils.projectinfoprompt(infoValues, function (evt, newValues) {
+          var pkgName = newValues[0] || label;
+          var pkgVersion = newValues[1] || '1.0.0';
+          var pkgDesc = newValues[2] || '';
+          var pkgAuthor = newValues[3] || '';
+          var pkgImage = newValues[4] || '';
+
+          //-- Step 3: Build the internal .ice graph for the new submodule
+          var allBlocks = [];
+          var allWires = [];
+          var codeBlockId = ctx.joint.util.uuid();
+          var yStep = 80;
+
+          portsIn.forEach(function (port, idx) {
+            var id = ctx.joint.util.uuid();
+            var inputData = {
+              name: port.name,
+              pins: buildSubmodulePins(port.range),
+              virtual: true,
+              clock: false,
+            };
+            if (port.range) {
+              inputData.range = port.range;
+            }
+            allBlocks.push({
+              id: id,
+              type: 'basic.input',
+              data: inputData,
+              position: { x: 50, y: 80 + idx * yStep },
+            });
+            if (code) {
+              allWires.push({
+                source: { block: id, port: 'out' },
+                target: { block: codeBlockId, port: port.name },
+              });
+            }
+          });
+
+          portsOut.forEach(function (port, idx) {
+            var id = ctx.joint.util.uuid();
+            var outputData = {
+              name: port.name,
+              pins: buildSubmodulePins(port.range),
+              virtual: true,
+            };
+            if (port.range) {
+              outputData.range = port.range;
+            }
+            allBlocks.push({
+              id: id,
+              type: 'basic.output',
+              data: outputData,
+              position: { x: 750, y: 80 + idx * yStep },
+            });
+            if (code) {
+              allWires.push({
+                source: { block: codeBlockId, port: port.name },
+                target: { block: id, port: 'in' },
+              });
+            }
+          });
+
+          params.forEach(function (param, idx) {
+            var id = ctx.joint.util.uuid();
+            allBlocks.push({
+              id: id,
+              type: 'basic.constant',
+              data: { name: param.name, value: '', local: false },
+              position: { x: 300 + idx * 150, y: 20 },
+            });
+            if (code) {
+              allWires.push({
+                source: { block: id, port: 'constant-out' },
+                target: { block: codeBlockId, port: param.name },
+              });
+            }
+          });
+
+          if (code) {
+            var codeHeight = Math.max(
+              300,
+              (Math.max(portsIn.length, portsOut.length) + params.length) * 80 +
+                160
+            );
+            allBlocks.push({
+              id: codeBlockId,
+              type: 'basic.code',
+              data: {
+                label: label,
+                code: code,
+                params: params.map(function (p) {
+                  return { name: p.name };
+                }),
+                ports: {
+                  in: portsIn.map(function (p) {
+                    var o = { name: p.name };
+                    if (p.range) {
+                      o.range = p.range;
+                    }
+                    return o;
+                  }),
+                  out: portsOut.map(function (p) {
+                    var o = { name: p.name };
+                    if (p.range) {
+                      o.range = p.range;
+                    }
+                    return o;
+                  }),
+                },
+              },
+              position: { x: 300, y: 150 },
+              size: { width: 800, height: codeHeight },
+            });
+          }
+
+          var boardName =
+            ctx.common.selectedBoard && ctx.common.selectedBoard.name
+              ? ctx.common.selectedBoard.name
+              : 'alhambra-ii';
+
+          var blockData = {
+            version: '1.2',
+            package: {
+              name: pkgName,
+              version: pkgVersion,
+              description: pkgDesc,
+              author: pkgAuthor,
+              image: pkgImage,
+            },
+            design: {
+              board: boardName,
+              graph: { blocks: allBlocks, wires: allWires },
+            },
+            dependencies: {},
+          };
+
+          //-- Register as a dependency
+          var type = ctx.utils.dependencyID(blockData);
+          ctx.common.allDependencies[type] = blockData;
+
+          //-- Create the generic block cell and place it near the cursor
+          ctx.blockforms.newGeneric(type, blockData, function (cell) {
+            var menuHeight = $('#menu').height();
+            cell.set('position', {
+              x:
+                Math.round(
+                  ((ctx.mousePosition.x - ctx.state.pan.x) / ctx.state.zoom -
+                    cell.get('size').width / 2) /
+                    ctx.gridsize
+                ) * ctx.gridsize,
+              y:
+                Math.round(
+                  ((ctx.mousePosition.y - ctx.state.pan.y - menuHeight) /
+                    ctx.state.zoom -
+                    cell.get('size').height / 2) /
+                    ctx.gridsize
+                ) * ctx.gridsize,
+            });
+            ctx.graph.trigger('batch:start');
+            addCell(cell);
+            ctx.graph.trigger('batch:stop');
+
+            //-- Navigate into the new submodule with write access enabled
+            ctx.common.isEditingSubmodule = true;
+            ctx.$rootScope.$broadcast('navigateProject', {
+              update: ctx.service.breadcrumbs.length === 1,
+              project: blockData,
+              submodule: type,
+              submoduleId: cell.get('id'),
+              fromDoubleClick: false,
+              fromNewSubmodule: true,
+              editMode: false,
+            });
+          });
+        });
+      }, 0); // end setTimeout — defer until first alertify dialog fully closes
     });
   }
 
@@ -298,6 +512,14 @@ window._icegraph.cellManager = function (ctx) {
         if (typeof ael !== 'undefined' && ael.length > 0) {
           for (i = 0; i < ael.length; i++) {
             ael[i].classList.add('hidden');
+          }
+        }
+      } else {
+        angular.element('.banner-submodule').removeClass('hidden');
+        ael = document.getElementsByClassName('banner-submodule');
+        if (typeof ael !== 'undefined' && ael.length > 0) {
+          for (i = 0; i < ael.length; i++) {
+            ael[i].classList.remove('hidden');
           }
         }
       }

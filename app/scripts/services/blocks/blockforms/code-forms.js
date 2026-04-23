@@ -319,9 +319,28 @@ window._iceblockforms.codeForms = function (ctx) {
     return found;
   }
 
+  function getCodeFormData(callback) {
+    var form = new ctx.forms.FormBasicCode('', '', '', '', '', '');
+    $('.ajs-input').val('');
+    form.display(function (evt) {
+      form.process(evt);
+      if (evt.cancel) {
+        return;
+      }
+      callback({
+        inPortsInfo: form.inPortsInfo,
+        outPortsInfo: form.outPortsInfo,
+        inParamsInfo: form.inParamsInfo,
+        label: form.label,
+        code: form.code,
+      });
+    });
+  }
+
   return {
     newBasicCode: newBasicCode,
     loadBasicCode: loadBasicCode,
     editBasicCode: editBasicCode,
+    getCodeFormData: getCodeFormData,
   };
 };

@@ -364,7 +364,11 @@ cells.sort((a, b) => {
           iceStudio.bus.events.publish('Navigation::ReadOnly');
         }
 
-        let flowInfo = { fromDoubleClick: args.fromDoubleClick ?? false };
+        let flowInfo = {
+          fromDoubleClick: args.fromDoubleClick ?? false,
+          fromNewSubmodule: args.fromNewSubmodule ?? false,
+          submodule: args.submodule,
+        };
         $rootScope.$broadcast('navigateProjectEnded', flowInfo);
       });
 

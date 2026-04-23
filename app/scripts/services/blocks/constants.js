@@ -17,3 +17,4 @@ window._iceblocks.BASIC_INFO = 'basic.info'; //-- Info block
 window._iceblocks.BASIC_JSON_INPUT = 'basic.jsonInput'; //-- JSON input block (reads external JSON file → bottom ports)
 window._iceblocks.BASIC_JSON_OUTPUT = 'basic.jsonOutput'; //-- JSON output block
 window._iceblocks.BASIC_GENERATE = 'basic.generate'; //-- Generate frame (generate-for wrapper)
+window._iceblocks.BASIC_SUBMODULE = 'basic.submodule'; //-- New empty submodule

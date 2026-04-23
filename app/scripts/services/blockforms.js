@@ -65,6 +65,7 @@ angular.module('icestudio').service(
 
     this.editBasic = editBasic; // this is double clicking
     this.editBasicLabel = _labelForms.editBasicLabel; // this is from "label-Finder"
+    this.getCodeFormData = _codeForms.getCodeFormData;
 
     //-------------------------------------------------------------------------
     //-- Create a new Basic Block. A form is displayed for the user to
