@@ -20,6 +20,7 @@ window._icemenu.board = {
     var state = deps.state;
     var checkGraph = deps.checkGraph;
     var resetBuildStack = deps.resetBuildStack;
+    var compiler = deps.compiler;
 
     //-----------------------------------------------------------------
     //-- Tools/Custom Board Manager
@@ -344,7 +345,7 @@ window._icemenu.board = {
         alertify.alert(
           gettextCatalog.getString('Verify'),
           gettextCatalog.getString(
-            'Cannot verify inside a write-protected submodule. Press <strong>Back</strong> to return to the top-level design.'
+            'This submodule is write-protected. Open it for editing first to verify.'
           ),
           function () {}
         );
@@ -362,6 +363,16 @@ window._icemenu.board = {
     };
 
     $scope.buildCode = function () {
+      if (graph.breadcrumbs.length > 1 && !common.isEditingSubmodule) {
+        alertify.alert(
+          gettextCatalog.getString('Build'),
+          gettextCatalog.getString(
+            'This submodule is write-protected. Open it for editing first.'
+          ),
+          function () {}
+        );
+        return;
+      }
       if (graph.breadcrumbs.length > 1) {
         alertify.alert(
           gettextCatalog.getString('Build'),
@@ -388,6 +399,16 @@ window._icemenu.board = {
     };
 
     $scope.uploadCode = function () {
+      if (graph.breadcrumbs.length > 1 && !common.isEditingSubmodule) {
+        alertify.alert(
+          gettextCatalog.getString('Upload'),
+          gettextCatalog.getString(
+            'This submodule is write-protected. Open it for editing first.'
+          ),
+          function () {}
+        );
+        return;
+      }
       if (graph.breadcrumbs.length > 1) {
         alertify.alert(
           gettextCatalog.getString('Upload'),
@@ -396,7 +417,6 @@ window._icemenu.board = {
           ),
           function () {}
         );
-
         return;
       }
 
@@ -418,26 +438,104 @@ window._icemenu.board = {
     //-- Open Testbench for the whole project
     //-----------------------------------------------------------------
 
-    $scope.openTestbench = function () {
-      var nodePath = require('path');
+    var resolveGtkwavePath = function (nodePath) {
+      try {
+        var isWin = process.platform === 'win32';
+        var exe = isWin ? 'gtkwave.exe' : 'gtkwave';
+        var appRoot = process.cwd();
+        var fsSync = require('fs');
+        var candidates = [
+          nodePath.join(appRoot, 'GTKWave', 'bin', exe),
+          nodePath.join(appRoot, 'gtkwave', 'bin', exe),
+          nodePath.join(appRoot, 'GTKWave', exe),
+        ];
+        for (var ci = 0; ci < candidates.length; ci++) {
+          try {
+            fsSync.accessSync(candidates[ci]);
+            return candidates[ci];
+          } catch (e) {}
+        }
+      } catch (e) {}
+      return '';
+    };
 
-      if (graph.breadcrumbs.length > 1) {
+    var extractPortsAndParams = function (graphBlocks) {
+      var portsIn = [];
+      var portsOut = [];
+      var params = [];
+      for (var i in graphBlocks) {
+        var block = graphBlocks[i];
+        if (block.type === 'basic.input') {
+          portsIn.push({
+            name: block.data.name || '',
+            range: block.data.range || '',
+          });
+        } else if (block.type === 'basic.output') {
+          portsOut.push({
+            name: block.data.name || '',
+            range: block.data.range || '',
+          });
+        } else if (block.type === 'basic.constant' && !block.data.local) {
+          params.push({
+            name: block.data.name || '',
+            value: block.data.value || '',
+          });
+        }
+      }
+      return { portsIn: portsIn, portsOut: portsOut, params: params };
+    };
+
+    $scope.openTestbench = function () {
+      if (graph.breadcrumbs.length > 1 && !common.isEditingSubmodule) {
         alertify.alert(
           gettextCatalog.getString('Testbench'),
           gettextCatalog.getString(
-            'You can only open the testbench at the top-level design.'
+            'This submodule is write-protected. Open it for editing first.'
           ),
           function () {}
         );
         return;
       }
 
+      var nodePath = require('path');
+
       iceStudio.bus.events.publish('graph:loadJsonInputs');
       iceStudio.bus.events.publish('graph:writeJsonOutputs');
       checkGraph()
         .then(function () {
-          // Generate the full project Verilog
-          var verilogFiles = project.compile('verilog');
+          // Sync project.design.graph from the current visual state (same as build/verify does).
+          project.update();
+
+          // Determine which design to compile: top-level or current submodule
+          var designObj;
+          var designName;
+          var capturedSubmoduleType = null;
+
+          if (graph.breadcrumbs.length > 1) {
+            var lastBc = graph.breadcrumbs[graph.breadcrumbs.length - 1];
+            var subDep = common.allDependencies[lastBc.type];
+            if (!subDep) {
+              alertify.error(
+                gettextCatalog.getString('Could not find submodule design')
+              );
+              return;
+            }
+            capturedSubmoduleType = lastBc.type;
+            designObj = { design: subDep.design, package: subDep.package };
+            designName = (
+              (subDep.package && subDep.package.name) ||
+              lastBc.name ||
+              'module'
+            ).replace(/[^a-zA-Z0-9_]/g, '_');
+          } else {
+            designObj = project.get();
+            designName = (project.name || 'main').replace(
+              /[^a-zA-Z0-9_]/g,
+              '_'
+            );
+          }
+
+          var verilogFiles = compiler.generate('verilog', designObj, {});
           if (!verilogFiles || !verilogFiles.length) {
             alertify.error(
               gettextCatalog.getString('Could not generate Verilog')
@@ -446,48 +544,18 @@ window._icemenu.board = {
           }
           var verilogCode = verilogFiles[0].content;
 
-          // Generate the testbench
-          var tbFiles = project.compile('testbench');
+          var tbFiles = compiler.generate('testbench', designObj, {});
           var testbenchCode =
             tbFiles && tbFiles.length ? tbFiles[0].content : '';
 
-          // Extract top-level ports for the code-editor
-          var proj = project.get();
-          var portsIn = [];
-          var portsOut = [];
-          var params = [];
-          var blocks = proj.design.graph.blocks;
-          for (var i in blocks) {
-            var block = blocks[i];
-            if (block.type === 'basic.input') {
-              portsIn.push({
-                name: block.data.name || '',
-                range: block.data.range || '',
-              });
-            } else if (block.type === 'basic.output') {
-              portsOut.push({
-                name: block.data.name || '',
-                range: block.data.range || '',
-              });
-            } else if (block.type === 'basic.constant' && !block.data.local) {
-              params.push({
-                name: block.data.name || '',
-                value: block.data.value || '',
-              });
-            }
-          }
-
-          var projectName = (project.name || 'main').replace(
-            /[^a-zA-Z0-9_]/g,
-            '_'
-          );
+          var extracted = extractPortsAndParams(designObj.design.graph.blocks);
 
           var configObj = {
             mode: 'testbench',
             blockId: '__project__',
             code: verilogCode,
-            ports: { in: portsIn, out: portsOut },
-            params: params,
+            ports: { in: extracted.portsIn, out: extracted.portsOut },
+            params: extracted.params,
             testbench: testbenchCode,
             moduleName: 'main',
             theme: profile.data.uiTheme || 'light',
@@ -500,26 +568,7 @@ window._icemenu.board = {
               'tools-oss-cad-suite',
               'bin'
             ),
-            gtkwavePath: (function () {
-              try {
-                var isWin = process.platform === 'win32';
-                var exe = isWin ? 'gtkwave.exe' : 'gtkwave';
-                var appRoot = process.cwd();
-                var fsSync = require('fs');
-                var candidates = [
-                  nodePath.join(appRoot, 'GTKWave', 'bin', exe),
-                  nodePath.join(appRoot, 'gtkwave', 'bin', exe),
-                  nodePath.join(appRoot, 'GTKWave', exe),
-                ];
-                for (var ci = 0; ci < candidates.length; ci++) {
-                  try {
-                    fsSync.accessSync(candidates[ci]);
-                    return candidates[ci];
-                  } catch (e) {}
-                }
-              } catch (e) {}
-              return '';
-            })(),
+            gtkwavePath: resolveGtkwavePath(nodePath),
             isWin32: process.platform === 'win32',
             pythonCmd: common.PYTHON_ENV || 'python',
             sourcePath: '',
@@ -540,8 +589,28 @@ window._icemenu.board = {
             'resources/viewers/code-editor/code-editor.html?config=' +
             configParam;
 
+          // Update the refresh function to re-compile the same level that was opened
+          nw.Window.get().window.icestudioGetFreshTestbench = (function (
+            subType
+          ) {
+            return function () {
+              var freshDesign;
+              if (subType) {
+                var dep = common.allDependencies[subType];
+                if (dep) {
+                  freshDesign = { design: dep.design, package: dep.package };
+                }
+              }
+              if (!freshDesign) {
+                freshDesign = project.get();
+              }
+              var files = compiler.generate('testbench', freshDesign, {});
+              return files && files.length ? files[0].content : '';
+            };
+          })(capturedSubmoduleType);
+
           nw.Window.open(editorURL, {
-            title: 'Testbench - ' + projectName,
+            title: 'Testbench - ' + designName,
             focus: true,
             resizable: true,
             show: false,
@@ -553,11 +622,10 @@ window._icemenu.board = {
         .catch(function () {});
     };
 
-    // Expose for code-editor popup: re-compile testbench with current design state
-    // and return the fresh content so the editor can update only the header section.
+    // Default refresh function (top-level); overwritten each time openTestbench runs.
     nw.Window.get().window.icestudioGetFreshTestbench = function () {
-      var tbFiles = project.compile('testbench');
-      return tbFiles && tbFiles.length ? tbFiles[0].content : '';
+      var files = compiler.generate('testbench', project.get(), {});
+      return files && files.length ? files[0].content : '';
     };
 
     //-----------------------------------------------------------------

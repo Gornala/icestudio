@@ -43,7 +43,8 @@ angular.module('icestudio').controller(
     //-- Accessing _package object
     //-- Defined in module app/scripts/factories/window.js
     _package,
-    boards
+    boards,
+    compiler
   ) {
     //-------------------------------------------------------------------------
     //-- This code is executed when a new Icestudio Window is created:
@@ -275,6 +276,7 @@ angular.module('icestudio').controller(
       state: state,
       checkGraph: checkGraph,
       resetBuildStack: resetBuildStack,
+      compiler: compiler,
     });
 
     sectionLabelFinder.init($scope, {

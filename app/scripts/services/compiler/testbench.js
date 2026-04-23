@@ -9,27 +9,33 @@ window._icecompiler.testbench = function (ctx) {
   function mainParams(project) {
     var params = [];
     var paramsUnnamed = 0;
+    var seenNames = {};
     var graph = project.design.graph;
     let pname = '';
     for (var i in graph.blocks) {
       var block = graph.blocks[i];
       if (block.type === ctx.blocks.BASIC_CONSTANT) {
         if (!block.data.local) {
+          var baseName;
           if (block.data.name) {
             pname = block.data.name.replace('@', '');
-            params.push({
-              id: ctx.utils.digestId(block.id),
-              name: 'constant_' + pname.replace(/ /g, '_'),
-              value: block.data.value,
-            });
+            baseName = 'constant_' + pname.replace(/ /g, '_');
           } else {
-            params.push({
-              id: ctx.utils.digestId(block.id),
-              name: 'constant_' + paramsUnnamed.toString(),
-              value: block.data.value,
-            });
+            baseName = 'constant_' + paramsUnnamed.toString();
             paramsUnnamed += 1;
           }
+          var uniqueName = baseName;
+          var suffix = 2;
+          while (seenNames[uniqueName]) {
+            uniqueName = baseName + '_' + suffix;
+            suffix++;
+          }
+          seenNames[uniqueName] = true;
+          params.push({
+            id: ctx.utils.digestId(block.id),
+            name: uniqueName,
+            value: block.data.value,
+          });
         }
       }
     }
@@ -79,6 +85,7 @@ window._icecompiler.testbench = function (ctx) {
     var output = io.output;
     content += '\n// Input/Output\n';
     var _ports = [];
+    var declaredSignals = {};
     let signed = '';
     var pname;
     for (i in input) {
@@ -88,12 +95,15 @@ window._icecompiler.testbench = function (ctx) {
         pname = input[i].name.substr(1);
         signed = ' signed ';
       }
-      content +=
-        'reg ' +
-        signed +
-        (input[i].range ? input[i].range + ' ' : '') +
-        pname +
-        ';\n';
+      if (!declaredSignals[pname]) {
+        content +=
+          'reg ' +
+          signed +
+          (input[i].range ? input[i].range + ' ' : '') +
+          pname +
+          ';\n';
+        declaredSignals[pname] = 'reg';
+      }
       _ports.push(' .' + input[i].id + '(' + pname + ')');
     }
     for (o in output) {
@@ -103,12 +113,15 @@ window._icecompiler.testbench = function (ctx) {
         pname = output[o].name.substr(1);
         signed = ' signed ';
       }
-      content +=
-        'wire ' +
-        signed +
-        (output[o].range ? output[o].range + ' ' : '') +
-        pname +
-        ';\n';
+      if (!declaredSignals[pname]) {
+        content +=
+          'wire ' +
+          signed +
+          (output[o].range ? output[o].range + ' ' : '') +
+          pname +
+          ';\n';
+        declaredSignals[pname] = 'wire';
+      }
       _ports.push(' .' + output[o].id + '(' + pname + ')');
     }
 

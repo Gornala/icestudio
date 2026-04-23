@@ -905,7 +905,7 @@
   min-height: 100%;
   background: url(../../images/icons/verify_light.svg) center center;
   background-repeat: no-repeat;
-  background-size: contain;
+  background-size: 25px;
 }
 
 .icon--build {
@@ -915,7 +915,7 @@
   min-height: 100%;
   background: url(../../images/icons/build_light.svg) center center;
   background-repeat: no-repeat;
-  background-size: contain;
+  background-size: 25px;
 }
 
 .icon--upload {
@@ -925,7 +925,7 @@
   min-height: 100%;
   background: url(../../images/icons/upload_light.svg) center center;
   background-repeat: no-repeat;
-  background-size: contain;
+  background-size: 14px;
 }
 
 .icon--testbench {
