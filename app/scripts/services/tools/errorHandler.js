@@ -318,27 +318,44 @@ window._icetools.errorHandler = function (ctx) {
             var modules = mapCodeModules(code);
             var hasErrors = false;
             var hasWarnings = false;
+            var errorMsgs = [];
+            var warningMsgs = [];
             for (var k in codeErrors) {
               var codeError = normalizeCodeError(codeErrors[k], modules);
               if (codeError) {
                 $(document).trigger('codeError', [codeError]);
-                hasErrors = hasErrors || codeError.type === 'error';
-                hasWarnings = hasWarnings || codeError.type === 'warning';
+                if (codeError.type === 'error') {
+                  hasErrors = true;
+                  var linePrefix =
+                    codeError.line > 0 ? 'line ' + codeError.line + ': ' : '';
+                  errorMsgs.push(linePrefix + codeError.msg);
+                } else if (codeError.type === 'warning') {
+                  hasWarnings = true;
+                  var wlinePrefix =
+                    codeError.line > 0 ? 'line ' + codeError.line + ': ' : '';
+                  warningMsgs.push(wlinePrefix + codeError.msg);
+                }
               }
             }
 
             if (hasErrors) {
+              var errorDetail = errorMsgs.join('<br>');
               ctx.resultAlert = alertify.error(
-                ctx.gettextCatalog.getString('Errors detected in the design'),
-                5
+                ctx.gettextCatalog.getString('Errors detected in the design') +
+                  ':<br>' +
+                  errorDetail,
+                10
               );
             } else {
               if (hasWarnings) {
+                var warningDetail = warningMsgs.join('<br>');
                 ctx.resultAlert = alertify.warning(
                   ctx.gettextCatalog.getString(
                     'Warnings detected in the design'
-                  ),
-                  5
+                  ) +
+                    ':<br>' +
+                    warningDetail,
+                  10
                 );
               }
               var stdoutError = stdout.split('\n').filter(function (lineStr) {
