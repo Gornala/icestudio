@@ -198,6 +198,7 @@ angular.module('icestudio').service(
     this.setCells = _cellManager.setCells;
     this.editLabelBlock = _cellManager.editLabelBlock;
     this.triggerDblClick = _cellManager.triggerDblClick;
+    this.renameWire = _cellManager.renameWire;
     this.lpHighlightCells = _cellManager.lpHighlightCells;
     this.lpClearHighlight = _cellManager.lpClearHighlight;
     this.updateCellData = _cellManager.updateCellData;

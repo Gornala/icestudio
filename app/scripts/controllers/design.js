@@ -567,6 +567,20 @@ cells.sort((a, b) => {
 
       $scope.lp.dblClickItem = function (kind, item, $event) {
         $event.stopPropagation();
+        if (kind === 'wire') {
+          alertify.prompt(
+            gettextCatalog.getString('Rename wire'),
+            item.name,
+            function (evt, newName) {
+              newName = newName.trim();
+              if (newName && newName !== item.name) {
+                graph.renameWire(item.name, newName);
+              }
+            },
+            function () {}
+          );
+          return;
+        }
         var ids = lpGetCellIds(kind, item);
         if (ids.length > 0) {
           graph.triggerDblClick(ids[0]);

@@ -443,6 +443,28 @@ window._icegraph.cellManager = function (ctx) {
     }
   }
 
+  //-- Rename all label cells (inputLabel, outputLabel, pairedLabel) whose
+  //-- data.name matches oldName, updating data + refreshing the DOM.
+  function renameWire(oldName, newName) {
+    if (!newName || newName === oldName) {
+      return;
+    }
+    var labelTypes = [
+      window._iceblocks.BASIC_INPUT_LABEL,
+      window._iceblocks.BASIC_OUTPUT_LABEL,
+      window._iceblocks.BASIC_PAIRED_LABELS,
+    ];
+    ctx.graph.getCells().forEach(function (cell) {
+      if (
+        labelTypes.indexOf(cell.get('blockType')) !== -1 &&
+        cell.get('data') &&
+        cell.get('data').name === oldName
+      ) {
+        updateCellData(cell.id, { name: newName });
+      }
+    });
+  }
+
   //--------------------------------------------------------------------------
   //-- Undo / Redo / Command stack
   //--------------------------------------------------------------------------
@@ -783,6 +805,7 @@ window._icegraph.cellManager = function (ctx) {
     lpClearHighlight: lpClearHighlight,
     updateCellData: updateCellData,
     updateCellPin: updateCellPin,
+    renameWire: renameWire,
     undo: undo,
     redo: redo,
     resetCommandStack: resetCommandStack,

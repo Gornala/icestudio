@@ -839,9 +839,9 @@ window._icegraph.interactions = function (ctx) {
       ctx.utils.rootScopeSafeApply();
     });
 
-    //-- graph events: wire order + port defaults + wire group sync + auto refresh
-    ctx.graph.off('change:data', ctx.wireLogicLpSyncWireGroup);
-    ctx.graph.on('change:data', ctx.wireLogicLpSyncWireGroup);
+    //-- graph events: wire order + port defaults + auto refresh
+    //-- (lpSyncWireGroup intentionally NOT registered: individual label renames
+    //--  are now independent; bulk rename is handled by graph.renameWire via LP)
 
     var lpTriggerAutoRefresh = ctx.nodeDebounce(function () {
       $('body').trigger('Graph::lpRefresh');
