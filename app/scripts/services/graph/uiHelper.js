@@ -68,6 +68,16 @@ window._icegraph.uiHelper = function (ctx) {
 
   //-- Batch-update cell bounding boxes using RAF to stay within frame budget
   var isUpdatingCells = false;
+  var loopScheduled = false;
+
+  //-- Start the pan/zoom drain loop if not already running
+  function startUpdateLoop() {
+    if (!loopScheduled) {
+      loopScheduled = true;
+      requestAnimationFrame(loopUpdateBoxes);
+    }
+  }
+
   function updateCellBoxes() {
     if (!isUpdatingCells) {
       isUpdatingCells = true;
@@ -123,13 +133,19 @@ window._icegraph.uiHelper = function (ctx) {
     }
   }
 
-  //-- RAF loop: consume the pan/zoom queue and trigger cell box updates
+  //-- RAF loop: consume the pan/zoom queue and trigger cell box updates.
+  //-- Runs only while there is work; call startUpdateLoop() to (re)start it.
   function loopUpdateBoxes() {
+    loopScheduled = false;
     if (!isUpdatingCells && ctx.queuePanZoom.length > 0) {
       ctx.queuePanZoom.length = 0;
       updateCellBoxes();
     }
-    requestAnimationFrame(loopUpdateBoxes);
+    // Keep running if an update is in flight or new work arrived
+    if (isUpdatingCells || ctx.queuePanZoom.length > 0) {
+      loopScheduled = true;
+      requestAnimationFrame(loopUpdateBoxes);
+    }
   }
 
   //-- Tooltip position for ace gutter error/warning marks
@@ -248,6 +264,7 @@ window._icegraph.uiHelper = function (ctx) {
     restoreAceEditors: restoreAceEditors,
     updateCellBoxes: updateCellBoxes,
     loopUpdateBoxes: loopUpdateBoxes,
+    startUpdateLoop: startUpdateLoop,
     resetCodeErrors: resetCodeErrors,
     init: init,
   };

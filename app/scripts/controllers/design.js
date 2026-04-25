@@ -278,11 +278,18 @@ cells.sort((a, b) => {
             $scope.toRestore = false;
           }
 
-          graph.resetView();
-          graph.loadDesign(design, opt, function () {
+          var didPop = graph.popPaper();
+          if (didPop) {
+            graph.fitContent();
             $scope.isNavigating = false;
             utils.endBlockingTask();
-          });
+          } else {
+            graph.resetView();
+            graph.loadDesign(design, opt, function () {
+              $scope.isNavigating = false;
+              utils.endBlockingTask();
+            });
+          }
           $scope.topModule = true;
         } else {
           var type = graph.breadcrumbs[n - 1].type;
@@ -301,7 +308,6 @@ cells.sort((a, b) => {
             }
             $scope.toRestore = false;
           }
-          graph.fitContent();
           graph.resetView();
           graph.loadDesign(dependency.design, opt, function () {
             $scope.isNavigating = false;
@@ -333,6 +339,17 @@ cells.sort((a, b) => {
 
         if (typeof args.editMode !== 'undefined') {
           opt.disabled = args.editMode;
+        }
+
+        // When leaving the top level to enter a submodule, hide the current
+        // paper (keeping all cells and ACE editors live) and spin up a fresh
+        // paper for the submodule.  On back-navigation popPaper() restores the
+        // hidden paper instantly — no cell rebuild needed.
+        if (
+          graph.breadcrumbs.length === 1 &&
+          typeof args.submodule !== 'undefined'
+        ) {
+          graph.pushPaper();
         }
 
         //  utils.beginBlockingTask();

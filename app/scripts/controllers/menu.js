@@ -113,9 +113,14 @@ angular.module('icestudio').controller(
       graph.fitPaper();
     });
 
-    //-- Event: The window was resized
+    //-- Event: The window was resized — debounced so rapid drag-resize doesn't
+    //-- thrash SVG layout on every pixel; fires once the resize gesture ends.
+    var resizeDebounce;
     win.on('resize', function () {
-      graph.fitPaper();
+      clearTimeout(resizeDebounce);
+      resizeDebounce = setTimeout(function () {
+        graph.fitPaper();
+      }, 150);
     });
 
     //-- Event: The window was moved

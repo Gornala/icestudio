@@ -741,6 +741,47 @@ window._icegraph.cellManager = function (ctx) {
   }
 
   //--------------------------------------------------------------------------
+  //-- Top-level cell cache (for fast submodule back-navigation)
+  //--------------------------------------------------------------------------
+
+  // Only ACE-editor block types are expensive to recreate — cache those.
+  // Simple blocks (Input/Output/Constant/etc.) rebuild from template in <1 ms.
+  var _ACE_TYPES = {
+    'ice.Code': true,
+    'ice.Info': true,
+    'ice.Memory': true,
+    'ice.JsonInput': true,
+    'ice.JsonOutput': true,
+  };
+
+  // Snapshot ACE-editor views so the next initialize() can skip ace.edit().
+  // Returns ALL cells (blocks + wires) so the caller can re-add them all.
+  function cacheTopCells() {
+    var cells = ctx.graph.getCells();
+    cells.forEach(function (cell) {
+      if (cell.isLink()) {
+        return;
+      }
+      if (!_ACE_TYPES[cell.get('type')]) {
+        return;
+      }
+      var view = ctx.paper.findViewByModel(cell);
+      if (!view) {
+        return;
+      }
+      if (view.$box) {
+        view.$box.detach();
+        cell._iceCachedBox = view.$box;
+      }
+      cell._iceCachedView = view;
+      if (view.editor) {
+        cell._iceCachedEditor = view.editor;
+      }
+    });
+    return cells;
+  }
+
+  //--------------------------------------------------------------------------
   //-- Arrow-key stepping
   //--------------------------------------------------------------------------
   var stepValue = 8;
@@ -843,5 +884,6 @@ window._icegraph.cellManager = function (ctx) {
     stepUp: stepUp,
     stepRight: stepRight,
     stepDown: stepDown,
+    cacheTopCells: cacheTopCells,
   };
 };

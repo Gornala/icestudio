@@ -21,76 +21,110 @@ joint.shapes.ice.Info = joint.shapes.ice.Model.extend({
 
 joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
   initialize: function () {
+    var self = this;
     _.bindAll(this, 'updateBox');
     joint.dia.ElementView.prototype.initialize.apply(this, arguments);
 
     var id = sha1(this.model.get('id')).toString().substring(0, 6);
     var editorLabel = 'editor' + id;
-    var readonly = this.model.get('data').readonly;
 
-    // Select "ace-editor" theme depending on "uiTheme" profile variable
-    var editorTheme;
-    if (global.uiTheme === 'dark') {
-      // DARK -> theme monokai
-      editorTheme = 'monokai';
+    var cachedBox = this.model._iceCachedBox;
+    var cachedView = this.model._iceCachedView;
+    var cachedEditor = this.model._iceCachedEditor;
+
+    if (cachedBox) {
+      // ---- FAST PATH ----
+      this.$box = cachedBox;
+      this.editor = cachedEditor;
+      if (cachedView) {
+        this.model.off('change', cachedView.updateBox, cachedView);
+        this.model.off('remove', cachedView.removeBox, cachedView);
+        if (cachedView._aceSessionChangeHandler) {
+          cachedEditor.session.removeListener(
+            'change',
+            cachedView._aceSessionChangeHandler
+          );
+        }
+        if (cachedView._aceFocusHandler) {
+          cachedEditor.removeListener('focus', cachedView._aceFocusHandler);
+        }
+        if (cachedView._aceBlurHandler) {
+          cachedEditor.removeListener('blur', cachedView._aceBlurHandler);
+        }
+        if (cachedView._acePasteHandler) {
+          cachedEditor.removeListener('paste', cachedView._acePasteHandler);
+        }
+        if (cachedView._aceMousewheelHandler) {
+          cachedEditor.removeListener(
+            'mousewheel',
+            cachedView._aceMousewheelHandler
+          );
+        }
+      }
+      delete this.model._iceCachedBox;
+      delete this.model._iceCachedView;
+      delete this.model._iceCachedEditor;
     } else {
-      editorTheme = 'chrome'; // DEFAULT or LIGHT -> theme chrome
+      // ---- SLOW PATH ----
+      var readonly = this.model.get('data').readonly;
+      var editorTheme = global.uiTheme === 'dark' ? 'monokai' : 'chrome';
+
+      this.$box = $(
+        joint.util.template(
+          '\
+        <div class="info-block">\
+          <div class="info-render markdown-body' +
+            (readonly ? '' : ' hidden') +
+            '"></div>\
+          <div class="info-content">\
+            <div class="info-header">\
+              <label class="info-name">Info</label>\
+              <button class="info-btn info-btn-toggle" title="Toggle edit/view"></button>\
+            </div>\
+          </div>\
+          <div class="info-editor' +
+            (readonly ? ' hidden' : '') +
+            '" id="' +
+            editorLabel +
+            '"></div>\
+          <script>\
+            var ' +
+            editorLabel +
+            ' = ace.edit("' +
+            editorLabel +
+            '");\
+            ' +
+            editorLabel +
+            '.setTheme("ace/theme/' +
+            editorTheme +
+            '");\
+            ' +
+            editorLabel +
+            '.setHighlightActiveLine(false);\
+            ' +
+            editorLabel +
+            '.setShowPrintMargin(false);\
+            ' +
+            editorLabel +
+            '.setAutoScrollEditorIntoView(true);\
+            ' +
+            editorLabel +
+            '.renderer.setShowGutter(false);\
+            ' +
+            editorLabel +
+            '.renderer.$cursorLayer.element.style.opacity = 0;\
+            ' +
+            editorLabel +
+            '.session.setMode("ace/mode/markdown");\
+          </script>\
+          <div class="resizer"/></div>\
+        </div>\
+        '
+        )()
+      );
     }
 
-    this.$box = $(
-      joint.util.template(
-        '\
-      <div class="info-block">\
-        <div class="info-render markdown-body' +
-          (readonly ? '' : ' hidden') +
-          '"></div>\
-        <div class="info-content">\
-          <div class="info-header">\
-            <label class="info-name">Info</label>\
-            <button class="info-btn info-btn-toggle" title="Toggle edit/view"></button>\
-          </div>\
-        </div>\
-        <div class="info-editor' +
-          (readonly ? ' hidden' : '') +
-          '" id="' +
-          editorLabel +
-          '"></div>\
-        <script>\
-          var ' +
-          editorLabel +
-          ' = ace.edit("' +
-          editorLabel +
-          '");\
-          ' +
-          editorLabel +
-          '.setTheme("ace/theme/' +
-          editorTheme +
-          '");\
-          ' +
-          editorLabel +
-          '.setHighlightActiveLine(false);\
-          ' +
-          editorLabel +
-          '.setShowPrintMargin(false);\
-          ' +
-          editorLabel +
-          '.setAutoScrollEditorIntoView(true);\
-          ' +
-          editorLabel +
-          '.renderer.setShowGutter(false);\
-          ' +
-          editorLabel +
-          '.renderer.$cursorLayer.element.style.opacity = 0;\
-          ' +
-          editorLabel +
-          '.session.setMode("ace/mode/markdown");\
-        </script>\
-        <div class="resizer"/></div>\
-      </div>\
-      '
-      )()
-    );
-
+    // ---- Common setup ----
     this.renderSelector = this.$box.find('.info-render');
     this.editorSelector = this.$box.find('.info-editor');
     this.contentSelector = this.$box.find('.info-content');
@@ -98,16 +132,12 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
     this.model.on('change', this.updateBox, this);
     this.model.on('remove', this.removeBox, this);
 
-    // Prevent paper from handling pointerdown.
     this.editorSelector.on('mousedown click', function (event) {
       event.stopPropagation();
     });
-
-    // Header button events
     this.$box.find('.info-btn').on('mousedown click', function (event) {
       event.stopPropagation();
     });
-    var self = this;
     this.$box.find('.info-btn-toggle').on('click', function () {
       self.model.attributes.data.readonly = !self.model.get('data').readonly;
       self.apply();
@@ -121,72 +151,78 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
     this.timer = null;
     var undoGroupingInterval = 200;
 
-    this.editor = ace.edit(this.editorSelector[0]);
-    this.updateScrollStatus(false);
-    this.editor.$blockScrolling = Infinity;
-    this.editor.commands.removeCommand('touppercase');
-    this.editor.session.on('change', function (delta) {
+    if (!cachedBox) {
+      this.editor = ace.edit(this.editorSelector[0]);
+      this.updateScrollStatus(false);
+      this.editor.$blockScrolling = Infinity;
+      this.editor.commands.removeCommand('touppercase');
+    }
+
+    // ---- ACE event handlers — always fresh ----
+    this._aceSessionChangeHandler = function (delta) {
       if (!self.updating) {
-        // Check consecutive-change interval
         if (Date.now() - self.counter < undoGroupingInterval) {
           clearTimeout(self.timer);
         }
-        // Update deltas
         self.deltas = self.deltas.concat([delta]);
-        // Launch timer
         self.timer = setTimeout(function () {
           var deltas = JSON.parse(JSON.stringify(self.deltas));
-          // Set deltas
           self.model.set('deltas', deltas);
-          // Reset deltas
           self.deltas = [];
-          // Set data.code
           self.model.attributes.data.info = self.editor.session.getValue();
         }, undoGroupingInterval);
-        // Reset counter
         self.counter = Date.now();
       }
-    });
-    this.editor.on('focus', function () {
+    };
+    this.editor.session.on('change', this._aceSessionChangeHandler);
+
+    this._aceFocusHandler = function () {
       self.updateScrollStatus(true);
       $(document).trigger('disableSelected');
       self.editor.setHighlightActiveLine(true);
-      // Show cursor
       self.editor.renderer.$cursorLayer.element.style.opacity = 1;
-    });
-    this.editor.on('blur', function () {
+    };
+    this.editor.on('focus', this._aceFocusHandler);
+
+    this._aceBlurHandler = function () {
       self.updateScrollStatus(false);
       var selection = self.editor.session.selection;
       if (selection) {
         selection.clearSelection();
       }
       self.editor.setHighlightActiveLine(false);
-      // Hide cursor
       self.editor.renderer.$cursorLayer.element.style.opacity = 0;
-    });
-    this.editor.on('paste', function (e) {
+    };
+    this.editor.on('blur', this._aceBlurHandler);
+
+    this._acePasteHandler = function (e) {
       if (e.text.startsWith('{"icestudio":')) {
-        // Prevent paste blocks
         e.text = '';
       }
-    });
-    this.editor.on('mousewheel', function (event) {
-      // Stop mousewheel event propagation when target is active
+    };
+    this.editor.on('paste', this._acePasteHandler);
+
+    this._aceMousewheelHandler = function (event) {
       if (
         document.activeElement.parentNode.id === self.editorSelector.attr('id')
       ) {
-        // Enable only scroll
         event.stopPropagation();
       } else {
-        // Enable only zoom
         event.preventDefault();
       }
-    });
+    };
+    this.editor.on('mousewheel', this._aceMousewheelHandler);
 
-    this.setupResizer();
-
-    // Apply data
-    this.apply({ ini: true });
+    if (!cachedBox) {
+      this.setupResizer();
+      this.apply({ ini: true });
+    } else {
+      var data = this.model.get('data');
+      if (data && this.editor.session.getValue() !== (data.info || '')) {
+        this.editor.session.setValue(data.info || '');
+      }
+      this.editor.resize();
+    }
   },
 
   applyValue: function (opt) {
@@ -483,6 +519,9 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
 
   removeBox: function (/*event*/) {
     delete this.model.attributes.data.delta;
+    if (this.model._iceCachedBox) {
+      return;
+    }
     this.$box.remove();
   },
 });

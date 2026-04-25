@@ -8,6 +8,10 @@
 window._icegraph = window._icegraph || {};
 
 window._icegraph.canvasPaper = function (ctx) {
+  // Stack of saved paper levels.  Each entry holds all JointJS instances for
+  // one navigation level so that they can be restored without rebuilding.
+  var _paperStack = [];
+
   function createPaper(element, serviceInstance) {
     //-- Create JointJS graph and paper
     ctx.graph = new ctx.joint.dia.Graph();
@@ -89,6 +93,7 @@ window._icegraph.canvasPaper = function (ctx) {
             oncePerZoomHook = false;
             ctx.state.mutateZoom = false;
             ctx.queuePanZoom.push(1);
+            ctx.startUpdateLoop();
           }
         }, 400);
       },
@@ -96,6 +101,7 @@ window._icegraph.canvasPaper = function (ctx) {
         ctx.state.pan = newPan;
         ctx.graph.trigger('state', ctx.state);
         ctx.queuePanZoom.push(1);
+        ctx.startUpdateLoop();
       },
     });
 
@@ -104,7 +110,6 @@ window._icegraph.canvasPaper = function (ctx) {
 
     //-- Initialize uiHelper (tooltip + codeError handlers, RAF loop)
     ctx.uiHelperInit();
-    requestAnimationFrame(ctx.loopUpdateBoxes);
 
     //-- Initialize interactions (paper + graph event listeners)
     var _interactions = _icegraph.interactions(ctx);
@@ -116,7 +121,122 @@ window._icegraph.canvasPaper = function (ctx) {
     _interactions.setup();
   }
 
+  // Save the current paper level and spin up a fresh one for the submodule.
+  // The top-level paper is hidden (display:none) so its DOM — including live
+  // ACE editors — stays intact.  No cells are removed or recreated.
+  function pushPaper(serviceInstance) {
+    _paperStack.push({
+      graph: ctx.graph,
+      paper: ctx.paper,
+      commandManager: ctx.commandManager,
+      panAndZoom: ctx.panAndZoom,
+      selection: ctx.selection,
+      selectionView: ctx.selectionView,
+      zIndex: ctx.z.index,
+    });
+
+    // Disable and hide — pointer-events are gone, no stale interactions
+    ctx.paper.options.enabled = false;
+    ctx.paper.$el.hide();
+
+    // Create a sibling container (same CSS class so design.css applies)
+    var $newEl = $('<div></div>').addClass('paper');
+    ctx.paper.$el.after($newEl);
+
+    // Full paper initialisation in the new container
+    createPaper($newEl, serviceInstance);
+
+    // svgPanZoom may not fire onZoom/onPan callbacks when set to the same
+    // value as its current internal state — force-sync ctx.state so that
+    // any updateBox calls before the next resetView use correct values.
+    ctx.state.zoom = ctx.panAndZoom.getZoom();
+    ctx.state.pan = ctx.panAndZoom.getPan();
+  }
+
+  // Destroy the submodule paper and restore the saved top-level paper.
+  // Returns true when the stack had an entry, false when there was nothing
+  // to restore (caller should fall back to graph.loadDesign()).
+  function popPaper(serviceInstance) {
+    if (_paperStack.length === 0) {
+      return false;
+    }
+    var saved = _paperStack.pop();
+
+    // Tear down the submodule panAndZoom event listeners
+    if (ctx.panAndZoom) {
+      try {
+        ctx.panAndZoom.destroy();
+      } catch (e) {}
+    }
+
+    // Remove all submodule cell views (calls removeBox() on each)
+    ctx.graph.clear();
+    ctx.selectionView.cancelSelection();
+
+    // Drop the submodule container from the DOM
+    ctx.paper.$el.remove();
+
+    // Restore saved instances
+    ctx.graph = saved.graph;
+    ctx.paper = saved.paper;
+    ctx.commandManager = saved.commandManager;
+    ctx.panAndZoom = saved.panAndZoom;
+    ctx.selection = saved.selection;
+    ctx.selectionView = saved.selectionView;
+    ctx.z.index = saved.zIndex;
+
+    // Sync ctx.state to the restored panAndZoom's actual state so that
+    // updateBox calls and fitContent use the correct zoom/pan values.
+    ctx.state.zoom = ctx.panAndZoom.getZoom();
+    ctx.state.pan = ctx.panAndZoom.getPan();
+
+    // Expose updated panAndZoom on the Angular service
+    serviceInstance.panAndZoom = ctx.panAndZoom;
+
+    // Bring the top-level paper back
+    ctx.paper.options.enabled = true;
+    ctx.paper.$el.show();
+    ctx.service.appEnable(true);
+
+    // Re-listen for undo/redo (commandManager was not touched while hidden)
+    ctx.commandManager.listen();
+
+    // Resize every ACE editor — they were alive but hidden and may have an
+    // incorrect size if the window was resized while we were in the submodule
+    ctx.graph.getCells().forEach(function (cell) {
+      if (!cell.isLink()) {
+        var view = ctx.paper.findViewByModel(cell);
+        if (view && view.editor) {
+          view.editor.resize();
+        }
+      }
+    });
+
+    // Trigger a box-position update pass for all cells
+    ctx.queuePanZoom.push(1);
+    ctx.startUpdateLoop();
+
+    return true;
+  }
+
+  // Discard all stacked paper levels without restoring any of them.
+  // Call this when a completely new project is opened so that a stale
+  // top-level paper from a previous project is never accidentally shown.
+  function clearStack() {
+    while (_paperStack.length > 0) {
+      var saved = _paperStack.pop();
+      try {
+        saved.panAndZoom.destroy();
+      } catch (e) {}
+      saved.graph.clear();
+      saved.paper.$el.remove();
+    }
+  }
+
   return {
     createPaper: createPaper,
+    pushPaper: pushPaper,
+    popPaper: popPaper,
+    clearStack: clearStack,
   };
 };

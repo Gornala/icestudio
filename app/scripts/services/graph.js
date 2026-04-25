@@ -125,6 +125,7 @@ angular.module('icestudio').service(
     };
 
     //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //-- Initialize modules
     //--------------------------------------------------------------------------
     var _viewState = _icegraph.viewState(ctx);
@@ -141,6 +142,7 @@ angular.module('icestudio').service(
     ctx.restoreAceEditors = _uiHelper.restoreAceEditors;
     ctx.uiHelperInit = _uiHelper.init;
     ctx.loopUpdateBoxes = _uiHelper.loopUpdateBoxes;
+    ctx.startUpdateLoop = _uiHelper.startUpdateLoop;
 
     ctx.updateCellAttributes = _cellManager.updateCellAttributes;
     ctx.addCell = _cellManager.addCell;
@@ -229,16 +231,37 @@ angular.module('icestudio').service(
     this.resetCodeErrors = _uiHelper.resetCodeErrors;
 
     //--------------------------------------------------------------------------
-    //-- createPaper — delegates to canvasPaper module
-    //-- Called once from the design controller to initialise the JointJS canvas
+    //-- createPaper + paper-stack API — delegate to canvasPaper module
+    //-- canvasPaper is instantiated once so its _paperStack persists.
     //--------------------------------------------------------------------------
-    this.createPaper = function (element) {
-      var _canvasPaper = _icegraph.canvasPaper(ctx);
-      _canvasPaper.createPaper(element, self);
+    var _canvasPaper = _icegraph.canvasPaper(ctx);
 
-      //-- Keep module-level vars in sync (used by joint.js custom shapes)
+    this.createPaper = function (element) {
+      _canvasPaper.createPaper(element, self);
       graph = ctx.graph;
       paper = ctx.paper;
+    };
+
+    // Push the current paper onto the stack (hide it) and spin up a fresh one
+    // for the submodule.  Called before graph.loadDesign(submodule).
+    this.pushPaper = function () {
+      _canvasPaper.pushPaper(self);
+      graph = ctx.graph;
+      paper = ctx.paper;
+    };
+
+    // Restore the top-level paper from the stack.  Returns true on success,
+    // false when the stack is empty (caller falls back to graph.loadDesign).
+    this.popPaper = function () {
+      var ok = _canvasPaper.popPaper(self);
+      graph = ctx.graph;
+      paper = ctx.paper;
+      return ok;
+    };
+
+    // Clear the stack without restoring — call when opening a new project.
+    this.clearPaperStack = function () {
+      _canvasPaper.clearStack();
     };
   }
 );

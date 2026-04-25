@@ -273,7 +273,18 @@ joint.shapes.ice.ModelView = joint.dia.ElementView.extend({
     _.bindAll(this, 'updateBox');
     joint.dia.ElementView.prototype.initialize.apply(this, arguments);
 
-    this.$box = $(joint.util.template(this.template)());
+    if (this.model._iceCachedBox) {
+      this.$box = this.model._iceCachedBox;
+      var oldView = this.model._iceCachedView;
+      if (oldView) {
+        this.model.off('change', oldView.updateBox, oldView);
+        this.model.off('remove', oldView.removeBox, oldView);
+      }
+      delete this.model._iceCachedBox;
+      delete this.model._iceCachedView;
+    } else {
+      this.$box = $(joint.util.template(this.template)());
+    }
 
     this.model.on('change', this.updateBox, this);
     this.model.on('remove', this.removeBox, this);
@@ -583,7 +594,10 @@ joint.shapes.ice.ModelView = joint.dia.ElementView.extend({
   updateBox: function () {},
 
   removeBox: function () {
-    //event variable arg
+    // If $box was pre-detached by cacheTopCells, skip — it lives in the cache
+    if (this.model._iceCachedBox) {
+      return;
+    }
     this.$box.remove();
   },
 

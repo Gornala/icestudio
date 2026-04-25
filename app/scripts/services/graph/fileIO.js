@@ -258,11 +258,8 @@ window._icegraph.fileIO = function (ctx) {
       var cellsw = result[1];
 
       ctx.graph.startBatch('loadDesign');
-      ctx.graph.addCells(cells);
+      ctx.graph.addCells(cells.concat(cellsw));
       ctx.graph.stopBatch('loadDesign');
-      ctx.graph.startBatch('loadDesignW');
-      ctx.graph.addCells(cellsw);
-      ctx.graph.stopBatch('loadDesignW');
 
       ctx.setState(design.state);
       ctx.service.appEnable(!opt.disabled);
@@ -277,6 +274,68 @@ window._icegraph.fileIO = function (ctx) {
       return true;
     }
     return false;
+  }
+
+  // Restore the top-level design using cached ACE editor instances.
+  // We still run graphToCells() so that fresh Backbone models and wires are
+  // created (avoiding JointJS stale-model issues), but we inject the cached
+  // $box/editor into each matching fresh ACE-block model by block ID so that
+  // view.initialize() can take the fast path (no ace.edit() call).
+  function loadDesignFromCache(cachedCells, design, opt, callback) {
+    // Build ID → ACE-cache map from old models, cleaning up as we go
+    var aceMap = {};
+    cachedCells.forEach(function (cell) {
+      if (cell._iceCachedBox || cell._iceCachedEditor) {
+        aceMap[cell.id] = {
+          box: cell._iceCachedBox,
+          view: cell._iceCachedView,
+          editor: cell._iceCachedEditor,
+        };
+        delete cell._iceCachedBox;
+        delete cell._iceCachedView;
+        delete cell._iceCachedEditor;
+      }
+    });
+
+    ctx.utils.beginBlockingTask();
+    ctx.commandManager.stopListening();
+    ctx.service.clearAll();
+
+    var result = graphToCells(design.graph, opt);
+    var cells = result[0];
+    var cellsw = result[1];
+
+    // Inject cached $boxes into fresh models before addCells() so that
+    // view.initialize() finds _iceCachedBox and skips ace.edit()
+    cells.forEach(function (cell) {
+      var cached = aceMap[cell.id];
+      if (cached) {
+        if (cached.box) {
+          cell._iceCachedBox = cached.box;
+        }
+        if (cached.view) {
+          cell._iceCachedView = cached.view;
+        }
+        if (cached.editor) {
+          cell._iceCachedEditor = cached.editor;
+        }
+      }
+    });
+
+    ctx.graph.startBatch('loadDesign');
+    ctx.graph.addCells(cells.concat(cellsw));
+    ctx.graph.stopBatch('loadDesign');
+
+    ctx.setState(design.state);
+    ctx.service.appEnable(!opt.disabled);
+    if (!opt.disabled) {
+      ctx.commandManager.listen();
+    }
+    ctx.fitContent();
+    if (callback) {
+      callback();
+      ctx.utils.endBlockingTask();
+    }
   }
 
   function appendDesign(design, dependencies) {
@@ -760,6 +819,7 @@ window._icegraph.fileIO = function (ctx) {
     graphOrigin: graphOrigin,
     graphToCells: graphToCells,
     loadDesign: loadDesign,
+    loadDesignFromCache: loadDesignFromCache,
     appendDesign: appendDesign,
     pushCodeBlockToCollection: pushCodeBlockToCollection,
   };

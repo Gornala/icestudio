@@ -22,55 +22,92 @@ joint.shapes.ice.Code = joint.shapes.ice.Model.extend({
 
 joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
   initialize: function () {
+    var self = this;
     _.bindAll(this, 'updateBox');
     joint.dia.ElementView.prototype.initialize.apply(this, arguments);
 
-    let modelId = this.model.get('id');
+    var modelId = this.model.get('id');
     var id = sha1(modelId).toString().substring(0, 6);
     var editorLabel = 'editor' + id;
 
-    // Select "ace-editor" theme depending on "uiTheme" profile variable
-    var editorTheme;
-    if (global.uiTheme === 'dark') {
-      // DARK -> theme monokai
-      editorTheme = 'monokai';
+    var cachedBox = this.model._iceCachedBox;
+    var cachedView = this.model._iceCachedView;
+    var cachedEditor = this.model._iceCachedEditor;
+
+    if (cachedBox) {
+      // ---- FAST PATH: reuse cached $box and ACE editor ----
+      this.$box = cachedBox;
+      this.editor = cachedEditor;
+
+      // Remove stale Backbone listeners from the old view
+      if (cachedView) {
+        this.model.off('change', cachedView.updateBox, cachedView);
+        this.model.off('remove', cachedView.removeBox, cachedView);
+        // Remove stale ACE listeners that close over the old view
+        if (cachedView._aceSessionChangeHandler) {
+          cachedEditor.session.removeListener(
+            'change',
+            cachedView._aceSessionChangeHandler
+          );
+        }
+        if (cachedView._aceFocusHandler) {
+          cachedEditor.removeListener('focus', cachedView._aceFocusHandler);
+        }
+        if (cachedView._aceBlurHandler) {
+          cachedEditor.removeListener('blur', cachedView._aceBlurHandler);
+        }
+        if (cachedView._acePasteHandler) {
+          cachedEditor.removeListener('paste', cachedView._acePasteHandler);
+        }
+        if (cachedView._aceMousewheelHandler) {
+          cachedEditor.removeListener(
+            'mousewheel',
+            cachedView._aceMousewheelHandler
+          );
+        }
+      }
+      delete this.model._iceCachedBox;
+      delete this.model._iceCachedView;
+      delete this.model._iceCachedEditor;
     } else {
-      editorTheme = 'chrome'; // DEFAULT or LIGHT -> theme chrome
+      // ---- SLOW PATH: build $box and initialize ACE from scratch ----
+      // Select "ace-editor" theme depending on "uiTheme" profile variable
+      var editorTheme = global.uiTheme === 'dark' ? 'monokai' : 'chrome';
+
+      this.$box = $(
+        joint.util.template(
+          `
+        <div class="code-block">
+          <div class="code-content">
+            <div class="code-header">
+              <label class="code-block-name"></label>
+              <div class="js-codeblock-io-edit code-btn" data-blkId="${modelId}" title="Settings"><i class="fas fa-edit"></i></div>
+              <div class="js-codeblock-full-edit code-btn" data-blkId="${modelId}" title="Full Editor"><i class="fas fa-expand-alt"></i></div>
+              <div class="js-codeblock-formal-test code-btn" data-blkId="${modelId}" title="Formal Test"><i class="fas fa-flask"></i></div>
+              <div class="js-codeblock-testbench code-btn" data-blkId="${modelId}" title="Testbench"><i class="fas fa-vial"></i></div>
+              <div class="js-codeblock-export-module code-btn" data-blkId="${modelId}" title="Export Module"><i class="fas fa-file-export"></i></div>
+              <div class="js-codeblock-push-collection code-btn" data-blkId="${modelId}" title="Push to Collection"><i class="fas fa-archive"></i></div>
+            </div>
+          </div>
+          <div class="code-editor" id="${editorLabel}"></div>
+          <script>
+            var ${editorLabel} = ace.edit("${editorLabel}");
+            ${editorLabel}.setTheme("ace/theme/${editorTheme}");
+            ${editorLabel}.setHighlightActiveLine(false);
+            ${editorLabel}.setHighlightGutterLine(false);
+            ${editorLabel}.setAutoScrollEditorIntoView(true);
+            ${editorLabel}.renderer.setShowGutter(true);
+            ${editorLabel}.renderer.$cursorLayer.element.style.opacity = 0;
+            ${editorLabel}.session.setMode("ace/mode/verilog");
+          </script>
+          <div class="resizer"/></div>
+        </div>
+        `
+        )()
+      );
     }
 
-    this.$box = $(
-      joint.util.template(
-        `
-      <div class="code-block">
-        <div class="code-content">
-          <div class="code-header">
-            <label class="code-block-name"></label>
-            <div class="js-codeblock-io-edit code-btn" data-blkId="${modelId}" title="Settings"><i class="fas fa-edit"></i></div>
-            <div class="js-codeblock-full-edit code-btn" data-blkId="${modelId}" title="Full Editor"><i class="fas fa-expand-alt"></i></div>
-            <div class="js-codeblock-formal-test code-btn" data-blkId="${modelId}" title="Formal Test"><i class="fas fa-flask"></i></div>
-            <div class="js-codeblock-testbench code-btn" data-blkId="${modelId}" title="Testbench"><i class="fas fa-vial"></i></div>
-            <div class="js-codeblock-export-module code-btn" data-blkId="${modelId}" title="Export Module"><i class="fas fa-file-export"></i></div>
-            <div class="js-codeblock-push-collection code-btn" data-blkId="${modelId}" title="Push to Collection"><i class="fas fa-archive"></i></div>
-          </div>
-        </div>
-        <div class="code-editor" id="${editorLabel}"></div>
-        <script>
-          var ${editorLabel} = ace.edit("${editorLabel}");
-
-          ${editorLabel}.setTheme("ace/theme/${editorTheme}");
-          ${editorLabel}.setHighlightActiveLine(false);
-          ${editorLabel}.setHighlightGutterLine(false);
-          ${editorLabel}.setAutoScrollEditorIntoView(true);
-          ${editorLabel}.renderer.setShowGutter(true);
-          ${editorLabel}.renderer.$cursorLayer.element.style.opacity = 0;
-         ${editorLabel}.session.setMode("ace/mode/verilog");
-        </script>
-        <div class="resizer"/></div>
-      </div>
-      `
-      )()
-    );
-
+    // ---- Common setup (runs for both paths) ----
     this.editorSelector = this.$box.find('.code-editor');
     this.contentSelector = this.$box.find('.code-content');
     this.nativeDom = {
@@ -103,44 +140,42 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
     this.timer = null;
     var undoGroupingInterval = 200;
 
-    var self = this;
-    this.editor = ace.edit(this.editorSelector[0]);
-    this.updateScrollStatus(false);
-    this.editor.$blockScrolling = Infinity;
-    //  this.editor.commands.removeCommand('undo');
-    //  this.editor.commands.removeCommand('redo');
-    this.editor.commands.removeCommand('touppercase');
-    this.editor.session.on('change', function (delta) {
+    if (!cachedBox) {
+      // Slow path only: create the ACE editor instance
+      this.editor = ace.edit(this.editorSelector[0]);
+      this.updateScrollStatus(false);
+      this.editor.$blockScrolling = Infinity;
+      this.editor.commands.removeCommand('touppercase');
+    }
+
+    // ---- ACE event handlers — always fresh, pointing to THIS view ----
+    this._aceSessionChangeHandler = function (delta) {
       if (!self.updating) {
-        // Check consecutive-change interval
         if (Date.now() - self.counter < undoGroupingInterval) {
           clearTimeout(self.timer);
         }
-        // Update deltas
         self.deltas = self.deltas.concat([delta]);
-        // Launch timer
         self.timer = setTimeout(function () {
           var deltas = JSON.parse(JSON.stringify(self.deltas));
-          // Set deltas
           self.model.set('deltas', deltas);
-          // Reset deltas
           self.deltas = [];
-          // Set data.code
           self.model.attributes.data.code = self.editor.session.getValue();
         }, undoGroupingInterval);
-        // Reset counter
         self.counter = Date.now();
       }
-    });
-    this.editor.on('focus', function () {
+    };
+    this.editor.session.on('change', this._aceSessionChangeHandler);
+
+    this._aceFocusHandler = function () {
       self.updateScrollStatus(true);
       $(document).trigger('disableSelected');
       self.editor.setHighlightActiveLine(true);
       self.editor.setHighlightGutterLine(true);
-      // Show cursor
       self.editor.renderer.$cursorLayer.element.style.opacity = 1;
-    });
-    this.editor.on('blur', function () {
+    };
+    this.editor.on('focus', this._aceFocusHandler);
+
+    this._aceBlurHandler = function () {
       self.updateScrollStatus(false);
       var selection = self.editor.session.selection;
       if (selection) {
@@ -148,32 +183,39 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
       }
       self.editor.setHighlightActiveLine(false);
       self.editor.setHighlightGutterLine(false);
-      // Hide cursor
       self.editor.renderer.$cursorLayer.element.style.opacity = 0;
-    });
-    this.editor.on('paste', function (e) {
+    };
+    this.editor.on('blur', this._aceBlurHandler);
+
+    this._acePasteHandler = function (e) {
       if (e.text.startsWith('{"icestudio":')) {
-        // Prevent paste blocks
         e.text = '';
       }
-    });
-    this.editor.on('mousewheel', function (event) {
-      // Stop mousewheel event propagation when target is active
+    };
+    this.editor.on('paste', this._acePasteHandler);
+
+    this._aceMousewheelHandler = function (event) {
       if (
         document.activeElement.parentNode.id === self.editorSelector.attr('id')
       ) {
-        // Enable only scroll
         event.stopPropagation();
       } else {
-        // Enable only zoom
         event.preventDefault();
       }
-    });
+    };
+    this.editor.on('mousewheel', this._aceMousewheelHandler);
 
-    this.setupResizer();
-
-    // Apply data
-    this.apply({ ini: true });
+    if (!cachedBox) {
+      this.setupResizer();
+      this.apply({ ini: true });
+    } else {
+      // Sync editor content with model in case it changed while away
+      var data = this.model.get('data');
+      if (data && this.editor.session.getValue() !== (data.code || '')) {
+        this.editor.session.setValue(data.code || '');
+      }
+      this.editor.resize();
+    }
   },
 
   applyValue: function (opt) {

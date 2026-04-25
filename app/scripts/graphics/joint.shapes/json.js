@@ -23,69 +23,96 @@ joint.shapes.ice.JsonInput = joint.shapes.ice.Model.extend({
 
 joint.shapes.ice.JsonInputView = joint.shapes.ice.ModelView.extend({
   initialize: function () {
+    var self = this;
     _.bindAll(this, 'updateBox');
     joint.dia.ElementView.prototype.initialize.apply(this, arguments);
 
     var id = sha1(this.model.get('id')).toString().substring(0, 6);
     var editorLabel = 'jsoninputeditor' + id;
 
-    var editorTheme;
-    if (global.uiTheme === 'dark') {
-      editorTheme = 'monokai';
+    var cachedBox = this.model._iceCachedBox;
+    var cachedView = this.model._iceCachedView;
+    var cachedEditor = this.model._iceCachedEditor;
+
+    if (cachedBox) {
+      // ---- FAST PATH ----
+      this.$box = cachedBox;
+      this.editor = cachedEditor;
+      if (cachedView) {
+        this.model.off('change', cachedView.updateBox, cachedView);
+        this.model.off('remove', cachedView.removeBox, cachedView);
+        if (cachedView._aceFocusHandler) {
+          cachedEditor.removeListener('focus', cachedView._aceFocusHandler);
+        }
+        if (cachedView._aceBlurHandler) {
+          cachedEditor.removeListener('blur', cachedView._aceBlurHandler);
+        }
+        if (cachedView._aceMousewheelHandler) {
+          cachedEditor.removeListener(
+            'mousewheel',
+            cachedView._aceMousewheelHandler
+          );
+        }
+      }
+      delete this.model._iceCachedBox;
+      delete this.model._iceCachedView;
+      delete this.model._iceCachedEditor;
     } else {
-      editorTheme = 'chrome';
+      // ---- SLOW PATH ----
+      var editorTheme = global.uiTheme === 'dark' ? 'monokai' : 'chrome';
+
+      this.$box = $(
+        joint.util.template(
+          '\
+        <div class="json-block json-input-block">\
+          <div class="json-content">\
+            <div class="json-header">\
+              <label class="json-name"></label>\
+              <button class="json-btn json-btn-menu" title="Configure">&#8801;</button>\
+              <button class="json-btn json-btn-reload" title="Reload from file">&#8635;</button>\
+            </div>\
+          </div>\
+          <div class="json-editor" id="' +
+            editorLabel +
+            '"></div>\
+          <script>\
+            var ' +
+            editorLabel +
+            ' = ace.edit("' +
+            editorLabel +
+            '");\
+            ' +
+            editorLabel +
+            '.setTheme("ace/theme/' +
+            editorTheme +
+            '");\
+            ' +
+            editorLabel +
+            '.setHighlightActiveLine(false);\
+            ' +
+            editorLabel +
+            '.setHighlightGutterLine(false);\
+            ' +
+            editorLabel +
+            '.setAutoScrollEditorIntoView(true);\
+            ' +
+            editorLabel +
+            '.renderer.setShowGutter(false);\
+            ' +
+            editorLabel +
+            '.renderer.$cursorLayer.element.style.opacity = 0;\
+            ' +
+            editorLabel +
+            '.session.setMode("ace/mode/json");\
+          </script>\
+          <div class="resizer"/></div>\
+        </div>\
+        '
+        )()
+      );
     }
 
-    this.$box = $(
-      joint.util.template(
-        '\
-      <div class="json-block json-input-block">\
-        <div class="json-content">\
-          <div class="json-header">\
-            <label class="json-name"></label>\
-            <button class="json-btn json-btn-menu" title="Configure">&#8801;</button>\
-            <button class="json-btn json-btn-reload" title="Reload from file">&#8635;</button>\
-          </div>\
-        </div>\
-        <div class="json-editor" id="' +
-          editorLabel +
-          '"></div>\
-        <script>\
-          var ' +
-          editorLabel +
-          ' = ace.edit("' +
-          editorLabel +
-          '");\
-          ' +
-          editorLabel +
-          '.setTheme("ace/theme/' +
-          editorTheme +
-          '");\
-          ' +
-          editorLabel +
-          '.setHighlightActiveLine(false);\
-          ' +
-          editorLabel +
-          '.setHighlightGutterLine(false);\
-          ' +
-          editorLabel +
-          '.setAutoScrollEditorIntoView(true);\
-          ' +
-          editorLabel +
-          '.renderer.setShowGutter(false);\
-          ' +
-          editorLabel +
-          '.renderer.$cursorLayer.element.style.opacity = 0;\
-          ' +
-          editorLabel +
-          '.session.setMode("ace/mode/json");\
-        </script>\
-        <div class="resizer"/></div>\
-      </div>\
-      '
-      )()
-    );
-
+    // ---- Common setup ----
     this.editorSelector = this.$box.find('.json-editor');
     this.contentSelector = this.$box.find('.json-content');
     this.headerSelector = this.$box.find('.json-header');
@@ -108,23 +135,29 @@ joint.shapes.ice.JsonInputView = joint.shapes.ice.ModelView.extend({
     this.updating = false;
     this.prevZoom = 0;
 
-    var self = this;
     var fs = require('fs');
 
-    this.editor = ace.edit(this.editorSelector[0]);
-    this.editor.setReadOnly(true);
-    this.updateScrollStatus(false);
-    this.editor.$blockScrolling = Infinity;
-    this.editor.commands.removeCommand('touppercase');
+    if (!cachedBox) {
+      this.editor = ace.edit(this.editorSelector[0]);
+      this.editor.setReadOnly(true);
+      this.updateScrollStatus(false);
+      this.editor.$blockScrolling = Infinity;
+      this.editor.commands.removeCommand('touppercase');
+    }
 
-    this.editor.on('focus', function () {
+    // ---- ACE event handlers — always fresh ----
+    this._aceFocusHandler = function () {
       self.updateScrollStatus(true);
       $(document).trigger('disableSelected');
-    });
-    this.editor.on('blur', function () {
+    };
+    this.editor.on('focus', this._aceFocusHandler);
+
+    this._aceBlurHandler = function () {
       self.updateScrollStatus(false);
-    });
-    this.editor.on('mousewheel', function (event) {
+    };
+    this.editor.on('blur', this._aceBlurHandler);
+
+    this._aceMousewheelHandler = function (event) {
       if (
         document.activeElement.parentNode.id === self.editorSelector.attr('id')
       ) {
@@ -132,7 +165,8 @@ joint.shapes.ice.JsonInputView = joint.shapes.ice.ModelView.extend({
       } else {
         event.preventDefault();
       }
-    });
+    };
+    this.editor.on('mousewheel', this._aceMousewheelHandler);
 
     // Load the JSON file from disk (synchronously).
     // Also re-derives bottom output ports from the file's top-level keys so
