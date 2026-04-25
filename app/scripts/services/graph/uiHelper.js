@@ -167,6 +167,10 @@ window._icegraph.uiHelper = function (ctx) {
 
   //-- Remove error stickers from all code/generic/constant cells
   function resetCodeErrors() {
+    // Clear connectivity-check highlights from previous verify
+    $('.conn-error').removeClass('conn-error');
+    $('.conn-error-port').removeClass('conn-error-port');
+
     var cells = ctx.graph.getCells();
     return new Promise(function (resolve) {
       _.each(cells, function (cell) {

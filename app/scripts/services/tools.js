@@ -134,6 +134,7 @@ angular
       //------------------------------------------------------------------------
       var _ui = _icetools.ui(ctx);
       var _toolchain = _icetools.toolchain(ctx);
+      var _connectivity = _icetools.connectivity(ctx);
       var _apio = _icetools.apio(ctx);
       var _codeGen = _icetools.codeGenerator(ctx);
       var _resources = _icetools.resources(ctx);
@@ -153,6 +154,7 @@ angular
       ctx.restoreStatus = _ui.restoreStatus;
 
       ctx.checkToolchainInstalled = _toolchain.checkToolchainInstalled;
+      ctx.checkConnections = _connectivity.checkConnections;
 
       ctx.generateCode = _codeGen.generateCode;
 

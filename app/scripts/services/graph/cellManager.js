@@ -443,6 +443,25 @@ window._icegraph.cellManager = function (ctx) {
     }
   }
 
+  //-- Apply red error highlight to blocks (by id) and specific input ports.
+  //-- portSpecs: [{blockId, portId}] where portId matches the leftPorts id.
+  function errorHighlightCells(blockIds, portSpecs) {
+    blockIds.forEach(function (id) {
+      var cellView = ctx.paper.findViewByModel(id);
+      if (cellView && cellView.$box) {
+        cellView.$box.addClass('conn-error');
+      }
+    });
+    portSpecs.forEach(function (spec) {
+      var el = document.getElementById(
+        'port-default-' + spec.blockId + '-' + spec.portId
+      );
+      if (el && el.parentElement) {
+        el.parentElement.classList.add('conn-error-port');
+      }
+    });
+  }
+
   //-- Rename all label cells (inputLabel, outputLabel, pairedLabel) whose
   //-- data.name matches oldName, updating data + refreshing the DOM.
   function renameWire(oldName, newName) {
@@ -803,6 +822,7 @@ window._icegraph.cellManager = function (ctx) {
     triggerDblClick: triggerDblClick,
     lpHighlightCells: lpHighlightCells,
     lpClearHighlight: lpClearHighlight,
+    errorHighlightCells: errorHighlightCells,
     updateCellData: updateCellData,
     updateCellPin: updateCellPin,
     renameWire: renameWire,

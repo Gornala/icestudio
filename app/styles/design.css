@@ -1760,6 +1760,20 @@ g {
   filter: drop-shadow(0 0 4px rgba(0, 56, 128, 0.5));
 }
 
+/* Red outline on blocks with undriven inputs (connectivity pre-check) */
+.conn-error {
+  border-radius: 5px !important;
+  box-shadow:
+    0 0 0 3px #cc0000,
+    0 0 8px 2px rgba(204, 0, 0, 0.5) !important;
+}
+
+/* Red port circle for the specific undriven input port */
+.conn-error-port .port-body {
+  fill: #cc0000 !important;
+  stroke: #cc0000 !important;
+}
+
 /* Pinned (clicked) panel row */
 .lp-node.lp-pinned,
 .lp-port-row.lp-pinned {

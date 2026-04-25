@@ -246,6 +246,9 @@ window._icetools.apio = function (ctx) {
       ctx.graph
         .resetCodeErrors()
         .then(function () {
+          return ctx.checkConnections();
+        })
+        .then(function () {
           return ctx.checkToolchainInstalled();
         })
         .then(function () {

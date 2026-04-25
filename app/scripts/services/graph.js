@@ -201,6 +201,7 @@ angular.module('icestudio').service(
     this.renameWire = _cellManager.renameWire;
     this.lpHighlightCells = _cellManager.lpHighlightCells;
     this.lpClearHighlight = _cellManager.lpClearHighlight;
+    this.errorHighlightCells = _cellManager.errorHighlightCells;
     this.updateCellData = _cellManager.updateCellData;
     this.updateCellPin = _cellManager.updateCellPin;
     this.resetCommandStack = _cellManager.resetCommandStack;
