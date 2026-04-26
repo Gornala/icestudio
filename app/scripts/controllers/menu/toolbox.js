@@ -514,6 +514,10 @@ window._icemenu.toolbox = {
           $scope.fitContent();
           break;
 
+        case 'showFullVerilog':
+          $scope.showFullVerilog();
+          break;
+
         case 'showLabelFinder':
           $scope.showLabelFinder();
           break;

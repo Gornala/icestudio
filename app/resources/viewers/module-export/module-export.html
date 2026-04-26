@@ -111,6 +111,7 @@
   </head>
   <body>
     <div class="toolbar">
+      <button id="btn-update" title="Reload from current design">Update</button>
       <button id="btn-verify" title="Verify syntax">Verify</button>
       <button id="btn-copy" title="Copy to clipboard">Copy to Clipboard</button>
       <span id="module-name" class="module-name"></span>
@@ -205,6 +206,28 @@
         // -- Verify button
         var verifyBtn = document.getElementById('btn-verify');
         var myNWWin = nw.Window.get();
+
+        // -- Update button
+        var updateBtn = document.getElementById('btn-update');
+        myNWWin.window.icestudioVerilogUpdateResult = function (newCode) {
+          editor.setValue(newCode, -1);
+          updateBtn.disabled = false;
+          showOk('Updated!');
+        };
+        updateBtn.addEventListener('click', function () {
+          updateBtn.disabled = true;
+          findMainWindow(function (mainWin) {
+            if (
+              !mainWin ||
+              typeof mainWin.icestudioRequestVerilogUpdate !== 'function'
+            ) {
+              showError('Cannot reach main window for update.');
+              updateBtn.disabled = false;
+              return;
+            }
+            mainWin.icestudioRequestVerilogUpdate(myNWWin);
+          });
+        });
 
         // Expose result receiver so main window can call back
         myNWWin.window.icestudioVerifyResult = function (ok, outputText) {

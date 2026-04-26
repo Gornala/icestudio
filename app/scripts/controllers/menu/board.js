@@ -629,6 +629,52 @@ window._icemenu.board = {
     };
 
     //-----------------------------------------------------------------
+    //-- Show full compiled Verilog in module-export viewer
+    //-----------------------------------------------------------------
+
+    $scope.showFullVerilog = function () {
+      var designName = (project.name || 'main').replace(/[^a-zA-Z0-9_]/g, '_');
+
+      var verilogFiles = project.compile('verilog');
+      if (!verilogFiles || !verilogFiles.length) {
+        alertify.error(gettextCatalog.getString('Could not generate Verilog'));
+        return;
+      }
+      var verilogCode = verilogFiles[0].content;
+
+      var exportConfig = {
+        verilog: verilogCode,
+        moduleName: designName,
+        blockId: '__project__',
+        code: verilogCode,
+        theme: profile.data.uiTheme || 'light',
+      };
+      var exportParam = encodeURIComponent(JSON.stringify(exportConfig));
+      var exportURL =
+        'resources/viewers/module-export/module-export.html?config=' +
+        exportParam;
+
+      nw.Window.open(exportURL, {
+        title: 'Verilog - ' + designName,
+        focus: true,
+        resizable: true,
+        show: true,
+        width: 700,
+        height: 500,
+        icon: 'resources/images/icestudio-logo.png',
+      });
+    };
+
+    nw.Window.get().window.icestudioRequestVerilogUpdate = function (
+      callerWin
+    ) {
+      var verilogFiles = project.compile('verilog');
+      var newCode =
+        verilogFiles && verilogFiles.length ? verilogFiles[0].content : '';
+      callerWin.window.icestudioVerilogUpdateResult(newCode);
+    };
+
+    //-----------------------------------------------------------------
     //-- Collections management
     //-----------------------------------------------------------------
 
