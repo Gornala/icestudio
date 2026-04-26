@@ -213,6 +213,12 @@ window._icecompiler.verilog = function (ctx) {
     graph.wires = ctx.utils.clone(wtemp);
     // End of rearrange design connections for compilation
 
+    // Pre-mark contained blocks and internal wires on the cloned graph so
+    // that getInstances() and the wire loops below correctly skip them.
+    // (compileGenerateFrame sets these flags on project.design.graph — the
+    //  original — but the loops below operate on the local clone.)
+    preMarkGenerateContainment(graph);
+
     for (w in graph.wires) {
       var wire = graph.wires[w];
       if (wire._genInternal) {
@@ -821,9 +827,17 @@ window._icecompiler.verilog = function (ctx) {
       }
     }
 
-    // Build virtual sub-project for the inner iteration module
+    // Build virtual sub-project for the inner iteration module.
+    // Strip _genContained/_genInternal from the copies — these blocks/wires
+    // are the *content* of the iter module, not nested inside another frame.
     var subBlocks = JSON.parse(JSON.stringify(containedBlocks));
+    for (var si in subBlocks) {
+      delete subBlocks[si]._genContained;
+    }
     var subWires = JSON.parse(JSON.stringify(internalWires));
+    for (var sw in subWires) {
+      delete subWires[sw]._genInternal;
+    }
 
     var portIdx = 0;
     // Maps: frame port name → { digest, iterSize } for inner module connections
@@ -1184,6 +1198,58 @@ window._icecompiler.verilog = function (ctx) {
     code += ctx.module(frameData);
     code += innerCode;
     return code;
+  }
+
+  //-------------------------------------------------------------------
+  //-- Pre-mark _genContained on blocks and _genInternal on wires for
+  //-- all generate frames in the given (cloned) graph, so that wire
+  //-- declaration loops and getInstances() skip them correctly.
+  //-------------------------------------------------------------------
+  function preMarkGenerateContainment(graph) {
+    for (var gb in graph.blocks) {
+      var genBlock = graph.blocks[gb];
+      if (genBlock.type !== ctx.blocks.BASIC_GENERATE) {
+        continue;
+      }
+      if (!genBlock.position || !genBlock.size) {
+        continue;
+      }
+      var genRect = {
+        x: genBlock.position.x,
+        y: genBlock.position.y,
+        width: genBlock.size.width,
+        height: genBlock.size.height,
+      };
+      var containedIds = {};
+      for (var cb in graph.blocks) {
+        var blk = graph.blocks[cb];
+        if (blk.id === genBlock.id) {
+          continue;
+        }
+        if (blk.type === ctx.blocks.BASIC_GENERATE) {
+          continue;
+        }
+        if (isBlockInsideRect(blk, genRect)) {
+          containedIds[blk.id] = true;
+          blk._genContained = true;
+        }
+      }
+      for (var gw in graph.wires) {
+        var wire = graph.wires[gw];
+        var srcIsFrame = wire.source.block === genBlock.id;
+        var tgtIsFrame = wire.target.block === genBlock.id;
+        var srcContained = !!containedIds[wire.source.block];
+        var tgtContained = !!containedIds[wire.target.block];
+        if (
+          (srcIsFrame && tgtIsFrame) ||
+          (srcIsFrame && tgtContained) ||
+          (srcContained && tgtIsFrame) ||
+          (srcContained && tgtContained)
+        ) {
+          wire._genInternal = true;
+        }
+      }
+    }
   }
 
   //-------------------------------------------------------------------
