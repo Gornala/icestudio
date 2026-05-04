@@ -43,6 +43,7 @@ angular.module('icestudio').service(
     var _jsonOutputForms = window._iceblockforms.jsonOutputForms(ctx);
     var _genericWireForms = window._iceblockforms.genericWireForms(ctx);
     var _generateForms = window._iceblockforms.generateForms(ctx);
+    var _infoFrameForms = window._iceblockforms.infoFrameForms(ctx);
 
     //-- Wire cross-module references into ctx
     //-- (read at call-time, so set after init is fine)
@@ -54,6 +55,7 @@ angular.module('icestudio').service(
     ctx.changeLabelBlock = _labelForms.changeLabelBlock;
     ctx.loadGeneric = _genericWireForms.loadGeneric;
     ctx.loadBasicGenerate = _generateForms.loadBasicGenerate;
+    ctx.loadBasicInfoFrame = _infoFrameForms.loadBasicInfoFrame;
 
     //-- Public API
     this.newBasic = newBasic;
@@ -175,6 +177,10 @@ angular.module('icestudio').service(
           _infoForms.newBasicInfo(callback);
           break;
 
+        case blocks.BASIC_INFO_FRAME:
+          _infoFrameForms.newBasicInfoFrame(callback);
+          break;
+
         case blocks.BASIC_JSON_INPUT:
           _jsonForms.newBasicJsonInput(callback);
           break;
@@ -219,6 +225,9 @@ angular.module('icestudio').service(
 
         case blocks.BASIC_INFO:
           return _infoForms.loadBasicInfo(instance, disabled);
+
+        case blocks.BASIC_INFO_FRAME:
+          return _infoFrameForms.loadBasicInfoFrame(instance, disabled);
 
         case blocks.BASIC_JSON_INPUT:
           return _jsonForms.loadBasicJsonInput(instance, disabled);
@@ -319,6 +328,10 @@ angular.module('icestudio').service(
 
         case blocks.BASIC_INFO:
           _infoForms.editBasicInfo(cellView);
+          break;
+
+        case blocks.BASIC_INFO_FRAME:
+          _infoFrameForms.editBasicInfoFrame(cellView, callback);
           break;
 
         case blocks.BASIC_JSON_INPUT:

@@ -175,6 +175,12 @@
   background-color: #7d3c98;
 }
 
+.marker-info-frame {
+  background-color: #5b2c8d;
+  border: 2px dashed #7d3c98;
+  box-sizing: border-box;
+}
+
 .marker-json-input {
   background-color: #27ae60;
 }
@@ -226,7 +232,9 @@
   top: 0;
   left: 0;
   width: 160px;
-  height: 220px;
+  height: auto;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
   z-index: -1;
   visibility: hidden;
 }

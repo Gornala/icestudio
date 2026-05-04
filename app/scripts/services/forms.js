@@ -39,6 +39,7 @@ angular
       var FormBasicInputLabel = _portForms.FormBasicInputLabel;
       var FormBasicOutputLabel = _portForms.FormBasicOutputLabel;
       var FormBasicPairedLabels = _portForms.FormBasicPairedLabels;
+      var FormBasicInfoFrame = _portForms.FormBasicInfoFrame;
 
       //-- Build block form classes
       var _blockForms = window._iceforms.blockForms({
@@ -104,6 +105,7 @@ angular
       this.FormBasicInputLabel = FormBasicInputLabel;
       this.FormBasicOutputLabel = FormBasicOutputLabel;
       this.FormBasicPairedLabels = FormBasicPairedLabels;
+      this.FormBasicInfoFrame = FormBasicInfoFrame;
       this.FormBasicCode = FormBasicCode;
       this.FormBasicMemory = FormBasicMemory;
       this.FormBasicConstant = FormBasicConstant;

@@ -482,6 +482,10 @@ window._icemenu.toolbox = {
           project.addBasicBlock(blocks.BASIC_INFO);
           break;
 
+        case 'infoFrame':
+          project.addBasicBlock(blocks.BASIC_INFO_FRAME);
+          break;
+
         case 'constant':
           project.addBasicBlock(blocks.BASIC_CONSTANT);
           break;

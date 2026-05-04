@@ -914,6 +914,74 @@ g {
   background-color: #e67e22;
 }
 
+/* ── Information frame block ── */
+
+.info-frame-block {
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+  overflow: visible;
+}
+
+.info-frame-block .info-frame-content {
+  position: absolute;
+  border: 2px dashed;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.info-frame-block .info-frame-header {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 28px;
+  border-radius: 4px 4px 0 0;
+  cursor: move;
+  pointer-events: auto;
+}
+
+.info-frame-block .info-frame-name {
+  flex-grow: 1;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: move;
+}
+
+.info-frame-block .info-frame-btn {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.15);
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.info-frame-block .info-frame-btn:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.info-frame-block .resizer {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: se-resize;
+  pointer-events: auto;
+}
+
 /* ── Code block ── */
 
 .code-block {

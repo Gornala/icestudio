@@ -18,3 +18,4 @@ window._iceblocks.BASIC_JSON_INPUT = 'basic.jsonInput'; //-- JSON input block (r
 window._iceblocks.BASIC_JSON_OUTPUT = 'basic.jsonOutput'; //-- JSON output block
 window._iceblocks.BASIC_GENERATE = 'basic.generate'; //-- Generate frame (generate-for wrapper)
 window._iceblocks.BASIC_SUBMODULE = 'basic.submodule'; //-- New empty submodule
+window._iceblocks.BASIC_INFO_FRAME = 'basic.infoFrame'; //-- Information frame (documentation)

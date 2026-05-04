@@ -383,6 +383,41 @@ window._iceforms.portForms = function (deps) {
     }
   }
 
+  //-------------------------------------------------------------
+  //-- Form for the Information Frame block (name + color only)
+  //-------------------------------------------------------------
+  class FormBasicInfoFrame extends Form {
+    constructor(label, color) {
+      super();
+
+      let labelVal = label !== undefined ? label : '';
+      let colorVal = color !== undefined ? color : 'fuchsia';
+
+      let field0 = new TextField(
+        gettextCatalog.getString('Frame name:'),
+        labelVal,
+        0
+      );
+      let field1 = new ColorField(
+        gettextCatalog.getString('Choose a color:'),
+        colorVal
+      );
+
+      this.addField(field0);
+      this.addField(field1);
+
+      this.labelIni = labelVal;
+      this.colorIni = colorVal;
+    }
+
+    process(evt) {
+      var values = this.readFields();
+      this.label = values[0] || '';
+      this.color = values[1];
+      evt.cancel = false;
+    }
+  }
+
   class FormBasicPairedLabels extends FormBasicLabel {
     constructor(name, color) {
       let nameVal = name !== undefined ? name : '';
@@ -430,5 +465,6 @@ window._iceforms.portForms = function (deps) {
     FormBasicInputLabel: FormBasicInputLabel,
     FormBasicOutputLabel: FormBasicOutputLabel,
     FormBasicPairedLabels: FormBasicPairedLabels,
+    FormBasicInfoFrame: FormBasicInfoFrame,
   };
 };
