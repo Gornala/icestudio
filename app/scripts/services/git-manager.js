@@ -12,10 +12,43 @@ window.iceGitManager = (function () {
   var _pendingMsg = 'Save';
   var DEBOUNCE = 1500;
 
-  // ── Low-level git exec ────────────────────────────────────────────────────
+  // ── Split a shell-style argument string into an array (no shell needed) ────
+  // Handles double-quoted tokens; strips quotes. Keeps | % & etc. literal.
+  function _splitArgs(str) {
+    var args = [];
+    var cur = '';
+    var inQ = false;
+    for (var i = 0; i < str.length; i++) {
+      var c = str[i];
+      if (inQ) {
+        if (c === '"') {
+          inQ = false;
+        } else {
+          cur += c;
+        }
+      } else if (c === '"') {
+        inQ = true;
+      } else if (c === ' ') {
+        if (cur) {
+          args.push(cur);
+          cur = '';
+        }
+      } else {
+        cur += c;
+      }
+    }
+    if (cur) {
+      args.push(cur);
+    }
+    return args;
+  }
+
+  // ── Low-level git exec (shell-free via execFile to avoid cmd.exe issues) ───
   function exec(args, dir, cb) {
-    childProcess.exec(
-      'git ' + args,
+    var argList = _splitArgs(args);
+    childProcess.execFile(
+      'git',
+      argList,
       { cwd: dir, timeout: 20000 },
       function (err, stdout, stderr) {
         cb(err ? stderr || err.message : null, stdout ? stdout.trim() : '');
@@ -24,33 +57,33 @@ window.iceGitManager = (function () {
   }
 
   // ── Ensure git repo exists, create if not ────────────────────────────────
+  // Check dir itself (not parent dirs) so projects saved inside the icestudio
+  // source tree don't accidentally commit into the icestudio repo.
   function ensureRepo(dir, cb) {
-    exec('rev-parse --git-dir', dir, function (err) {
-      if (!err) {
-        cb(null);
+    if (nodeFs.existsSync(nodePath.join(dir, '.git'))) {
+      cb(null);
+      return;
+    }
+    exec('init', dir, function (err2) {
+      if (err2) {
+        if (cb) {
+          cb(err2);
+        }
         return;
       }
-      exec('init', dir, function (err2) {
-        if (err2) {
-          if (cb) {
-            cb(err2);
-          }
-          return;
-        }
-        var gi = nodePath.join(dir, '.gitignore');
-        if (!nodeFs.existsSync(gi)) {
-          try {
-            nodeFs.writeFileSync(gi, '*.v\n*.pcf\nbuild/\n');
-          } catch (e) {}
-        }
-        exec('config user.email "icestudio@local"', dir, function () {
-          exec('config user.name "Icestudio"', dir, function () {
-            exec('add -A', dir, function () {
-              exec('commit -m "Initial project"', dir, function () {
-                if (cb) {
-                  cb(null);
-                }
-              });
+      var gi = nodePath.join(dir, '.gitignore');
+      if (!nodeFs.existsSync(gi)) {
+        try {
+          nodeFs.writeFileSync(gi, '*.v\n*.pcf\nbuild/\n');
+        } catch (e) {}
+      }
+      exec('config user.email "icestudio@local"', dir, function () {
+        exec('config user.name "Icestudio"', dir, function () {
+          exec('add -A', dir, function () {
+            exec('commit -m "Initial project"', dir, function () {
+              if (cb) {
+                cb(null);
+              }
             });
           });
         });

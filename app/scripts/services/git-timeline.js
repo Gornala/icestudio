@@ -8,6 +8,23 @@ window.iceTimeline = (function () {
   var _head = '';
   var _selected = null;
   var _initialized = false;
+  var _hideAutoSave = true;
+  var _panelH = 152; // current panel height — updated by resize drag
+
+  // ── Layout constants ──────────────────────────────────────────────────────
+  var COL_W = 82; // px per commit column
+  var LANE_H = 58; // px per branch lane
+  var DOT_Y = 24; // y of dot centre within a lane (from lane top)
+  var PAD = 20; // left/right padding inside the track
+
+  var LANE_COLORS = [
+    '#3a82c4', // blue  – main / lane 0
+    '#e67e22', // orange
+    '#27ae60', // green
+    '#8e44ad', // purple
+    '#c0392b', // red
+    '#16a085', // teal
+  ];
 
   // ── Public: toggle panel ──────────────────────────────────────────────────
   function toggle() {
@@ -17,12 +34,14 @@ window.iceTimeline = (function () {
       return;
     }
     if (_open) {
+      panel.style.height = _panelH + 'px';
       panel.classList.add('tl-open');
       if (!_initialized) {
         init();
       }
       refresh();
     } else {
+      panel.style.height = '0';
       panel.classList.remove('tl-open');
     }
   }
@@ -61,10 +80,15 @@ window.iceTimeline = (function () {
     try {
       var d = new Date(iso);
       var mo = d.toLocaleString('default', { month: 'short' });
-      var day = d.getDate();
-      var h = ('0' + d.getHours()).slice(-2);
-      var m = ('0' + d.getMinutes()).slice(-2);
-      return mo + ' ' + day + ' ' + h + ':' + m;
+      return (
+        mo +
+        ' ' +
+        d.getDate() +
+        ' ' +
+        ('0' + d.getHours()).slice(-2) +
+        ':' +
+        ('0' + d.getMinutes()).slice(-2)
+      );
     } catch (e) {
       return '';
     }
@@ -109,18 +133,108 @@ window.iceTimeline = (function () {
   // ── Render: empty state ───────────────────────────────────────────────────
   function _renderEmpty(msg) {
     var track = document.getElementById('tl-track');
-    if (track) {
-      track.innerHTML =
-        '<span style="color:#999;font-size:11px;padding:0 16px">' +
-        _esc(msg) +
-        '</span>';
+    if (!track) {
+      return;
     }
+    track.style.height = '';
+    track.style.width = '';
+    track.innerHTML =
+      '<span style="color:#999;font-size:11px;padding:0 16px">' +
+      _esc(msg) +
+      '</span>';
   }
 
-  // ── Render: commit dots ───────────────────────────────────────────────────
+  // ── Resolve parents through hidden commits ────────────────────────────────
+  // For each parent hash: if it's in visibleSet return it; otherwise recurse
+  // through allByHash until we reach a visible ancestor. This stitches the
+  // graph when auto-saves (or any filtered commits) are hidden.
+  function _resolveParents(parentHashes, visibleSet, allByHash) {
+    var result = [];
+    var queue = parentHashes.slice();
+    var seen = {};
+    while (queue.length > 0) {
+      var ph = queue.shift();
+      if (seen[ph]) {
+        continue;
+      }
+      seen[ph] = true;
+      if (visibleSet[ph]) {
+        result.push(ph);
+      } else {
+        var p = allByHash[ph];
+        if (p) {
+          for (var k = 0; k < p.parents.length; k++) {
+            queue.push(p.parents[k]);
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  // ── Lane assignment (standard greedy algorithm) ───────────────────────────
+  // Uses c._effParents (stitched parents) so filtered commits don't split lanes.
+  function _assignLanes(commits) {
+    // commits: oldest first, each must have ._effParents set
+    var laneOf = {};
+    var tips = []; // tips[i] = hash of the most recent commit on lane i, or null
+    var i, c, ep, lane, l, free;
+
+    for (i = 0; i < commits.length; i++) {
+      c = commits[i];
+      ep = c._effParents;
+      lane = -1;
+
+      // Find first lane whose tip is a direct (effective) parent of this commit
+      for (l = 0; l < tips.length; l++) {
+        if (tips[l] !== null && ep.indexOf(tips[l]) !== -1) {
+          lane = l;
+          break;
+        }
+      }
+
+      if (lane === -1) {
+        // No continuation found — open a free lane or a new one
+        free = -1;
+        for (l = 0; l < tips.length; l++) {
+          if (tips[l] === null) {
+            free = l;
+            break;
+          }
+        }
+        lane = free !== -1 ? free : tips.length;
+        if (lane === tips.length) {
+          tips.push(null);
+        }
+      }
+
+      laneOf[c.hash] = lane;
+      tips[lane] = c.hash;
+
+      // Merge: free the lane(s) of absorbed parents
+      if (ep.length > 1) {
+        for (l = 0; l < tips.length; l++) {
+          if (l !== lane && tips[l] !== null && ep.indexOf(tips[l]) !== -1) {
+            tips[l] = null;
+          }
+        }
+      }
+    }
+
+    var maxLane = 0;
+    for (var h in laneOf) {
+      if (laneOf[h] > maxLane) {
+        maxLane = laneOf[h];
+      }
+    }
+    return { laneOf: laneOf, numLanes: maxLane + 1 };
+  }
+
+  // ── Render: git graph ─────────────────────────────────────────────────────
   function _renderTrack() {
+    var wrapper = document.getElementById('tl-track-wrapper');
     var track = document.getElementById('tl-track');
-    if (!track) {
+    if (!track || !wrapper) {
       return;
     }
 
@@ -129,46 +243,207 @@ window.iceTimeline = (function () {
       return;
     }
 
-    var html = '';
-    for (var i = 0; i < _commits.length; i++) {
-      var c = _commits[i];
+    var visible = _hideAutoSave
+      ? _commits.filter(function (c) {
+          return c.subject !== 'Auto-save';
+        })
+      : _commits;
+
+    if (visible.length === 0) {
+      _renderEmpty('All commits are auto-saves.');
+      return;
+    }
+
+    var i, j, c, lane, col;
+
+    // Build hash → commit maps and assign column indices
+    var byHash = {};
+    for (i = 0; i < visible.length; i++) {
+      visible[i]._col = i;
+      byHash[visible[i].hash] = visible[i];
+    }
+
+    // Full map (including hidden commits) for parent stitching
+    var allByHash = {};
+    for (i = 0; i < _commits.length; i++) {
+      allByHash[_commits[i].hash] = _commits[i];
+    }
+
+    // Compute stitched parents for each visible commit
+    var visibleSet = byHash; // same map, used as a set
+    for (i = 0; i < visible.length; i++) {
+      visible[i]._effParents = _resolveParents(
+        visible[i].parents,
+        visibleSet,
+        allByHash
+      );
+    }
+
+    var la = _assignLanes(visible);
+    var laneOf = la.laneOf;
+    var numLanes = la.numLanes;
+
+    // Expand panel height to fit all lanes (user can shrink manually)
+    var minH = numLanes * LANE_H + 28;
+    if (_panelH < minH) {
+      _panelH = minH;
+      var panel = document.getElementById('tl-panel');
+      if (panel && _open) {
+        panel.style.height = _panelH + 'px';
+      }
+    }
+
+    var totalW = PAD + visible.length * COL_W + PAD;
+    var totalH = numLanes * LANE_H;
+
+    // ── SVG connector lines ──
+    var svgParts = [
+      '<svg xmlns="http://www.w3.org/2000/svg"',
+      ' style="position:absolute;left:0;top:0;width:',
+      totalW,
+      'px;height:',
+      totalH,
+      'px;pointer-events:none;overflow:visible">',
+    ];
+
+    for (i = 0; i < visible.length; i++) {
+      c = visible[i];
+      lane = laneOf[c.hash] !== undefined ? laneOf[c.hash] : 0;
+      var x2 = PAD + c._col * COL_W + COL_W / 2;
+      var y2 = lane * LANE_H + DOT_Y;
+
+      for (j = 0; j < c._effParents.length; j++) {
+        var par = byHash[c._effParents[j]];
+        if (!par) {
+          continue;
+        }
+
+        var pLane = laneOf[par.hash] !== undefined ? laneOf[par.hash] : 0;
+        var x1 = PAD + par._col * COL_W + COL_W / 2;
+        var y1 = pLane * LANE_H + DOT_Y;
+
+        // Color follows the child's lane so branches have their own color
+        col = LANE_COLORS[lane % LANE_COLORS.length];
+
+        if (pLane === lane) {
+          // Same lane — straight horizontal segment
+          svgParts.push(
+            '<line x1="',
+            x1,
+            '" y1="',
+            y1,
+            '" x2="',
+            x2,
+            '" y2="',
+            y2,
+            '" stroke="',
+            col,
+            '" stroke-width="2"/>'
+          );
+        } else {
+          // Different lanes — cubic bezier elbow
+          var mx = (x1 + x2) / 2;
+          svgParts.push(
+            '<path d="M',
+            x1,
+            ',',
+            y1,
+            ' C',
+            mx,
+            ',',
+            y1,
+            ' ',
+            mx,
+            ',',
+            y2,
+            ' ',
+            x2,
+            ',',
+            y2,
+            '" fill="none" stroke="',
+            col,
+            '" stroke-width="2"/>'
+          );
+        }
+      }
+    }
+    svgParts.push('</svg>');
+
+    // ── Commit elements ──
+    var dotParts = [];
+    for (i = 0; i < visible.length; i++) {
+      c = visible[i];
+      lane = laneOf[c.hash] !== undefined ? laneOf[c.hash] : 0;
+      var left = PAD + c._col * COL_W;
+      var top = lane * LANE_H;
+      col = LANE_COLORS[lane % LANE_COLORS.length];
       var refs = _parseRefs(c.refs);
       var isHead = c.hash === _head;
       var isSel = c.hash === _selected;
 
-      var cls = 'tl-commit';
-      if (isHead) {
-        cls += ' tl-head';
-      }
-      if (isSel) {
-        cls += ' tl-selected';
-      }
+      var dotColor = isHead ? '#3a82c4' : col;
+      var cls =
+        'tl-commit' +
+        (isHead ? ' tl-head' : '') +
+        (isSel ? ' tl-selected' : '');
 
-      html +=
-        '<div class="' +
-        cls +
-        '" data-hash="' +
-        _esc(c.hash) +
-        '" title="' +
-        _esc(c.subject) +
-        ' (' +
-        _esc(c.shortHash) +
-        ')">';
+      dotParts.push(
+        '<div class="',
+        cls,
+        '" data-hash="',
+        _esc(c.hash),
+        '" title="',
+        _esc(c.subject),
+        ' (',
+        _esc(c.shortHash),
+        ')"',
+        ' style="left:',
+        left,
+        'px;top:',
+        top,
+        'px;width:',
+        COL_W,
+        'px;height:',
+        LANE_H,
+        'px">',
 
-      if (refs.tags.length > 0) {
-        html += '<div class="tl-tag">' + _esc(refs.tags[0]) + '</div>';
-      }
-      if (refs.heads.length > 0) {
-        html += '<div class="tl-ref">' + _esc(refs.heads[0]) + '</div>';
-      }
+        // Subject label — above the dot
+        '<div class="tl-label">',
+        _esc(c.subject),
+        '</div>',
 
-      html += '<div class="tl-dot"></div>';
-      html += '<div class="tl-label">' + _esc(c.subject) + '</div>';
-      html += '<div class="tl-date">' + _esc(_fmtDate(c.date)) + '</div>';
-      html += '</div>';
+        // The dot
+        '<div class="tl-dot" style="background:',
+        dotColor,
+        ';box-shadow:0 0 0 2px ',
+        dotColor,
+        '"></div>',
+
+        // Branch / tag refs — below the dot
+        refs.tags.length
+          ? '<div class="tl-tag">' + _esc(refs.tags[0]) + '</div>'
+          : '',
+        refs.heads.length
+          ? '<div class="tl-ref">' + _esc(refs.heads[0]) + '</div>'
+          : '',
+
+        // Date
+        '<div class="tl-date">',
+        _esc(_fmtDate(c.date)),
+        '</div>',
+
+        '</div>'
+      );
     }
-    track.innerHTML = html;
 
+    // Assemble and inject
+    track.style.position = 'relative';
+    track.style.width = totalW + 'px';
+    track.style.height = totalH + 'px';
+    track.style.minWidth = '0';
+    track.innerHTML = svgParts.join('') + dotParts.join('');
+
+    // Scroll HEAD into view
     var headEl = track.querySelector('.tl-head');
     if (headEl) {
       headEl.scrollIntoView({
@@ -178,8 +453,9 @@ window.iceTimeline = (function () {
       });
     }
 
+    // Click / double-click events
     var dots = track.querySelectorAll('.tl-commit');
-    for (var j = 0; j < dots.length; j++) {
+    for (j = 0; j < dots.length; j++) {
       (function (el) {
         el.addEventListener('click', function () {
           _selected = el.getAttribute('data-hash');
@@ -255,7 +531,7 @@ window.iceTimeline = (function () {
     });
   }
 
-  // ── Action: go to commit (time travel) ───────────────────────────────────
+  // ── Action: go to commit (time travel) ────────────────────────────────────
   function _goHere(hash) {
     if (!hash) {
       return;
@@ -268,6 +544,33 @@ window.iceTimeline = (function () {
       if (!err && window.icestudioTimeTravel) {
         window.icestudioTimeTravel();
       }
+    });
+  }
+
+  // ── Resize: drag top border to change panel height ────────────────────────
+  function _initResize() {
+    var handle = document.getElementById('tl-resize-handle');
+    var panel = document.getElementById('tl-panel');
+    if (!handle || !panel) {
+      return;
+    }
+
+    handle.addEventListener('mousedown', function (e) {
+      var startY = e.clientY;
+      var startH = panel.offsetHeight;
+      e.preventDefault();
+
+      var onMove = function (e) {
+        var delta = startY - e.clientY; // drag up = more height
+        _panelH = Math.max(80, Math.min(600, startH + delta));
+        panel.style.height = _panelH + 'px';
+      };
+      var onUp = function () {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
     });
   }
 
@@ -286,6 +589,14 @@ window.iceTimeline = (function () {
     var branchSel = document.getElementById('tl-branch-select');
     var btnDelBranch = document.getElementById('tl-btn-del-branch');
     var btnExport = document.getElementById('tl-btn-export');
+    var chkHide = document.getElementById('tl-chk-hide-autosave');
+
+    if (chkHide) {
+      chkHide.addEventListener('change', function () {
+        _hideAutoSave = this.checked;
+        _renderTrack();
+      });
+    }
 
     if (btnGoHere) {
       btnGoHere.addEventListener('click', function () {
@@ -433,11 +744,9 @@ window.iceTimeline = (function () {
         input.click();
       });
     }
+
+    _initResize();
   }
 
-  return {
-    toggle: toggle,
-    refresh: refresh,
-    init: init,
-  };
+  return { toggle: toggle, refresh: refresh, init: init };
 })();

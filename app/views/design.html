@@ -732,6 +732,7 @@
   <!-- Git Timeline Panel                                                 -->
   <!------------------------------------------------------------------------>
   <div id="tl-panel">
+    <div id="tl-resize-handle"></div>
     <!-- Track: scrollable commit dots -->
     <div id="tl-track-wrapper">
       <div id="tl-track">
@@ -757,6 +758,12 @@
       </div>
       <div id="tl-export-row">
         <button id="tl-btn-export">Export as new project&hellip;</button>
+      </div>
+      <div id="tl-filter-row">
+        <label id="tl-label-hide-autosave">
+          <input type="checkbox" id="tl-chk-hide-autosave" checked />
+          Hide auto-saves
+        </label>
       </div>
     </div>
   </div>
@@ -969,6 +976,17 @@
           data-item="fitContent"
         >
           <i class="fas fa-compress-arrows-alt shortcut-toolbox--fa"></i>
+        </a>
+
+        <!-- Git timeline button -->
+        <a
+          href=""
+          class="shortcut-toolbox--item"
+          onclick="if(window.iceTimeline){window.iceTimeline.toggle();return false;}"
+          uib-tooltip="{{ 'Git history timeline' | translate }}"
+          tooltip-append-to-body="true"
+        >
+          <i class="fas fa-hourglass-half shortcut-toolbox--fa"></i>
         </a>
 
         <!-- Show full Verilog button -->
