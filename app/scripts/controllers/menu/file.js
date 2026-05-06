@@ -166,6 +166,33 @@ window._icemenu.file = {
       }, 0);
     };
 
+    // Expose global for git timeline time-travel: reload project from disk
+    nw.Window.get().window.icestudioTimeTravel = function () {
+      $timeout(function () {
+        var fp = project.path;
+        if (fp) {
+          project.open(fp);
+          if (window.iceTimeline) {
+            window.iceTimeline.refresh();
+          }
+        }
+      }, 0);
+    };
+
+    // Silent auto-save triggered by block add/delete events
+    var _autoSaveTimer = null;
+    iceStudio.bus.events.subscribe('git:designChanged', function () {
+      if (_autoSaveTimer) {
+        clearTimeout(_autoSaveTimer);
+      }
+      _autoSaveTimer = setTimeout(function () {
+        _autoSaveTimer = null;
+        if (project.path && typeof project.autoSave === 'function') {
+          project.autoSave();
+        }
+      }, 2000);
+    });
+
     $scope.doSaveProjectAs = function (localCallback) {
       utils.saveDialog('#input-save-project', '.ice', function (filepath) {
         updateWorkingdir(filepath);

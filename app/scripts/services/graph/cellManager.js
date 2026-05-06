@@ -2,6 +2,7 @@
 //-- cellManager.js: Add, remove, drag, replace blocks; undo/redo; clipboard
 //-- Loaded as a <script> tag before graph.js; exposes window._icegraph.cellManager
 //---------------------------------------------------------------------------
+/* global iceStudio */
 'use strict';
 
 window._icegraph = window._icegraph || {};
@@ -655,6 +656,7 @@ window._icegraph.cellManager = function (ctx) {
     ) {
       ctx.utils.pasteFromClipboard(ctx.profile, function (object) {
         ctx.service.appendDesign(object.design, object.dependencies);
+        iceStudio.bus.events.publish('git:designChanged', 'Paste');
       });
     }
   }
@@ -708,6 +710,7 @@ window._icegraph.cellManager = function (ctx) {
           );
         }
         ctx.service.appendDesign(object.design, object.dependencies);
+        iceStudio.bus.events.publish('git:designChanged', 'Paste clone');
       });
     }
   }
@@ -716,6 +719,7 @@ window._icegraph.cellManager = function (ctx) {
     if (hasSelection()) {
       ctx.utils.duplicateSelected(ctx.selection, ctx.graph, function (object) {
         ctx.service.appendDesign(object.design, object.dependencies);
+        iceStudio.bus.events.publish('git:designChanged', 'Duplicate');
       });
     }
   }
@@ -726,6 +730,7 @@ window._icegraph.cellManager = function (ctx) {
       ctx.selectionView.cancelSelection();
       ctx.service.updateWires();
       $('body').trigger('Graph::lpRefresh');
+      iceStudio.bus.events.publish('git:designChanged', 'Delete');
     }
   }
 

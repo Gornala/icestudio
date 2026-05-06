@@ -3,8 +3,6 @@
 (function () {
   var nodePath = require('path');
   var nodeFs = require('fs');
-  var childProcess = require('child_process');
-
   // ── Parse config from URL ──────────────────────────────────────────────
   var urlParams = new URLSearchParams(window.location.search);
   var config = {};
@@ -329,117 +327,6 @@
     });
   }
 
-  // ── Git Section ────────────────────────────────────────────────────────
-  function git(args, cb) {
-    if (!projectDir) {
-      return cb('No project directory');
-    }
-    childProcess.exec(
-      'git ' + args,
-      { cwd: projectDir, timeout: 10000 },
-      function (err, stdout, stderr) {
-        cb(err ? stderr || err.message : null, stdout ? stdout.trim() : '');
-      }
-    );
-  }
-
-  function refreshGit() {
-    var branchEl = document.getElementById('git-branch');
-    var statusEl = document.getElementById('git-status');
-    var logEl = document.getElementById('git-log');
-    var remoteInput = document.getElementById('git-remote-url');
-
-    git('rev-parse --is-inside-work-tree', function (err) {
-      if (err) {
-        branchEl.textContent = 'Not a git repo';
-        statusEl.textContent = '—';
-        logEl.textContent = '';
-        return;
-      }
-
-      git('branch --show-current', function (err2, branch) {
-        branchEl.textContent = err2 ? '?' : branch || '(detached)';
-      });
-
-      git('status --short', function (err2, out) {
-        if (err2) {
-          statusEl.textContent = '?';
-        } else if (!out) {
-          statusEl.textContent = 'Clean';
-          statusEl.style.color = 'var(--app-success)';
-        } else {
-          var lines = out.split('\n').length;
-          statusEl.textContent =
-            lines + ' changed file' + (lines > 1 ? 's' : '');
-          statusEl.style.color = 'var(--app-warning)';
-        }
-      });
-
-      git('remote get-url origin', function (err2, url) {
-        if (!err2 && url) {
-          remoteInput.value = url;
-        }
-      });
-
-      git('log --oneline -10', function (err2, out) {
-        logEl.textContent = err2 ? 'No commits yet' : out;
-      });
-    });
-  }
-
-  function setupGitActions() {
-    document
-      .getElementById('btn-git-open')
-      .addEventListener('click', function () {
-        var url = document.getElementById('git-remote-url').value.trim();
-        if (url) {
-          var webUrl = url
-            .replace(/\.git$/, '')
-            .replace(/^git@([^:]+):/, 'https://$1/');
-          nw.Shell.openExternal(webUrl);
-        }
-      });
-
-    document
-      .getElementById('btn-git-pull')
-      .addEventListener('click', function () {
-        appendGitLog('> git pull ...');
-        git('pull', function (err, out) {
-          appendGitLog(err || out || 'Done.');
-          refreshGit();
-        });
-      });
-
-    document
-      .getElementById('btn-git-push')
-      .addEventListener('click', function () {
-        appendGitLog('> git push ...');
-        git('push', function (err, out) {
-          appendGitLog(err || out || 'Done.');
-          refreshGit();
-        });
-      });
-
-    document
-      .getElementById('btn-git-branch')
-      .addEventListener('click', function () {
-        var name = prompt('New branch name:');
-        if (name && name.trim()) {
-          appendGitLog('> git checkout -b ' + name.trim() + ' ...');
-          git('checkout -b ' + name.trim(), function (err, out) {
-            appendGitLog(err || out || 'Done.');
-            refreshGit();
-          });
-        }
-      });
-  }
-
-  function appendGitLog(text) {
-    var logEl = document.getElementById('git-log');
-    logEl.textContent += '\n' + text;
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-
   // ── Datasheets ─────────────────────────────────────────────────────────
   var datasheets = [];
 
@@ -568,9 +455,6 @@
     fetchImageFromMain();
     setupThumbnailActions();
     cacheMainWindow();
-
-    refreshGit();
-    setupGitActions();
 
     loadDatasheets();
     renderDatasheets();

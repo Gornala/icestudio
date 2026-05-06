@@ -61,6 +61,12 @@ angular.module('icestudio').controller(
     $scope.tools = tools;
     $scope.common = common;
 
+    $scope.toggleTimeline = function () {
+      if (window.iceTimeline) {
+        window.iceTimeline.toggle();
+      }
+    };
+
     $scope.version = _package.version;
     $scope.toolchain = tools.toolchain;
 

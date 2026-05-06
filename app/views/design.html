@@ -729,6 +729,39 @@
   <div class="paper"></div>
 
   <!------------------------------------------------------------------------>
+  <!-- Git Timeline Panel                                                 -->
+  <!------------------------------------------------------------------------>
+  <div id="tl-panel">
+    <!-- Track: scrollable commit dots -->
+    <div id="tl-track-wrapper">
+      <div id="tl-track">
+        <span style="color: #999; font-size: 11px; padding: 0 16px"
+          >No project open</span
+        >
+      </div>
+    </div>
+
+    <!-- Sidebar: actions + branch tools -->
+    <div id="tl-sidebar">
+      <div id="tl-status"></div>
+      <div id="tl-actions" style="display: none">
+        <button id="tl-btn-goto">&#x23CE; Go here</button>
+        <button id="tl-btn-branch">&#x2387; Branch</button>
+        <button id="tl-btn-rename">&#x270F; Rename</button>
+        <button id="tl-btn-tag">&#x1F3F7; Tag</button>
+        <button id="tl-btn-retire">&#x1F5D1; Retire</button>
+      </div>
+      <div id="tl-branch-row">
+        <select id="tl-branch-select"></select>
+        <button id="tl-btn-del-branch">Delete</button>
+      </div>
+      <div id="tl-export-row">
+        <button id="tl-btn-export">Export as new project&hellip;</button>
+      </div>
+    </div>
+  </div>
+
+  <!------------------------------------------------------------------------>
   <!-- Bottom Toolbar                                                     -->
   <!------------------------------------------------------------------------>
   <div class="footer ice-bar">

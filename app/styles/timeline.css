@@ -1,0 +1,229 @@
+/* ── Git Timeline Panel ─────────────────────────────────────────────────── */
+
+#tl-panel {
+  position: fixed;
+  bottom: 47px;
+  left: 0;
+  right: 0;
+  height: 0;
+  overflow: hidden;
+  transition: height 0.2s ease;
+  background: var(--bar-bg, #f0f2f4);
+  border-top: 1px solid #ccc;
+  z-index: 1500;
+  display: flex;
+  flex-direction: row;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+}
+
+#tl-panel.tl-open {
+  height: 152px;
+}
+
+/* ── Track: horizontal scrollable commit lane ────────────────────────────── */
+
+#tl-track-wrapper {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  position: relative;
+  scrollbar-width: thin;
+}
+
+#tl-track-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+
+#tl-track-wrapper::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
+}
+
+#tl-track {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  position: relative;
+  min-width: 100%;
+  padding: 8px 0;
+}
+
+/* Horizontal connecting line */
+#tl-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(4px); /* shift to align with dot center */
+  height: 2px;
+  background: #c8cdd2;
+  z-index: 0;
+}
+
+/* ── Individual commit dot ───────────────────────────────────────────────── */
+
+.tl-commit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+  min-width: 76px;
+  max-width: 100px;
+  padding: 0 6px;
+  z-index: 1;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.tl-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #8a929b;
+  border: 2px solid #f0f2f4;
+  box-shadow: 0 0 0 2px #8a929b;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+  flex-shrink: 0;
+  margin: 2px 0;
+}
+
+.tl-commit:hover .tl-dot {
+  transform: scale(1.35);
+}
+
+.tl-commit.tl-head .tl-dot {
+  background: #3a82c4;
+  box-shadow: 0 0 0 2px #3a82c4;
+}
+
+.tl-commit.tl-selected .tl-dot {
+  background: #e67e22;
+  box-shadow: 0 0 0 2px #e67e22;
+  transform: scale(1.2);
+}
+
+.tl-tag {
+  font-size: 9px;
+  color: #8e44ad;
+  font-weight: 700;
+  text-align: center;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #f3e8ff;
+  border-radius: 3px;
+  padding: 0 3px;
+  margin-bottom: 2px;
+}
+
+.tl-ref {
+  font-size: 9px;
+  color: #27ae60;
+  font-weight: 700;
+  text-align: center;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #e8f8ee;
+  border-radius: 3px;
+  padding: 0 3px;
+  margin-bottom: 2px;
+}
+
+.tl-label {
+  font-size: 10px;
+  color: #444;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  margin-top: 3px;
+}
+
+.tl-date {
+  font-size: 9px;
+  color: #999;
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+
+#tl-sidebar {
+  width: 248px;
+  flex-shrink: 0;
+  border-left: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  gap: 6px;
+  overflow: hidden;
+  background: #f7f8fa;
+}
+
+#tl-status {
+  font-size: 10px;
+  color: #666;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+  min-height: 14px;
+}
+
+#tl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#tl-actions button,
+#tl-branch-row button,
+#tl-export-row button {
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid #c8cdd2;
+  background: #fff;
+  cursor: pointer;
+  border-radius: 3px;
+  color: #333;
+  transition: background 0.1s;
+  white-space: nowrap;
+}
+
+#tl-actions button:hover,
+#tl-branch-row button:hover,
+#tl-export-row button:hover {
+  background: #e8ecf0;
+}
+
+#tl-branch-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+#tl-branch-row select {
+  flex: 1;
+  font-size: 11px;
+  padding: 2px 4px;
+  border: 1px solid #c8cdd2;
+  border-radius: 3px;
+  background: #fff;
+  min-width: 0;
+}
+
+#tl-export-row {
+  display: flex;
+  gap: 4px;
+}

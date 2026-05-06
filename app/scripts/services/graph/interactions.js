@@ -2,7 +2,7 @@
 //-- interactions.js: Mouse/keyboard events, selection, block replacement
 //-- Loaded as a <script> tag before graph.js; exposes window._icegraph.interactions
 //---------------------------------------------------------------------------
-/* global isClickOnVertex */
+/* global isClickOnVertex, iceStudio */
 'use strict';
 
 window._icegraph = window._icegraph || {};
@@ -246,6 +246,7 @@ window._icegraph.interactions = function (ctx) {
           ctx.disableSelected();
           ctx.__updateWiresOnObstacles();
           $('body').trigger('Graph::lpRefresh');
+          iceStudio.bus.events.publish('git:designChanged', 'Add block');
         } else {
           if (ctx.utils.hasShift(evt)) {
             var cell = ctx.selection.get($(evt.target).data('model'));
