@@ -80,6 +80,11 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
             <div class="info-header">\
               <label class="info-name">Info</label>\
               <button class="info-btn info-btn-toggle" title="Toggle edit/view"></button>\
+              <button class="info-btn info-btn-figure hidden" title="Insert figure"></button>\
+              <label class="info-autosize-label hidden" title="Auto-fit height to content">\
+                <input type="checkbox" class="info-autosize-check" />\
+                auto\
+              </label>\
             </div>\
           </div>\
           <div class="info-editor' +
@@ -141,6 +146,30 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
     this.$box.find('.info-btn-toggle').on('click', function () {
       self.model.attributes.data.readonly = !self.model.get('data').readonly;
       self.apply();
+    });
+    this.$box.find('.info-btn-figure').on('click', function () {
+      var fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+      fileInput.onchange = function () {
+        if (!fileInput.files || fileInput.files.length === 0) {
+          return;
+        }
+        var filePath = fileInput.files[0].path;
+        var fileUri =
+          'file:///' + filePath.replace(/\\/g, '/').replace(/^\//, '');
+        self.editor.insert('![figure](' + fileUri + ')');
+        self.editor.focus();
+      };
+      fileInput.click();
+    });
+    this.$box
+      .find('.info-autosize-label')
+      .on('mousedown click', function (event) {
+        event.stopPropagation();
+      });
+    this.$box.find('.info-autosize-check').on('change', function () {
+      self.model.attributes.data.autosize = this.checked;
     });
 
     this.updateBox();
@@ -249,9 +278,14 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
 
   applyReadonly: function () {
     var readonly = this.model.get('data').readonly;
+    var data = this.model.get('data');
     var toggleBtn = this.$box.find('.info-btn-toggle');
+    var figureBtn = this.$box.find('.info-btn-figure');
+    var autosizeLabel = this.$box.find('.info-autosize-label');
     if (readonly) {
       toggleBtn.html('<i class="fas fa-edit"></i>');
+      figureBtn.addClass('hidden');
+      autosizeLabel.addClass('hidden');
       this.$box.addClass('info-block-readonly');
       this.renderSelector.removeClass('hidden');
       this.editorSelector.addClass('hidden');
@@ -264,6 +298,10 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
       this.applyText();
     } else {
       toggleBtn.html('<i class="fas fa-eye"></i>');
+      figureBtn.html('<i class="fas fa-image"></i>');
+      figureBtn.removeClass('hidden');
+      autosizeLabel.removeClass('hidden');
+      this.$box.find('.info-autosize-check').prop('checked', !!data.autosize);
       this.$box.removeClass('info-block-readonly');
       this.renderSelector.addClass('hidden');
       this.editorSelector.removeClass('hidden');
@@ -349,6 +387,42 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
         event.preventDefault();
         openurl.open(element.href);
       };
+    });
+
+    if (this.model.get('data').autosize) {
+      this._triggerAutoSize();
+    }
+  },
+
+  _triggerAutoSize: function () {
+    var self = this;
+    var el = this.renderSelector[0];
+    var doResize = function () {
+      var newHeight = Math.max(50, el.scrollHeight);
+      var currentSize = self.model.get('size');
+      if (newHeight !== currentSize.height) {
+        self.model.set('size', { width: currentSize.width, height: newHeight });
+      }
+    };
+    requestAnimationFrame(function () {
+      var images = el.querySelectorAll('img');
+      var pending = 0;
+      var onLoadOrError = function () {
+        pending--;
+        if (pending === 0) {
+          doResize();
+        }
+      };
+      for (var i = 0; i < images.length; i++) {
+        if (!images[i].complete) {
+          pending++;
+          images[i].addEventListener('load', onLoadOrError);
+          images[i].addEventListener('error', onLoadOrError);
+        }
+      }
+      if (pending === 0) {
+        doResize();
+      }
     });
   },
 

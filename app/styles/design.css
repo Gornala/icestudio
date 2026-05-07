@@ -1144,6 +1144,25 @@ g {
   background: rgba(0, 0, 0, 0.35);
 }
 
+.info-block .info-autosize-label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  cursor: pointer;
+  margin-left: 3px;
+  pointer-events: auto;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.info-block .info-autosize-label input[type='checkbox'] {
+  margin: 0;
+  cursor: pointer;
+  accent-color: #d9b8f0;
+}
+
 .info-block .info-editor {
   position: absolute;
   top: 0;
@@ -1189,7 +1208,7 @@ g {
 
 .info-block .info-render {
   position: absolute;
-  overflow: visible;
+  overflow: hidden;
   background: transparent;
   top: 0;
   left: 0;
@@ -1207,6 +1226,10 @@ g {
 }
 
 .info-block .info-render .mermaid svg {
+  max-width: 100%;
+}
+
+.info-block .info-render img {
   max-width: 100%;
 }
 
