@@ -750,6 +750,14 @@ cells.sort((a, b) => {
             });
             return;
           }
+          if (blockType === 'basic.infoFrame') {
+            infoBlocks.push({
+              id: cell.id,
+              cellType: 'infoFrame',
+              label: data.label || 'Frame',
+            });
+            return;
+          }
 
           // 3 — Constant blocks
           if (blockType === 'basic.constant') {

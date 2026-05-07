@@ -77,6 +77,10 @@ joint.shapes.ice.InfoFrameView = joint.shapes.ice.ModelView.extend({
           '" title="Edit"><i class="fas fa-pen"></i></div>\
             </div>\
           </div>\
+          <div class="resize-edge resize-edge-left"></div>\
+          <div class="resize-edge resize-edge-right"></div>\
+          <div class="resize-edge resize-edge-top"></div>\
+          <div class="resize-edge resize-edge-bottom"></div>\
           <div class="resizer"></div>\
         </div>'
       )()
@@ -130,6 +134,81 @@ joint.shapes.ice.InfoFrameView = joint.shapes.ice.ModelView.extend({
 
     this.updateBox();
     this.setupResizer();
+    this.setupEdgeResizers();
+  },
+
+  setupEdgeResizers: function () {
+    if (this.model.get('disabled')) {
+      return;
+    }
+    var self = this;
+    var gridstep = 8;
+    var minW = 64;
+    var minH = 64;
+
+    function snapModel(clientPx, z) {
+      return Math.round(clientPx / z / gridstep) * gridstep;
+    }
+
+    var edgeConfigs = [
+      { sel: '.resize-edge-right', axis: 'x', side: 'end' },
+      { sel: '.resize-edge-left', axis: 'x', side: 'start' },
+      { sel: '.resize-edge-bottom', axis: 'y', side: 'end' },
+      { sel: '.resize-edge-top', axis: 'y', side: 'start' },
+    ];
+
+    edgeConfigs.forEach(function (cfg) {
+      self.$box.find(cfg.sel).on('mousedown', function (event) {
+        event.stopPropagation();
+        event.preventDefault();
+
+        var ms = self.model.get('state') || {};
+        var z = ms.zoom || 1;
+        var size = self.model.get('size');
+        var pos = self.model.get('position');
+        var startCX = event.clientX;
+        var startCY = event.clientY;
+        var startW = size.width;
+        var startH = size.height;
+        var startPX = pos.x;
+        var startPY = pos.y;
+
+        self.model.graph.trigger('batch:start');
+
+        $(document).on('mousemove.ifresize', function (mv) {
+          var ms2 = self.model.get('state') || {};
+          var z2 = ms2.zoom || 1;
+          var newW, newH;
+
+          if (cfg.axis === 'x') {
+            var dx = snapModel(mv.clientX, z2) - snapModel(startCX, z2);
+            if (cfg.side === 'end') {
+              newW = Math.max(minW, startW + dx);
+              self.model.resize(newW, startH);
+            } else {
+              newW = Math.max(minW, startW - dx);
+              self.model.resize(newW, startH);
+              self.model.position(startPX + (startW - newW), startPY);
+            }
+          } else {
+            var dy = snapModel(mv.clientY, z2) - snapModel(startCY, z2);
+            if (cfg.side === 'end') {
+              newH = Math.max(minH, startH + dy);
+              self.model.resize(startW, newH);
+            } else {
+              newH = Math.max(minH, startH - dy);
+              self.model.resize(startW, newH);
+              self.model.position(startPX, startPY + (startH - newH));
+            }
+          }
+        });
+
+        $(document).on('mouseup.ifresize', function () {
+          $(document).off('mousemove.ifresize mouseup.ifresize');
+          self.model.graph.trigger('batch:stop');
+        });
+      });
+    });
   },
 
   updateBox: function () {
