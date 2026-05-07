@@ -286,12 +286,31 @@
         ng-click="lp.clickItem('port', port, $event)"
         ng-dblclick="lp.dblClickItem('port', port, $event)"
       >
-        <span class="lp-dir lp-dir-{{ port.dir }}">{{ port.dir }}</span>
-        <span class="lp-pname" title="{{ port.name }}">{{ port.name }}</span>
-        <span class="lp-pins-area">
+        <!-- First line: dir badge + bus/port name + first pin -->
+        <div class="lp-port-first-line">
+          <span class="lp-dir lp-dir-{{ port.dir }}">{{ port.dir }}</span>
+          <span class="lp-pname" title="{{ port.name }}">{{ port.name }}</span>
           <select
             class="lp-pin-select"
-            ng-repeat="pin in port._pins"
+            ng-if="port._pins.length > 0"
+            ng-model="port._pins[0].value"
+            ng-options="bp.value as bp.name for bp in lp.sortedPinout(port.name)"
+            ng-change="lp.changePin(port, port._pins[0])"
+            ng-click="$event.stopPropagation()"
+          >
+            <option value="">– none –</option>
+          </select>
+        </div>
+        <!-- Extra bus pins (index 1+), one per line, aligned under the first -->
+        <div
+          class="lp-port-extra-pin"
+          ng-repeat="pin in port._pins"
+          ng-if="$index > 0"
+        >
+          <span class="lp-dir" aria-hidden="true"></span>
+          <span class="lp-pname" aria-hidden="true"></span>
+          <select
+            class="lp-pin-select"
             ng-model="pin.value"
             ng-options="bp.value as bp.name for bp in lp.sortedPinout(port.name)"
             ng-change="lp.changePin(port, pin)"
@@ -299,7 +318,7 @@
           >
             <option value="">– none –</option>
           </select>
-        </span>
+        </div>
       </div>
 
       <!-- Unused board pins shown in gray -->

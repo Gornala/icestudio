@@ -1877,12 +1877,27 @@ g {
 /* Port rows */
 .lp-port-row {
   display: flex;
-  align-items: center;
-  gap: 5px;
+  flex-direction: column;
   padding: 3px 8px;
   border-radius: 3px;
   margin: 1px 3px;
   cursor: pointer;
+}
+
+.lp-port-first-line,
+.lp-port-extra-pin {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lp-port-extra-pin {
+  margin-top: 2px;
+}
+
+.lp-port-extra-pin .lp-dir,
+.lp-port-extra-pin .lp-pname {
+  visibility: hidden;
 }
 
 .lp-port-row:hover {
@@ -1934,13 +1949,6 @@ g {
   flex-shrink: 0;
 }
 
-.lp-pins-area {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  flex-shrink: 0;
-}
-
 .lp-pin-select {
   font-size: 10px;
   padding: 1px 2px;
@@ -1969,6 +1977,8 @@ g {
 }
 
 .lp-unused-pin {
+  flex-direction: row;
+  align-items: center;
   cursor: default;
   opacity: 0.5;
 }
