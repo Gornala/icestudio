@@ -736,6 +736,7 @@ angular
                 delete block.data.text;
                 break;
               case blocks.BASIC_GENERATE:
+              case blocks.BASIC_INFO_FRAME:
                 break;
               default:
                 // Generic block

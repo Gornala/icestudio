@@ -94,7 +94,8 @@ window._iceutils.project = function (ctx) {
         cell.type === 'ice.Memory' ||
         cell.type === 'ice.JsonInput' ||
         cell.type === 'ice.JsonOutput' ||
-        cell.type === 'ice.Generate'
+        cell.type === 'ice.Generate' ||
+        cell.type === 'ice.InfoFrame'
       ) {
         var block = {};
         block.id = cell.id;
@@ -108,7 +109,8 @@ window._iceutils.project = function (ctx) {
           cell.type === 'ice.Memory' ||
           cell.type === 'ice.JsonInput' ||
           cell.type === 'ice.JsonOutput' ||
-          cell.type === 'ice.Generate'
+          cell.type === 'ice.Generate' ||
+          cell.type === 'ice.InfoFrame'
         ) {
           block.size = cell.size;
         }
