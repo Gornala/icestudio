@@ -409,6 +409,7 @@ cells.sort((a, b) => {
         tab: 'modules',
         width: 280,
         nodes: [], // generic submodules + code blocks
+        generateNodes: [], // generate frames
         constBlocks: [], // constant blocks
         memBlocks: [], // memory blocks
         jsonBlocks: [], // json parameter blocks
@@ -713,6 +714,7 @@ cells.sort((a, b) => {
         graph.lpClearHighlight();
         const cells = graph.getCells().filter((c) => !c.isLink());
         const nodes = [];
+        const generateNodes = [];
         const constBlocks = [];
         const memBlocks = [];
         const jsonBlocks = [];
@@ -866,7 +868,7 @@ cells.sort((a, b) => {
             });
           } else if (blockType === 'basic.generate') {
             var m = data.instanceCount || 4;
-            nodes.push({
+            generateNodes.push({
               id: cell.id,
               type: blockType,
               cellType: 'generate',
@@ -880,6 +882,7 @@ cells.sort((a, b) => {
         });
 
         $scope.lp.nodes = nodes;
+        $scope.lp.generateNodes = generateNodes;
         $scope.lp.constBlocks = constBlocks;
         $scope.lp.memBlocks = memBlocks;
         $scope.lp.jsonBlocks = jsonBlocks;

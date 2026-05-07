@@ -90,8 +90,9 @@
         </button>
         <button
           class="lp-tab-btn"
-          ng-click="lp.addGenerate()"
-          title="Add Generate Frame"
+          ng-class="{active: lp.tab === 'generate'}"
+          ng-click="lp.setTab('generate')"
+          title="Generate Frames"
         >
           Gen
         </button>
@@ -121,6 +122,35 @@
         >
         <span class="lp-expand lp-no-expand" ng-if="!node.hasChildren"></span>
         <span class="lp-dot lp-dot-{{ node.cellType }}"></span>
+        <span class="lp-label" title="{{ node.type }}">{{ node.label }}</span>
+      </div>
+    </div>
+
+    <!-- Generate Frames -->
+    <div class="lp-panel-body" ng-show="lp.tab === 'generate'">
+      <div class="lp-panel-action-row">
+        <button
+          class="lp-action-btn"
+          ng-click="lp.addGenerate()"
+          title="Add Generate Frame"
+        >
+          + Add
+        </button>
+      </div>
+      <div class="lp-empty" ng-show="!lp.generateNodes.length">
+        No generate frames
+      </div>
+      <div
+        class="lp-node"
+        ng-repeat="node in lp.generateNodes"
+        ng-class="{'lp-pinned': lp.pinned && lp.pinned.item === node}"
+        ng-mouseenter="lp.hoverIn('node', node)"
+        ng-mouseleave="lp.hoverOut()"
+        ng-click="lp.clickItem('node', node, $event)"
+        ng-dblclick="lp.dblClickItem('node', node, $event)"
+      >
+        <span class="lp-expand lp-no-expand"></span>
+        <span class="lp-dot lp-dot-generate"></span>
         <span class="lp-label" title="{{ node.type }}">{{ node.label }}</span>
       </div>
     </div>
