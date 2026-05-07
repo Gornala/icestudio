@@ -123,11 +123,13 @@ joint.shapes.ice.InfoFrameView = joint.shapes.ice.ModelView.extend({
     });
 
     // Edit button triggers double-click on the SVG element (same path as dblclick)
-    this.$box.find('.js-info-frame-edit').on('click', function () {
+    this.$box.find('.js-info-frame-edit').on('click', function (event) {
       var svgEl = self.el;
       var dblclickEvt = new MouseEvent('dblclick', {
         bubbles: true,
         cancelable: true,
+        clientX: event.clientX,
+        clientY: event.clientY,
       });
       svgEl.dispatchEvent(dblclickEvt);
     });
