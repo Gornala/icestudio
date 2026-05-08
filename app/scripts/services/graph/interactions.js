@@ -390,346 +390,352 @@ window._icegraph.interactions = function (ctx) {
       }
     });
 
-    //-- io-edit icon click → trigger dblclick on cell
-    document.addEventListener('click', function (event) {
-      var target = event.target;
-      while (target && target !== this) {
-        if (
-          target.matches('.js-codeblock-io-edit') ||
-          target.matches('.js-generate-io-edit')
-        ) {
-          event.stopPropagation();
-          var modelId = target.getAttribute('data-blkid');
-          if (!modelId) {
-            return;
+    //-- Document-level click listeners are global — only register them once
+    //-- across all paper levels (pushPaper calls createPaper + setup again).
+    if (!window._icegraph._docListenersReady) {
+      window._icegraph._docListenersReady = true;
+
+      //-- io-edit icon click → trigger dblclick on cell
+      document.addEventListener('click', function (event) {
+        var target = event.target;
+        while (target && target !== this) {
+          if (
+            target.matches('.js-codeblock-io-edit') ||
+            target.matches('.js-generate-io-edit')
+          ) {
+            event.stopPropagation();
+            var modelId = target.getAttribute('data-blkid');
+            if (!modelId) {
+              return;
+            }
+            var cell = ctx.paper.getModelById(modelId);
+            if (!cell) {
+              return;
+            }
+            var cellView = ctx.paper.findViewByModel(cell);
+            if (!cellView) {
+              return;
+            }
+            ctx.paper.trigger('cell:pointerdblclick', cellView, event, 0, 0);
+            break;
           }
-          var cell = ctx.paper.getModelById(modelId);
-          if (!cell) {
-            return;
-          }
-          var cellView = ctx.paper.findViewByModel(cell);
-          if (!cellView) {
-            return;
-          }
-          ctx.paper.trigger('cell:pointerdblclick', cellView, event, 0, 0);
-          break;
+          target = target.parentNode;
         }
-        target = target.parentNode;
-      }
-    });
+      });
 
-    //-- Generate frame: Export Module button
-    document.addEventListener('click', function (event) {
-      var target = event.target;
-      while (target && target !== document) {
-        if (target.matches('.js-generate-export-module')) {
-          event.stopPropagation();
-          var genBlockId = target.getAttribute('data-blkid');
-          if (!genBlockId) {
+      //-- Generate frame: Export Module button
+      document.addEventListener('click', function (event) {
+        var target = event.target;
+        while (target && target !== document) {
+          if (target.matches('.js-generate-export-module')) {
+            event.stopPropagation();
+            var genBlockId = target.getAttribute('data-blkid');
+            if (!genBlockId) {
+              break;
+            }
+            var genCell = ctx.paper.getModelById(genBlockId);
+            if (!genCell) {
+              break;
+            }
+
+            // Build compiler context from available services
+            var compCtx = {
+              common: ctx.common,
+              utils: ctx.utils,
+              blocks: ctx.blocks,
+              _package: {},
+              currentLibrary: false,
+            };
+            var compHelpers = window._icecompiler.helpers(compCtx);
+            compCtx.header = compHelpers.header;
+            compCtx.module = compHelpers.module;
+            compCtx.mainIO = compHelpers.mainIO;
+            compCtx.findBlock = compHelpers.findBlock;
+            compCtx.getInitPorts = compHelpers.getInitPorts;
+            compCtx.getInitPins = compHelpers.getInitPins;
+            var compVerilog = window._icecompiler.verilog(compCtx);
+
+            // Build project from current graph state
+            var graphData = ctx.graph.toJSON();
+            var project = ctx.utils.cellsToProject(graphData.cells);
+            project.dependencies = ctx.common.allDependencies || {};
+            compCtx.currentLibrary = project.dependencies;
+
+            // Compile entire project to get generate frame code
+            var fullCode = compVerilog.verilogCompiler('main', project);
+
+            var genData = genCell.attributes.data || {};
+            var genName = (genData.label || 'generate').replace(
+              /[^a-zA-Z0-9_]/g,
+              '_'
+            );
+
+            var exportConfig = {
+              verilog: fullCode,
+              moduleName: genName,
+              blockId: genBlockId,
+              code: fullCode,
+              theme: ctx.profile.data.uiTheme || 'light',
+            };
+            var exportParam = encodeURIComponent(JSON.stringify(exportConfig));
+            var exportURL =
+              'resources/viewers/module-export/module-export.html?config=' +
+              exportParam;
+
+            nw.Window.open(exportURL, {
+              title: 'Generate Export - ' + genName,
+              focus: true,
+              resizable: true,
+              show: true,
+              width: 700,
+              height: 500,
+              icon: 'resources/images/icestudio-logo.png',
+            });
             break;
           }
-          var genCell = ctx.paper.getModelById(genBlockId);
-          if (!genCell) {
-            break;
-          }
-
-          // Build compiler context from available services
-          var compCtx = {
-            common: ctx.common,
-            utils: ctx.utils,
-            blocks: ctx.blocks,
-            _package: {},
-            currentLibrary: false,
-          };
-          var compHelpers = window._icecompiler.helpers(compCtx);
-          compCtx.header = compHelpers.header;
-          compCtx.module = compHelpers.module;
-          compCtx.mainIO = compHelpers.mainIO;
-          compCtx.findBlock = compHelpers.findBlock;
-          compCtx.getInitPorts = compHelpers.getInitPorts;
-          compCtx.getInitPins = compHelpers.getInitPins;
-          var compVerilog = window._icecompiler.verilog(compCtx);
-
-          // Build project from current graph state
-          var graphData = ctx.graph.toJSON();
-          var project = ctx.utils.cellsToProject(graphData.cells);
-          project.dependencies = ctx.common.allDependencies || {};
-          compCtx.currentLibrary = project.dependencies;
-
-          // Compile entire project to get generate frame code
-          var fullCode = compVerilog.verilogCompiler('main', project);
-
-          var genData = genCell.attributes.data || {};
-          var genName = (genData.label || 'generate').replace(
-            /[^a-zA-Z0-9_]/g,
-            '_'
-          );
-
-          var exportConfig = {
-            verilog: fullCode,
-            moduleName: genName,
-            blockId: genBlockId,
-            code: fullCode,
-            theme: ctx.profile.data.uiTheme || 'light',
-          };
-          var exportParam = encodeURIComponent(JSON.stringify(exportConfig));
-          var exportURL =
-            'resources/viewers/module-export/module-export.html?config=' +
-            exportParam;
-
-          nw.Window.open(exportURL, {
-            title: 'Generate Export - ' + genName,
-            focus: true,
-            resizable: true,
-            show: true,
-            width: 700,
-            height: 500,
-            icon: 'resources/images/icestudio-logo.png',
-          });
-          break;
+          target = target.parentNode;
         }
-        target = target.parentNode;
-      }
-    });
+      });
 
-    //-- Advanced code-editor buttons
-    document.addEventListener('click', function (event) {
-      var nodePath = require('path');
-      var target = event.target;
-      while (target && target !== document) {
-        var mode = null;
-        if (target.matches('.js-codeblock-full-edit')) {
-          mode = 'full';
-        } else if (target.matches('.js-codeblock-formal-test')) {
-          mode = 'formal';
-        } else if (target.matches('.js-codeblock-testbench')) {
-          mode = 'testbench';
-        } else if (target.matches('.js-codeblock-export-module')) {
-          event.stopPropagation();
-          var exportBlockId = target.getAttribute('data-blkid');
-          if (!exportBlockId) {
-            break;
-          }
-          var exportCell = ctx.paper.getModelById(exportBlockId);
-          if (!exportCell) {
-            break;
-          }
-          var exportData = exportCell.attributes.data || {};
-          var exportName = (
-            exportData.label ||
-            exportData.name ||
-            exportBlockId
-          ).replace(/[^a-zA-Z0-9_]/g, '_');
+      //-- Advanced code-editor buttons
+      document.addEventListener('click', function (event) {
+        var nodePath = require('path');
+        var target = event.target;
+        while (target && target !== document) {
+          var mode = null;
+          if (target.matches('.js-codeblock-full-edit')) {
+            mode = 'full';
+          } else if (target.matches('.js-codeblock-formal-test')) {
+            mode = 'formal';
+          } else if (target.matches('.js-codeblock-testbench')) {
+            mode = 'testbench';
+          } else if (target.matches('.js-codeblock-export-module')) {
+            event.stopPropagation();
+            var exportBlockId = target.getAttribute('data-blkid');
+            if (!exportBlockId) {
+              break;
+            }
+            var exportCell = ctx.paper.getModelById(exportBlockId);
+            if (!exportCell) {
+              break;
+            }
+            var exportData = exportCell.attributes.data || {};
+            var exportName = (
+              exportData.label ||
+              exportData.name ||
+              exportBlockId
+            ).replace(/[^a-zA-Z0-9_]/g, '_');
 
-          var stripPrefix = function (name) {
-            return name.replace(/^[@#]+/, '');
-          };
+            var stripPrefix = function (name) {
+              return name.replace(/^[@#]+/, '');
+            };
 
-          // Build full Verilog module text
-          var verilog = '';
-          verilog += 'module ' + exportName;
+            // Build full Verilog module text
+            var verilog = '';
+            verilog += 'module ' + exportName;
 
-          // Parameters
-          var expParams = [];
-          var ep;
-          for (ep in exportData.params) {
-            if (exportData.params[ep] instanceof Object) {
-              var epName =
-                exportData.params[ep].name.charAt(0) === '@'
-                  ? exportData.params[ep].name.substr(1)
-                  : exportData.params[ep].name;
-              expParams.push(
-                ' parameter ' +
-                  epName +
-                  ' = ' +
-                  (exportData.params[ep].value
-                    ? exportData.params[ep].value
-                    : '0')
+            // Parameters
+            var expParams = [];
+            var ep;
+            for (ep in exportData.params) {
+              if (exportData.params[ep] instanceof Object) {
+                var epName =
+                  exportData.params[ep].name.charAt(0) === '@'
+                    ? exportData.params[ep].name.substr(1)
+                    : exportData.params[ep].name;
+                expParams.push(
+                  ' parameter ' +
+                    epName +
+                    ' = ' +
+                    (exportData.params[ep].value
+                      ? exportData.params[ep].value
+                      : '0')
+                );
+              }
+            }
+            if (expParams.length > 0) {
+              verilog += ' #(\n' + expParams.join(',\n') + '\n)';
+            }
+
+            // Ports
+            var expPorts = [];
+            var expPortsObj = exportData.ports || {};
+            var ei, eo;
+            for (ei in expPortsObj.in) {
+              var pin = expPortsObj.in[ei];
+              expPorts.push(
+                ' input ' +
+                  (pin.range ? pin.range + ' ' : '') +
+                  stripPrefix(pin.name)
               );
             }
-          }
-          if (expParams.length > 0) {
-            verilog += ' #(\n' + expParams.join(',\n') + '\n)';
-          }
-
-          // Ports
-          var expPorts = [];
-          var expPortsObj = exportData.ports || {};
-          var ei, eo;
-          for (ei in expPortsObj.in) {
-            var pin = expPortsObj.in[ei];
-            expPorts.push(
-              ' input ' +
-                (pin.range ? pin.range + ' ' : '') +
-                stripPrefix(pin.name)
-            );
-          }
-          for (eo in expPortsObj.out) {
-            var pout = expPortsObj.out[eo];
-            expPorts.push(
-              ' output ' +
-                (pout.range ? pout.range + ' ' : '') +
-                stripPrefix(pout.name)
-            );
-          }
-          for (ei in expPortsObj.inoutLeft) {
-            var pioL = expPortsObj.inoutLeft[ei];
-            expPorts.push(
-              ' inout ' +
-                (pioL.range ? pioL.range + ' ' : '') +
-                stripPrefix(pioL.name)
-            );
-          }
-          for (eo in expPortsObj.inoutRight) {
-            var pioR = expPortsObj.inoutRight[eo];
-            expPorts.push(
-              ' inout ' +
-                (pioR.range ? pioR.range + ' ' : '') +
-                stripPrefix(pioR.name)
-            );
-          }
-          if (expPorts.length > 0) {
-            verilog += ' (\n' + expPorts.join(',\n') + '\n)';
-          }
-
-          verilog += ';\n';
-
-          // Content (indented)
-          if (exportData.code) {
-            var codeLines = exportData.code.split('\n');
-            for (var cl = 0; cl < codeLines.length; cl++) {
-              codeLines[cl] = ' ' + codeLines[cl];
+            for (eo in expPortsObj.out) {
+              var pout = expPortsObj.out[eo];
+              expPorts.push(
+                ' output ' +
+                  (pout.range ? pout.range + ' ' : '') +
+                  stripPrefix(pout.name)
+              );
             }
-            verilog += codeLines.join('\n');
-          }
+            for (ei in expPortsObj.inoutLeft) {
+              var pioL = expPortsObj.inoutLeft[ei];
+              expPorts.push(
+                ' inout ' +
+                  (pioL.range ? pioL.range + ' ' : '') +
+                  stripPrefix(pioL.name)
+              );
+            }
+            for (eo in expPortsObj.inoutRight) {
+              var pioR = expPortsObj.inoutRight[eo];
+              expPorts.push(
+                ' inout ' +
+                  (pioR.range ? pioR.range + ' ' : '') +
+                  stripPrefix(pioR.name)
+              );
+            }
+            if (expPorts.length > 0) {
+              verilog += ' (\n' + expPorts.join(',\n') + '\n)';
+            }
 
-          verilog += '\nendmodule\n';
+            verilog += ';\n';
 
-          var exportConfig = {
-            verilog: verilog,
-            moduleName: exportName,
-            blockId: exportBlockId,
-            code: exportData.code || '',
-            theme: ctx.profile.data.uiTheme || 'light',
-          };
-          var exportParam = encodeURIComponent(JSON.stringify(exportConfig));
-          var exportURL =
-            'resources/viewers/module-export/module-export.html?config=' +
-            exportParam;
+            // Content (indented)
+            if (exportData.code) {
+              var codeLines = exportData.code.split('\n');
+              for (var cl = 0; cl < codeLines.length; cl++) {
+                codeLines[cl] = ' ' + codeLines[cl];
+              }
+              verilog += codeLines.join('\n');
+            }
 
-          nw.Window.open(exportURL, {
-            title: 'Module Export - ' + exportName,
-            focus: true,
-            resizable: true,
-            show: true,
-            width: 700,
-            height: 500,
-            icon: 'resources/images/icestudio-logo.png',
-          });
-          break;
-        } else if (target.matches('.js-codeblock-push-collection')) {
-          event.stopPropagation();
-          var pushBlockId = target.getAttribute('data-blkid');
-          if (!pushBlockId) {
+            verilog += '\nendmodule\n';
+
+            var exportConfig = {
+              verilog: verilog,
+              moduleName: exportName,
+              blockId: exportBlockId,
+              code: exportData.code || '',
+              theme: ctx.profile.data.uiTheme || 'light',
+            };
+            var exportParam = encodeURIComponent(JSON.stringify(exportConfig));
+            var exportURL =
+              'resources/viewers/module-export/module-export.html?config=' +
+              exportParam;
+
+            nw.Window.open(exportURL, {
+              title: 'Module Export - ' + exportName,
+              focus: true,
+              resizable: true,
+              show: true,
+              width: 700,
+              height: 500,
+              icon: 'resources/images/icestudio-logo.png',
+            });
             break;
-          }
-          var pushCell = ctx.paper.getModelById(pushBlockId);
-          if (!pushCell) {
-            break;
-          }
-          ctx.pushCodeBlockToCollection(
-            pushCell.attributes.data || {},
-            pushBlockId
-          );
-          break;
-        }
-
-        if (mode) {
-          event.stopPropagation();
-          var blockId = target.getAttribute('data-blkid');
-          if (!blockId) {
-            break;
-          }
-          var cell = ctx.paper.getModelById(blockId);
-          if (!cell) {
-            break;
-          }
-          var data = cell.attributes.data || {};
-          var rawName = (data.label || data.name || blockId).replace(
-            /[^a-zA-Z0-9_]/g,
-            '_'
-          );
-          var moduleName = rawName || 'ice_code_module';
-
-          if (
-            ctx.service.breadcrumbs.length > 1 &&
-            ctx.common.isEditingSubmodule !== true
-          ) {
-            alertify.warning(
-              'Cannot open code editor inside a write-protected submodule. Unlock it for editing first.'
+          } else if (target.matches('.js-codeblock-push-collection')) {
+            event.stopPropagation();
+            var pushBlockId = target.getAttribute('data-blkid');
+            if (!pushBlockId) {
+              break;
+            }
+            var pushCell = ctx.paper.getModelById(pushBlockId);
+            if (!pushCell) {
+              break;
+            }
+            ctx.pushCodeBlockToCollection(
+              pushCell.attributes.data || {},
+              pushBlockId
             );
             break;
           }
 
-          var configObj = {
-            mode: mode,
-            blockId: blockId,
-            code: data.code || '',
-            ports: data.ports || { in: [], out: [] },
-            params: data.params || [],
-            testbench: data.testbench || '',
-            moduleName: moduleName,
-            theme: ctx.profile.data.uiTheme || 'light',
-            customTheme: ctx.profile.data.customTheme || null,
-            buildDir: ctx.common.BUILD_DIR,
-            blockDir: nodePath.join(ctx.common.BUILD_DIR, 'blocks', blockId),
-            toolchainBinDir: nodePath.join(
-              ctx.common.APIO_HOME_DIR,
-              'packages',
-              'tools-oss-cad-suite',
-              'bin'
-            ),
-            isWin32: process.platform === 'win32',
-            formalVerifyPyPath: nodePath.resolve(
-              nodePath.join('..', 'formal_verify', 'formal_verify.py')
-            ),
-            pythonCmd: ctx.common.PYTHON_ENV || 'python',
-            sourcePath: data.sourcePath || '',
-            boardInfo: ctx.common.selectedBoard
-              ? {
-                  name: ctx.common.selectedBoard.name || '',
-                  info: ctx.common.selectedBoard.info || {},
-                }
-              : null,
-            boardPinout: ctx.common.selectedBoard
-              ? ctx.common.selectedBoard.pinout || []
-              : [],
-          };
+          if (mode) {
+            event.stopPropagation();
+            var blockId = target.getAttribute('data-blkid');
+            if (!blockId) {
+              break;
+            }
+            var cell = ctx.paper.getModelById(blockId);
+            if (!cell) {
+              break;
+            }
+            var data = cell.attributes.data || {};
+            var rawName = (data.label || data.name || blockId).replace(
+              /[^a-zA-Z0-9_]/g,
+              '_'
+            );
+            var moduleName = rawName || 'ice_code_module';
 
-          var configParam = encodeURIComponent(JSON.stringify(configObj));
-          var editorURL =
-            'resources/viewers/code-editor/code-editor.html?config=' +
-            configParam;
+            if (
+              ctx.service.breadcrumbs.length > 1 &&
+              ctx.common.isEditingSubmodule !== true
+            ) {
+              alertify.warning(
+                'Cannot open code editor inside a write-protected submodule. Unlock it for editing first.'
+              );
+              break;
+            }
 
-          var titles = {
-            full: 'Full Editor',
-            formal: 'Formal Test',
-            testbench: 'Testbench',
-          };
-          nw.Window.open(editorURL, {
-            title: 'Code Editor - ' + titles[mode],
-            focus: true,
-            resizable: true,
-            show: false,
-            width: mode === 'testbench' ? 1200 : 900,
-            height: 700,
-            icon: 'resources/images/icestudio-logo.png',
-          });
-          break;
+            var configObj = {
+              mode: mode,
+              blockId: blockId,
+              code: data.code || '',
+              ports: data.ports || { in: [], out: [] },
+              params: data.params || [],
+              testbench: data.testbench || '',
+              moduleName: moduleName,
+              theme: ctx.profile.data.uiTheme || 'light',
+              customTheme: ctx.profile.data.customTheme || null,
+              buildDir: ctx.common.BUILD_DIR,
+              blockDir: nodePath.join(ctx.common.BUILD_DIR, 'blocks', blockId),
+              toolchainBinDir: nodePath.join(
+                ctx.common.APIO_HOME_DIR,
+                'packages',
+                'tools-oss-cad-suite',
+                'bin'
+              ),
+              isWin32: process.platform === 'win32',
+              formalVerifyPyPath: nodePath.resolve(
+                nodePath.join('..', 'formal_verify', 'formal_verify.py')
+              ),
+              pythonCmd: ctx.common.PYTHON_ENV || 'python',
+              sourcePath: data.sourcePath || '',
+              boardInfo: ctx.common.selectedBoard
+                ? {
+                    name: ctx.common.selectedBoard.name || '',
+                    info: ctx.common.selectedBoard.info || {},
+                  }
+                : null,
+              boardPinout: ctx.common.selectedBoard
+                ? ctx.common.selectedBoard.pinout || []
+                : [],
+            };
+
+            var configParam = encodeURIComponent(JSON.stringify(configObj));
+            var editorURL =
+              'resources/viewers/code-editor/code-editor.html?config=' +
+              configParam;
+
+            var titles = {
+              full: 'Full Editor',
+              formal: 'Formal Test',
+              testbench: 'Testbench',
+            };
+            nw.Window.open(editorURL, {
+              title: 'Code Editor - ' + titles[mode],
+              focus: true,
+              resizable: true,
+              show: false,
+              width: mode === 'testbench' ? 1200 : 900,
+              height: 700,
+              icon: 'resources/images/icestudio-logo.png',
+            });
+            break;
+          }
+          target = target.parentNode;
         }
-        target = target.parentNode;
-      }
-    });
+      });
+    } // end if (!window._icegraph._docListenersReady)
 
     //-- Expose code-save receiver to popup windows
     nw.Window.get().window.icestudioReceiveCodeSave = function (
