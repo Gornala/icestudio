@@ -363,6 +363,13 @@ window._icegraph.interactions = function (ctx) {
             );
             return;
           }
+          // In read-only submodule view (breadcrumbs depth > 1, not in edit
+          // mode), block navigation into nested blocks. Without this guard the
+          // extra breadcrumb push causes editModeToggle to open the wrong
+          // submodule when the lock button is later clicked.
+          if (ctx.service.breadcrumbs.length > 1) {
+            return;
+          }
           ctx.z.index = 1;
           isDblClick = true;
 
