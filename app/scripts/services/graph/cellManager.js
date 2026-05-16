@@ -88,12 +88,14 @@ window._icegraph.cellManager = function (ctx) {
     inoutLeft,
     inoutRight,
     code,
-    label
+    label,
+    forceCodeBlock
   ) {
     var allBlocks = [];
     var allWires = [];
     var codeBlockId = ctx.joint.util.uuid();
     var yStep = 80;
+    var includeCode = forceCodeBlock || !!code;
 
     portsIn.forEach(function (port, idx) {
       var id = ctx.joint.util.uuid();
@@ -112,7 +114,7 @@ window._icegraph.cellManager = function (ctx) {
         data: inputData,
         position: { x: 50, y: 80 + idx * yStep },
       });
-      if (code) {
+      if (includeCode) {
         allWires.push({
           source: { block: id, port: 'out' },
           target: { block: codeBlockId, port: port.name },
@@ -158,7 +160,7 @@ window._icegraph.cellManager = function (ctx) {
         data: outputData,
         position: { x: 750, y: 80 + idx * yStep },
       });
-      if (code) {
+      if (includeCode) {
         allWires.push({
           source: { block: codeBlockId, port: port.name },
           target: { block: id, port: 'in' },
@@ -195,7 +197,7 @@ window._icegraph.cellManager = function (ctx) {
         data: { name: param.name, value: '', local: false },
         position: { x: 300 + idx * 150, y: 20 },
       });
-      if (code) {
+      if (includeCode) {
         allWires.push({
           source: { block: id, port: 'constant-out' },
           target: { block: codeBlockId, port: param.name },
@@ -203,7 +205,7 @@ window._icegraph.cellManager = function (ctx) {
       }
     });
 
-    if (code) {
+    if (includeCode) {
       var leftCount = Math.max(
         portsIn.length + inoutLeft.length,
         params.length
@@ -1338,7 +1340,8 @@ window._icegraph.cellManager = function (ctx) {
       inoutLeft,
       inoutRight,
       code,
-      label
+      label,
+      true
     );
 
     // Map port name → inner block ID so we can update wire endpoints.
