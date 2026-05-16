@@ -1,0 +1,547 @@
+[
+  {
+    "type": "input",
+    "name": "CLK",
+    "value": "128"
+  },
+  {
+    "type": "output",
+    "name": "LED1",
+    "value": "142"
+  },
+  {
+    "type": "output",
+    "name": "LED2",
+    "value": "143"
+  },
+  {
+    "type": "output",
+    "name": "LED3",
+    "value": "144"
+  },
+  {
+    "type": "output",
+    "name": "SDO",
+    "value": "67"
+  },
+  {
+    "type": "inout",
+    "name": "SDI",
+    "value": "68"
+  },
+  {
+    "type": "input",
+    "name": "SCK",
+    "value": "70"
+  },
+  {
+    "type": "input",
+    "name": "SS",
+    "value": "71"
+  },
+  {
+    "type": "input",
+    "name": "RESET",
+    "value": "66"
+  },
+  {
+    "type": "output",
+    "name": "DONE",
+    "value": "65"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_2A",
+    "value": "1"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_2B",
+    "value": "2"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_3A",
+    "value": "3"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_3B",
+    "value": "4"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_4A",
+    "value": "7"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_4B",
+    "value": "8"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_5A",
+    "value": "9"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_5B",
+    "value": "10"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_8A",
+    "value": "11"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_8B",
+    "value": "12"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_10A",
+    "value": "15"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_10B",
+    "value": "16"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_12A",
+    "value": "17"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_12B",
+    "value": "18"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_13A",
+    "value": "19"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_13B",
+    "value": "20"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_14A",
+    "value": "21"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_14B",
+    "value": "22"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_17A",
+    "value": "23"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_17B",
+    "value": "24"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_18A",
+    "value": "25"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_18B",
+    "value": "26"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_23A",
+    "value": "28"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_23B",
+    "value": "29"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_24A",
+    "value": "31"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_24B",
+    "value": "32"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_25A",
+    "value": "33"
+  },
+  {
+    "type": "inout",
+    "name": "IOL_25B",
+    "value": "34"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_56",
+    "value": "37"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_57",
+    "value": "38"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_61",
+    "value": "39"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_63",
+    "value": "41"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_64",
+    "value": "42"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_71",
+    "value": "43"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_72",
+    "value": "44"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_73",
+    "value": "45"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_79",
+    "value": "47"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_80",
+    "value": "48"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_81",
+    "value": "49"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_82",
+    "value": "52"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_91",
+    "value": "55"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_94",
+    "value": "56"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_95",
+    "value": "60"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_96",
+    "value": "61"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_102",
+    "value": "62"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_103",
+    "value": "63"
+  },
+  {
+    "type": "inout",
+    "name": "IOB_104",
+    "value": "64"
+  },
+  {
+    "type": "inout",
+    "name": "IOR_109",
+    "value": "73"
+  },
+  {
+    "type": "inout",
+    "name": "IOR_110",
+    "value": "74"
+  },
+  {
+    "type": "inout",
+    "name": "IOR_111",
+    "value": "75"
+  },
+  {
+    "type": "inout",
+    "name": "IOR_112",
+    "value": "76"
+  },
+  {
+    "type": "inout",
+    "name": "IOR_114",
+    "value": "78"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO17_IOR_115",
+    "value": "79"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO16_IOR_116",
+    "value": "80"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO15_IOR_117",
+    "value": "81"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO14_IOR_118",
+    "value": "82"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO13_IOR_119",
+    "value": "83"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO12_IOR_120",
+    "value": "84"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO11_IOR_128",
+    "value": "85"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO10_IOR_136",
+    "value": "87"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO09_IOR_137",
+    "value": "88"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO08_IOR_138",
+    "value": "90"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO07_IOR_139",
+    "value": "91"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO25_IOR_140",
+    "value": "93"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO06_IOR_144",
+    "value": "95"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO05_IOR_146",
+    "value": "96"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO04_IOR_147",
+    "value": "97"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO03_IOR_148",
+    "value": "98"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO02_IOR_152",
+    "value": "99"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO01_IOR_160",
+    "value": "101"
+  },
+  {
+    "type": "inout",
+    "name": "GPIO00_IOR_161",
+    "value": "102"
+  },
+  {
+    "type": "inout",
+    "name": "IOR_164",
+    "value": "104"
+  },
+  {
+    "type": "inout",
+    "name": "IOR_165",
+    "value": "105"
+  },
+  {
+    "type": "inout",
+    "name": "IOR_166",
+    "value": "106"
+  },
+  {
+    "type": "inout",
+    "name": "IOR_167",
+    "value": "107"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_168",
+    "value": "110"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_169",
+    "value": "112"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_170",
+    "value": "113"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_171",
+    "value": "114"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_172",
+    "value": "115"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_173",
+    "value": "116"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_174",
+    "value": "117"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_177",
+    "value": "118"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_178",
+    "value": "119"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_179",
+    "value": "120"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_181",
+    "value": "121"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_190",
+    "value": "122"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_191",
+    "value": "124"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_192",
+    "value": "125"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_206",
+    "value": "130"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_212",
+    "value": "134"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_213",
+    "value": "135"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_214",
+    "value": "136"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_215",
+    "value": "137"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_216",
+    "value": "138"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_217",
+    "value": "139"
+  },
+  {
+    "type": "inout",
+    "name": "IOT_219",
+    "value": "141"
+  },
+  {
+    "type": "output",
+    "name": "NULL",
+    "value": "NULL"
+  },
+  {
+    "type": "input",
+    "name": "NULL",
+    "value": "NULL"
+  }
+]

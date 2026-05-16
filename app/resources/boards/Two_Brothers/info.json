@@ -1,0 +1,13 @@
+{
+  "label": "Two_Brothers",
+  "SysClkMhz": 12,
+  "datasheet": "https://www.latticesemi.com/en/Products/FPGAandCPLD/iCE40",
+  "interface": "pico_load",
+  "FPGAResources": {
+    "ffs": 3520,
+    "luts": 3520,
+    "pios": 109,
+    "plbs": 960,
+    "brams": 80
+  }
+}

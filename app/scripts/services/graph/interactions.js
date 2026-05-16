@@ -201,6 +201,13 @@ window._icegraph.interactions = function (ctx) {
   //-- Set up all paper + graph + keyboard event listeners
   //--------------------------------------------------------------------------
   function setup() {
+    // Each pushPaper() call re-runs setup() via createPaper(). Deregister any
+    // previous navigateProjectEnded listener so only one is active at a time.
+    if (ctx._deregNavigateProjectEnded) {
+      ctx._deregNavigateProjectEnded();
+      ctx._deregNavigateProjectEnded = null;
+    }
+
     var isDblClick = false;
     var pointerdblclickCellType = false;
     var shiftPressed = false;
@@ -260,6 +267,14 @@ window._icegraph.interactions = function (ctx) {
     ctx.selectionView.on('selection-box:pointermove', function () {
       if (ctx.service.addingDraggableBlock && ctx.hasSelection()) {
         debounceDisableReplacedBlock(ctx.selection.at(0));
+      }
+    });
+
+    //-- cell:pointerdown — block write-protected mode: null sourceView so pointermove
+    //   never dispatches a move to the cell even if interactive() returns false late
+    ctx.paper.on('cell:pointerdown', function () {
+      if (ctx.paper.options.enabled === false) {
+        ctx.paper.sourceView = null;
       }
     });
 
@@ -361,13 +376,6 @@ window._icegraph.interactions = function (ctx) {
                 'To enter "edit mode" in a deeper block, you need to finish the current level by locking the padlock.'
               )
             );
-            return;
-          }
-          // In read-only submodule view (breadcrumbs depth > 1, not in edit
-          // mode), block navigation into nested blocks. Without this guard the
-          // extra breadcrumb push causes editModeToggle to open the wrong
-          // submodule when the lock button is later clicked.
-          if (ctx.service.breadcrumbs.length > 1) {
             return;
           }
           ctx.z.index = 1;
@@ -835,23 +843,26 @@ window._icegraph.interactions = function (ctx) {
     });
 
     //-- navigateProjectEnded — update breadcrumbs
-    ctx.$rootScope.$on('navigateProjectEnded', function (event, args) {
-      if (args.fromDoubleClick) {
-        ctx.service.breadcrumbs.push({
-          name:
-            ctx.common.allDependencies[pointerdblclickCellType].package.name ||
-            '#',
-          type: pointerdblclickCellType,
-        });
-      } else if (args.fromNewSubmodule && args.submodule) {
-        var dep = ctx.common.allDependencies[args.submodule];
-        ctx.service.breadcrumbs.push({
-          name: (dep && dep.package && dep.package.name) || args.submodule,
-          type: args.submodule,
-        });
+    // Stored so the next setup() call can deregister this before adding a new one.
+    ctx._deregNavigateProjectEnded = ctx.$rootScope.$on(
+      'navigateProjectEnded',
+      function (event, args) {
+        if (args.fromDoubleClick && args.submodule) {
+          var dep = ctx.common.allDependencies[args.submodule];
+          ctx.service.breadcrumbs.push({
+            name: (dep && dep.package && dep.package.name) || '#',
+            type: args.submodule,
+          });
+        } else if (args.fromNewSubmodule && args.submodule) {
+          var dep2 = ctx.common.allDependencies[args.submodule];
+          ctx.service.breadcrumbs.push({
+            name: (dep2 && dep2.package && dep2.package.name) || args.submodule,
+            type: args.submodule,
+          });
+        }
+        ctx.utils.rootScopeSafeApply();
       }
-      ctx.utils.rootScopeSafeApply();
-    });
+    );
 
     //-- graph events: wire order + port defaults + auto refresh
     //-- (lpSyncWireGroup intentionally NOT registered: individual label renames

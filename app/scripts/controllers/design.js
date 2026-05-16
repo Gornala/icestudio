@@ -278,8 +278,12 @@ cells.sort((a, b) => {
             $scope.toRestore = false;
           }
 
-          var didPop = graph.popPaper();
-          if (didPop) {
+          // Pop all stacked papers back to the top level (handles multi-level jumps).
+          var poppedToTop = false;
+          while (graph.getPaperStackDepth() > 0) {
+            poppedToTop = graph.popPaper();
+          }
+          if (poppedToTop) {
             graph.fitContent();
             $scope.isNavigating = false;
             utils.endBlockingTask();
@@ -308,11 +312,26 @@ cells.sort((a, b) => {
             }
             $scope.toRestore = false;
           }
-          graph.resetView();
-          graph.loadDesign(dependency.design, opt, function () {
+          // Pop stacked papers down to target depth (n-1 papers in stack).
+          // Handles multi-level breadcrumb jumps as well as single-level back.
+          var poppedToSub = false;
+          while (graph.getPaperStackDepth() > n - 1) {
+            poppedToSub = graph.popPaper();
+          }
+          if (poppedToSub) {
+            // popPaper() called appEnable(true); re-apply read-only so the
+            // back button and write-protection banner stay visible.
+            graph.appEnable(false);
+            graph.fitContent();
             $scope.isNavigating = false;
             utils.endBlockingTask();
-          });
+          } else {
+            graph.resetView();
+            graph.loadDesign(dependency.design, opt, function () {
+              $scope.isNavigating = false;
+              utils.endBlockingTask();
+            });
+          }
           $scope.information = dependency.package;
         }
       }
@@ -345,10 +364,7 @@ cells.sort((a, b) => {
         // paper (keeping all cells and ACE editors live) and spin up a fresh
         // paper for the submodule.  On back-navigation popPaper() restores the
         // hidden paper instantly — no cell rebuild needed.
-        if (
-          graph.breadcrumbs.length === 1 &&
-          typeof args.submodule !== 'undefined'
-        ) {
+        if (typeof args.submodule !== 'undefined') {
           graph.pushPaper();
         }
 
@@ -379,6 +395,16 @@ cells.sort((a, b) => {
           iceStudio.bus.events.publish('Navigation::ReadWrite');
         } else {
           iceStudio.bus.events.publish('Navigation::ReadOnly');
+        }
+
+        // Keep the lock icon in sync with the actual write-protection state.
+        // editModeToggle only updates it on manual clicks; programmatic
+        // navigation (new submodule, double-click enter) never did.
+        var _lockImg = document.querySelector('.footer-edit-button img');
+        if (_lockImg) {
+          _lockImg.src = _lockImg.getAttribute(
+            common.isEditingSubmodule ? 'data-unlock' : 'data-lock'
+          );
         }
 
         let flowInfo = {

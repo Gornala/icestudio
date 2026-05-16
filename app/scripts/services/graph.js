@@ -161,6 +161,9 @@ angular.module('icestudio').service(
 
     ctx.setState = _viewState.setState;
     ctx.fitContent = _viewState.fitContent;
+    ctx.getParentEntry = function () {
+      return _canvasPaper.getParentEntry();
+    };
 
     //--------------------------------------------------------------------------
     //-- Public API — delegated to sub-modules
@@ -257,6 +260,11 @@ angular.module('icestudio').service(
       graph = ctx.graph;
       paper = ctx.paper;
       return ok;
+    };
+
+    // Returns the current number of saved paper levels (0 = at top level).
+    this.getPaperStackDepth = function () {
+      return _canvasPaper.getPaperStackDepth();
     };
 
     // Clear the stack without restoring — call when opening a new project.

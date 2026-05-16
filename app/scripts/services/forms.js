@@ -58,6 +58,7 @@ angular
         LabelField: LabelField,
       });
       var FormBasicCode = _blockForms.FormBasicCode;
+      var FormGenericEdit = _blockForms.FormGenericEdit;
       var FormBasicMemory = _blockForms.FormBasicMemory;
       var FormBasicConstant = _blockForms.FormBasicConstant;
       var FormBasicGenerate = _blockForms.FormBasicGenerate;
@@ -107,6 +108,7 @@ angular
       this.FormBasicPairedLabels = FormBasicPairedLabels;
       this.FormBasicInfoFrame = FormBasicInfoFrame;
       this.FormBasicCode = FormBasicCode;
+      this.FormGenericEdit = FormGenericEdit;
       this.FormBasicMemory = FormBasicMemory;
       this.FormBasicConstant = FormBasicConstant;
       this.FormBasicGenerate = FormBasicGenerate;

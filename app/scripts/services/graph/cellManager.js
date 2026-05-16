@@ -81,195 +81,565 @@ window._icegraph.cellManager = function (ctx) {
     return pins;
   }
 
+  function buildSubmoduleDesign(
+    portsIn,
+    portsOut,
+    params,
+    inoutLeft,
+    inoutRight,
+    code,
+    label
+  ) {
+    var allBlocks = [];
+    var allWires = [];
+    var codeBlockId = ctx.joint.util.uuid();
+    var yStep = 80;
+
+    portsIn.forEach(function (port, idx) {
+      var id = ctx.joint.util.uuid();
+      var inputData = {
+        name: port.name,
+        pins: buildSubmodulePins(port.range),
+        virtual: true,
+        clock: false,
+      };
+      if (port.range) {
+        inputData.range = port.range;
+      }
+      allBlocks.push({
+        id: id,
+        type: 'basic.input',
+        data: inputData,
+        position: { x: 50, y: 80 + idx * yStep },
+      });
+      if (code) {
+        allWires.push({
+          source: { block: id, port: 'out' },
+          target: { block: codeBlockId, port: port.name },
+        });
+      }
+    });
+
+    // Inout-left ports appear as left ports on the parent Generic block.
+    // Represented inside the submodule as basic.input blocks with inout:true.
+    inoutLeft.forEach(function (port, idx) {
+      var id = ctx.joint.util.uuid();
+      var inputData = {
+        name: port.name,
+        pins: buildSubmodulePins(port.range),
+        virtual: true,
+        clock: false,
+        inout: true,
+      };
+      if (port.range) {
+        inputData.range = port.range;
+      }
+      allBlocks.push({
+        id: id,
+        type: 'basic.input',
+        data: inputData,
+        position: { x: 50, y: 80 + (portsIn.length + idx) * yStep },
+      });
+    });
+
+    portsOut.forEach(function (port, idx) {
+      var id = ctx.joint.util.uuid();
+      var outputData = {
+        name: port.name,
+        pins: buildSubmodulePins(port.range),
+        virtual: true,
+      };
+      if (port.range) {
+        outputData.range = port.range;
+      }
+      allBlocks.push({
+        id: id,
+        type: 'basic.output',
+        data: outputData,
+        position: { x: 750, y: 80 + idx * yStep },
+      });
+      if (code) {
+        allWires.push({
+          source: { block: codeBlockId, port: port.name },
+          target: { block: id, port: 'in' },
+        });
+      }
+    });
+
+    // Inout-right ports appear as right ports on the parent Generic block.
+    // Represented inside the submodule as basic.output blocks with inout:true.
+    inoutRight.forEach(function (port, idx) {
+      var id = ctx.joint.util.uuid();
+      var outputData = {
+        name: port.name,
+        pins: buildSubmodulePins(port.range),
+        virtual: true,
+        inout: true,
+      };
+      if (port.range) {
+        outputData.range = port.range;
+      }
+      allBlocks.push({
+        id: id,
+        type: 'basic.output',
+        data: outputData,
+        position: { x: 750, y: 80 + (portsOut.length + idx) * yStep },
+      });
+    });
+
+    params.forEach(function (param, idx) {
+      var id = ctx.joint.util.uuid();
+      allBlocks.push({
+        id: id,
+        type: 'basic.constant',
+        data: { name: param.name, value: '', local: false },
+        position: { x: 300 + idx * 150, y: 20 },
+      });
+      if (code) {
+        allWires.push({
+          source: { block: id, port: 'constant-out' },
+          target: { block: codeBlockId, port: param.name },
+        });
+      }
+    });
+
+    if (code) {
+      var leftCount = Math.max(
+        portsIn.length + inoutLeft.length,
+        params.length
+      );
+      var rightCount = portsOut.length + inoutRight.length;
+      var codeHeight = Math.max(
+        300,
+        Math.max(leftCount, rightCount) * 80 + 160
+      );
+
+      var mapPort = function (p) {
+        var o = { name: p.name };
+        if (p.range) {
+          o.range = p.range;
+        }
+        return o;
+      };
+
+      allBlocks.push({
+        id: codeBlockId,
+        type: 'basic.code',
+        data: {
+          label: label,
+          code: code,
+          params: params.map(function (p) {
+            return { name: p.name };
+          }),
+          ports: {
+            in: portsIn.map(mapPort),
+            out: portsOut.map(mapPort),
+            inoutLeft: inoutLeft.map(mapPort),
+            inoutRight: inoutRight.map(mapPort),
+          },
+        },
+        position: { x: 300, y: 150 },
+        size: { width: 800, height: codeHeight },
+      });
+    }
+
+    return { blocks: allBlocks, wires: allWires };
+  }
+
   function createSubmodule() {
-    //-- Step 1: Module Ports dialog — define inputs / outputs / params + optional code
+    //-- Single dialog: Module Ports + label (no second popup for package info)
     ctx.blockforms.getCodeFormData(function (formData) {
       var portsIn = formData.inPortsInfo || [];
       var portsOut = formData.outPortsInfo || [];
       var params = formData.inParamsInfo || [];
+      var inoutLeft = formData.inoutLeftPortsInfo || [];
+      var inoutRight = formData.inoutRightPortsInfo || [];
       var code = (formData.code || '').trim();
       var label = formData.label || 'submodule';
 
-      //-- Step 2: defer so the first alertify dialog fully closes before opening the next
-      setTimeout(function () {
-        var infoValues = [label, '1.0.0', '', '', ''];
-        ctx.utils.projectinfoprompt(infoValues, function (evt, newValues) {
-          var pkgName = newValues[0] || label;
-          var pkgVersion = newValues[1] || '1.0.0';
-          var pkgDesc = newValues[2] || '';
-          var pkgAuthor = newValues[3] || '';
-          var pkgImage = newValues[4] || '';
+      var subGraph = buildSubmoduleDesign(
+        portsIn,
+        portsOut,
+        params,
+        inoutLeft,
+        inoutRight,
+        code,
+        label
+      );
 
-          //-- Step 3: Build the internal .ice graph for the new submodule
-          var allBlocks = [];
-          var allWires = [];
-          var codeBlockId = ctx.joint.util.uuid();
-          var yStep = 80;
+      var boardName =
+        ctx.common.selectedBoard && ctx.common.selectedBoard.name
+          ? ctx.common.selectedBoard.name
+          : 'alhambra-ii';
 
-          portsIn.forEach(function (port, idx) {
-            var id = ctx.joint.util.uuid();
-            var inputData = {
+      var blockData = {
+        version: '1.2',
+        package: {
+          name: label,
+          version: formData.pkgVersion || '1.0.0',
+          description: formData.pkgDesc || '',
+          author: formData.pkgAuthor || '',
+          image: formData.pkgImage || '',
+        },
+        design: {
+          board: boardName,
+          graph: subGraph,
+        },
+        dependencies: {},
+      };
+
+      var type = ctx.utils.dependencyID(blockData);
+      ctx.common.allDependencies[type] = blockData;
+
+      ctx.blockforms.newGeneric(type, blockData, function (cell) {
+        var menuHeight = $('#menu').height();
+        cell.set('position', {
+          x:
+            Math.round(
+              ((ctx.mousePosition.x - ctx.state.pan.x) / ctx.state.zoom -
+                cell.get('size').width / 2) /
+                ctx.gridsize
+            ) * ctx.gridsize,
+          y:
+            Math.round(
+              ((ctx.mousePosition.y - ctx.state.pan.y - menuHeight) /
+                ctx.state.zoom -
+                cell.get('size').height / 2) /
+                ctx.gridsize
+            ) * ctx.gridsize,
+        });
+        ctx.graph.trigger('batch:start');
+        addCell(cell);
+        ctx.graph.trigger('batch:stop');
+
+        ctx.common.isEditingSubmodule = true;
+        ctx.$rootScope.$broadcast('navigateProject', {
+          update: ctx.service.breadcrumbs.length === 1,
+          project: blockData,
+          submodule: type,
+          submoduleId: cell.get('id'),
+          fromDoubleClick: false,
+          fromNewSubmodule: true,
+          editMode: false,
+        });
+      });
+    });
+  }
+
+  // Walk a design graph recursively, collecting every non-basic block-type
+  // definition found in ctx.common.allDependencies into `result`.
+  function collectTransitiveDeps(design, result) {
+    (design.graph.blocks || []).forEach(function (block) {
+      if (
+        block.type &&
+        block.type.indexOf('basic.') === -1 &&
+        !result[block.type]
+      ) {
+        var d = ctx.common.allDependencies[block.type];
+        if (d) {
+          result[block.type] = d;
+          collectTransitiveDeps(d.design, result);
+        }
+      }
+    });
+  }
+
+  function editGenericBlock(cellId, typeId) {
+    var dep = ctx.common.allDependencies[typeId];
+    if (!dep) {
+      alertify.error(
+        ctx.gettextCatalog.getString('Block definition not found')
+      );
+      return;
+    }
+
+    var inputPorts = [];
+    var outputPorts = [];
+    var paramPorts = [];
+    (dep.design.graph.blocks || []).forEach(function (item) {
+      if (item.type === 'basic.input') {
+        inputPorts.push({ name: item.data.name, range: item.data.range || '' });
+      } else if (item.type === 'basic.output') {
+        outputPorts.push({
+          name: item.data.name,
+          range: item.data.range || '',
+        });
+      } else if (
+        (item.type === 'basic.constant' || item.type === 'basic.memory') &&
+        !item.data.local
+      ) {
+        paramPorts.push({ name: item.data.name });
+      }
+    });
+
+    var inPortStr = ctx.blocks.portsInfo2Str(inputPorts);
+    var outPortStr = ctx.blocks.portsInfo2Str(outputPorts);
+    var paramStr = ctx.blocks.portsInfo2Str(paramPorts);
+    var pkgName = dep.package.name || '';
+
+    // Build the complete transitive dependency map so the saved .ice file is
+    // self-contained (non-basic blocks inside the submodule need their definitions).
+    var blockDependencies = {};
+    collectTransitiveDeps(dep.design, blockDependencies);
+
+    var pkgInfo = {
+      name: dep.package.name || '',
+      version: dep.package.version || '',
+      desc: dep.package.description || '',
+      author: dep.package.author || '',
+      image: dep.package.image || '',
+      blockDesign: dep.design,
+      blockDependencies: blockDependencies,
+    };
+
+    ctx.blockforms.getCodeFormDataWith(
+      inPortStr,
+      outPortStr,
+      paramStr,
+      pkgName,
+      pkgInfo,
+      function (formData) {
+        dep.package.name = formData.label || pkgName;
+        dep.package.version =
+          formData.pkgVersion || dep.package.version || '1.0.0';
+        dep.package.description =
+          formData.pkgDesc || dep.package.description || '';
+        dep.package.author = formData.pkgAuthor || dep.package.author || '';
+        dep.package.image =
+          formData.pkgImage !== undefined
+            ? formData.pkgImage
+            : dep.package.image || '';
+
+        var nonBoundaryBlocks = (dep.design.graph.blocks || []).filter(
+          function (b) {
+            return (
+              b.type !== 'basic.input' &&
+              b.type !== 'basic.output' &&
+              !(
+                (b.type === 'basic.constant' || b.type === 'basic.memory') &&
+                !b.data.local
+              )
+            );
+          }
+        );
+
+        // Build a lookup of old boundary block IDs by type+name so that
+        // ports whose names are unchanged keep their old IDs.  This preserves
+        // internal wire connections that reference those IDs.
+        var oldBoundaryIds = {};
+        (dep.design.graph.blocks || []).forEach(function (b) {
+          if (b.type === 'basic.input' || b.type === 'basic.output') {
+            oldBoundaryIds[b.type + ':' + b.data.name] = b.id;
+          }
+        });
+
+        formData.inPortsInfo.forEach(function (port, idx) {
+          var key = 'basic.input:' + port.name;
+          nonBoundaryBlocks.push({
+            id: oldBoundaryIds[key] || ctx.joint.util.uuid(),
+            type: 'basic.input',
+            data: {
               name: port.name,
-              pins: buildSubmodulePins(port.range),
+              range: port.range || '',
+              pins: [{ index: '0', name: '', value: '0' }],
               virtual: true,
               clock: false,
-            };
-            if (port.range) {
-              inputData.range = port.range;
-            }
-            allBlocks.push({
-              id: id,
-              type: 'basic.input',
-              data: inputData,
-              position: { x: 50, y: 80 + idx * yStep },
-            });
-            if (code) {
-              allWires.push({
-                source: { block: id, port: 'out' },
-                target: { block: codeBlockId, port: port.name },
-              });
-            }
-          });
-
-          portsOut.forEach(function (port, idx) {
-            var id = ctx.joint.util.uuid();
-            var outputData = {
-              name: port.name,
-              pins: buildSubmodulePins(port.range),
-              virtual: true,
-            };
-            if (port.range) {
-              outputData.range = port.range;
-            }
-            allBlocks.push({
-              id: id,
-              type: 'basic.output',
-              data: outputData,
-              position: { x: 750, y: 80 + idx * yStep },
-            });
-            if (code) {
-              allWires.push({
-                source: { block: codeBlockId, port: port.name },
-                target: { block: id, port: 'in' },
-              });
-            }
-          });
-
-          params.forEach(function (param, idx) {
-            var id = ctx.joint.util.uuid();
-            allBlocks.push({
-              id: id,
-              type: 'basic.constant',
-              data: { name: param.name, value: '', local: false },
-              position: { x: 300 + idx * 150, y: 20 },
-            });
-            if (code) {
-              allWires.push({
-                source: { block: id, port: 'constant-out' },
-                target: { block: codeBlockId, port: param.name },
-              });
-            }
-          });
-
-          if (code) {
-            var codeHeight = Math.max(
-              300,
-              (Math.max(portsIn.length, portsOut.length) + params.length) * 80 +
-                160
-            );
-            allBlocks.push({
-              id: codeBlockId,
-              type: 'basic.code',
-              data: {
-                label: label,
-                code: code,
-                params: params.map(function (p) {
-                  return { name: p.name };
-                }),
-                ports: {
-                  in: portsIn.map(function (p) {
-                    var o = { name: p.name };
-                    if (p.range) {
-                      o.range = p.range;
-                    }
-                    return o;
-                  }),
-                  out: portsOut.map(function (p) {
-                    var o = { name: p.name };
-                    if (p.range) {
-                      o.range = p.range;
-                    }
-                    return o;
-                  }),
-                },
-              },
-              position: { x: 300, y: 150 },
-              size: { width: 800, height: codeHeight },
-            });
-          }
-
-          var boardName =
-            ctx.common.selectedBoard && ctx.common.selectedBoard.name
-              ? ctx.common.selectedBoard.name
-              : 'alhambra-ii';
-
-          var blockData = {
-            version: '1.2',
-            package: {
-              name: pkgName,
-              version: pkgVersion,
-              description: pkgDesc,
-              author: pkgAuthor,
-              image: pkgImage,
             },
-            design: {
-              board: boardName,
-              graph: { blocks: allBlocks, wires: allWires },
-            },
-            dependencies: {},
-          };
-
-          //-- Register as a dependency
-          var type = ctx.utils.dependencyID(blockData);
-          ctx.common.allDependencies[type] = blockData;
-
-          //-- Create the generic block cell and place it near the cursor
-          ctx.blockforms.newGeneric(type, blockData, function (cell) {
-            var menuHeight = $('#menu').height();
-            cell.set('position', {
-              x:
-                Math.round(
-                  ((ctx.mousePosition.x - ctx.state.pan.x) / ctx.state.zoom -
-                    cell.get('size').width / 2) /
-                    ctx.gridsize
-                ) * ctx.gridsize,
-              y:
-                Math.round(
-                  ((ctx.mousePosition.y - ctx.state.pan.y - menuHeight) /
-                    ctx.state.zoom -
-                    cell.get('size').height / 2) /
-                    ctx.gridsize
-                ) * ctx.gridsize,
-            });
-            ctx.graph.trigger('batch:start');
-            addCell(cell);
-            ctx.graph.trigger('batch:stop');
-
-            //-- Navigate into the new submodule with write access enabled
-            ctx.common.isEditingSubmodule = true;
-            ctx.$rootScope.$broadcast('navigateProject', {
-              update: ctx.service.breadcrumbs.length === 1,
-              project: blockData,
-              submodule: type,
-              submoduleId: cell.get('id'),
-              fromDoubleClick: false,
-              fromNewSubmodule: true,
-              editMode: false,
-            });
+            position: { x: 50, y: 80 + idx * 80 },
           });
         });
-      }, 0); // end setTimeout — defer until first alertify dialog fully closes
+
+        formData.outPortsInfo.forEach(function (port, idx) {
+          var key = 'basic.output:' + port.name;
+          nonBoundaryBlocks.push({
+            id: oldBoundaryIds[key] || ctx.joint.util.uuid(),
+            type: 'basic.output',
+            data: {
+              name: port.name,
+              range: port.range || '',
+              pins: [{ index: '0', name: '', value: '0' }],
+              virtual: true,
+            },
+            position: { x: 750, y: 80 + idx * 80 },
+          });
+        });
+
+        formData.inParamsInfo.forEach(function (param, idx) {
+          nonBoundaryBlocks.push({
+            id: ctx.joint.util.uuid(),
+            type: 'basic.constant',
+            data: { name: param.name, value: '', local: false },
+            position: { x: 300 + idx * 150, y: 20 },
+          });
+        });
+
+        dep.design.graph.blocks = nonBoundaryBlocks;
+
+        var oldCell = ctx.graph.getCell(cellId);
+        if (!oldCell) {
+          return;
+        }
+
+        var connectedWires = ctx.graph.getConnectedLinks(oldCell);
+        var oldPosition = oldCell.get('position');
+        var oldSize = oldCell.get('size');
+
+        var newCell = ctx.blockforms.loadGeneric(
+          { id: cellId, type: typeId, position: oldPosition, size: oldSize },
+          dep,
+          false
+        );
+
+        ctx.graph.startBatch('change');
+        oldCell.remove();
+        addCell(newCell);
+
+        var newLeft = newCell.get('leftPorts') || [];
+        var newRight = newCell.get('rightPorts') || [];
+        var newTop = newCell.get('topPorts') || [];
+
+        connectedWires.forEach(function (wire) {
+          var src = wire.get('source');
+          var tgt = wire.get('target');
+          var srcOk =
+            src.id !== cellId ||
+            newRight.some(function (p) {
+              return p.id === src.port;
+            });
+          var tgtOk =
+            tgt.id !== cellId ||
+            newLeft.some(function (p) {
+              return p.id === tgt.port;
+            }) ||
+            newTop.some(function (p) {
+              return p.id === tgt.port;
+            });
+          if (srcOk && tgtOk) {
+            ctx.graph.addCell(wire);
+          }
+        });
+
+        ctx.graph.stopBatch('change');
+        iceStudio.bus.events.publish('project:changed');
+        alertify.success(ctx.gettextCatalog.getString('Block updated'));
+      }
+    );
+  }
+
+  iceStudio.bus.events.subscribe('block:editProperties', function (data) {
+    editGenericBlock(data.cellId, data.typeId);
+  });
+
+  //--------------------------------------------------------------------------
+  //-- Sync virtual I/O ports in current submodule back to the parent Generic
+  //-- cell. Called after a virtual port is added or removed while editing a
+  //-- submodule so the parent's port list stays in sync without navigating back.
+  //--------------------------------------------------------------------------
+  function syncVirtualPortsToParent() {
+    if (!ctx.common.submoduleHeap || ctx.common.submoduleHeap.length === 0) {
+      return;
+    }
+    var parentEntry = ctx.getParentEntry ? ctx.getParentEntry() : null;
+    if (!parentEntry) {
+      return;
+    }
+
+    var lastHeap =
+      ctx.common.submoduleHeap[ctx.common.submoduleHeap.length - 1];
+    var typeId = lastHeap.id;
+    var cellId = lastHeap.uid;
+    if (!typeId || !cellId) {
+      return;
+    }
+
+    var dep = ctx.common.allDependencies[typeId];
+    if (!dep || !dep.design || !dep.design.graph) {
+      return;
+    }
+
+    // Collect current virtual I/O blocks from the submodule graph
+    var newBoundaryBlocks = [];
+    ctx.graph.getCells().forEach(function (cell) {
+      var jType = cell.get('type');
+      if (jType !== 'ice.Input' && jType !== 'ice.Output') {
+        return;
+      }
+      var data = cell.get('data');
+      if (!data || !data.virtual) {
+        return;
+      }
+      // Derive blockType from the JointJS type — blockType attribute may not be
+      // set on cells created via the form dialog (only set when loaded from JSON).
+      var blockType = jType === 'ice.Input' ? 'basic.input' : 'basic.output';
+      newBoundaryBlocks.push({
+        id: cell.id,
+        type: blockType,
+        data: data,
+        position: cell.get('position'),
+      });
     });
+
+    // Replace boundary blocks in the dependency, keep everything else
+    var nonBoundaryBlocks = (dep.design.graph.blocks || []).filter(
+      function (b) {
+        return b.type !== 'basic.input' && b.type !== 'basic.output';
+      }
+    );
+    dep.design.graph.blocks = nonBoundaryBlocks.concat(newBoundaryBlocks);
+
+    // Rebuild the Generic cell in the parent graph
+    var parentGraph = parentEntry.graph;
+    var existingCell = parentGraph.getCell(cellId);
+    if (!existingCell) {
+      return;
+    }
+
+    var instance = {
+      id: cellId,
+      type: typeId,
+      position: existingCell.get('position'),
+      size: null,
+    };
+
+    var newCell = ctx.blockforms.loadGeneric(instance, dep, false);
+    if (!newCell) {
+      return;
+    }
+
+    var connectedWires = parentGraph.getConnectedLinks(existingCell);
+    var newLeftPorts = newCell.get('leftPorts');
+    var newRightPorts = newCell.get('rightPorts');
+
+    // Set state + rules so the parent paper's view can render without crashing
+    updateCellAttributes(newCell);
+
+    parentGraph.startBatch('change');
+    existingCell.remove();
+    parentGraph.addCell(newCell);
+    connectedWires.forEach(function (wire) {
+      var src = wire.get('source');
+      var tgt = wire.get('target');
+      var keep = false;
+      if (
+        src.id === cellId &&
+        newRightPorts.some(function (p) {
+          return p.id === src.port;
+        })
+      ) {
+        keep = true;
+      } else if (
+        tgt.id === cellId &&
+        newLeftPorts.some(function (p) {
+          return p.id === tgt.port;
+        })
+      ) {
+        keep = true;
+      }
+      if (keep) {
+        parentGraph.addCell(wire);
+      }
+    });
+    parentGraph.stopBatch('change');
   }
 
   //--------------------------------------------------------------------------
@@ -370,6 +740,41 @@ window._icegraph.cellManager = function (ctx) {
         clientX: effectiveMouseX,
         clientY: ctx.mousePosition.y,
       });
+
+      // When editing inside a submodule, ensure all new I/O cells are virtual
+      // and sync them to the parent Generic block.  Force virtual=true as a
+      // safety net in case the form dialog didn't set it (e.g. race with flag).
+      var hasIO = cells.some(function (c) {
+        var t = c.get('type');
+        return t === 'ice.Input' || t === 'ice.Output';
+      });
+      if (hasIO) {
+        if (ctx.common.isEditingSubmodule) {
+          _.each(cells, function (c) {
+            var t = c.get('type');
+            if (t === 'ice.Input' || t === 'ice.Output') {
+              var d = c.get('data');
+              if (d && !d.virtual) {
+                c.set('data', _.extend({}, d, { virtual: true }));
+              }
+            }
+          });
+          syncVirtualPortsToParent();
+        } else {
+          // Outside submodule — only sync if a virtual I/O is present
+          var hasVirtualIO = cells.some(function (c) {
+            var t = c.get('type');
+            return (
+              (t === 'ice.Input' || t === 'ice.Output') &&
+              c.get('data') &&
+              c.get('data').virtual
+            );
+          });
+          if (hasVirtualIO) {
+            syncVirtualPortsToParent();
+          }
+        }
+      }
     }
   }
 
@@ -726,11 +1131,22 @@ window._icegraph.cellManager = function (ctx) {
 
   function removeSelected() {
     if (hasSelection()) {
+      var hadVirtualIO = ctx.selection.models.some(function (cell) {
+        var t = cell.get('type');
+        return (
+          (t === 'ice.Input' || t === 'ice.Output') &&
+          (ctx.common.isEditingSubmodule ||
+            (cell.get('data') && cell.get('data').virtual))
+        );
+      });
       ctx.graph.removeCells(ctx.selection.models);
       ctx.selectionView.cancelSelection();
       ctx.service.updateWires();
       $('body').trigger('Graph::lpRefresh');
       iceStudio.bus.events.publish('git:designChanged', 'Delete');
+      if (hadVirtualIO) {
+        syncVirtualPortsToParent();
+      }
     }
   }
 

@@ -340,6 +340,71 @@ window._icemenu.file = {
     };
 
     //---------------------------------------------------------------------
+    //-- Import Verilog Project
+    //-- Opens top.v, parses the full hierarchy, builds icestudio blocks
+    //-- for each module and loads the resulting design onto the canvas.
+    //---------------------------------------------------------------------
+
+    $scope.importVerilogProject = function () {
+      utils.openDialog('#input-import-verilog-project', function (filepath) {
+        window._iceVerilogImporter
+          .importProject(filepath, {
+            nodeFs: require('fs'),
+            nodePath: require('path'),
+            computeId: function (block) {
+              return utils.dependencyID(block);
+            },
+          })
+          .then(function (result) {
+            // Show per-module warnings for ports removed before import
+            if (result.warnings && result.warnings.length > 0) {
+              alertify.warning(
+                gettextCatalog.getString(
+                  'Removed dangling ports during import:'
+                ) +
+                  '<br>' +
+                  result.warnings.join('<br>'),
+                30
+              );
+            }
+
+            // Replace the dependency table with what was imported
+            common.allDependencies = result.dependencies;
+
+            // Load the top-level design (clears canvas, resets command stack)
+            var loaded = graph.loadDesign(
+              result.design,
+              { disabled: false, reset: false },
+              function () {
+                graph.resetCommandStack();
+                alertify.success(
+                  gettextCatalog.getString('Verilog project imported')
+                );
+                utils.endBlockingTask();
+              }
+            );
+
+            if (!loaded) {
+              utils.endBlockingTask();
+              alertify.error(
+                gettextCatalog.getString('Failed to load the imported design'),
+                30
+              );
+            }
+          })
+          .catch(function (err) {
+            utils.endBlockingTask();
+            alertify.error(
+              gettextCatalog.getString('Import error: {{err}}', {
+                err: String(err),
+              }),
+              30
+            );
+          });
+      });
+    };
+
+    //---------------------------------------------------------------------
     //-- Export functions
     //---------------------------------------------------------------------
 

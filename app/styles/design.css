@@ -203,6 +203,52 @@ g {
   border: 1px solid #777;
 }
 
+.generic-block .generic-content .generic-block-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: #4169e1;
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  align-items: center;
+  padding: 0 2px 0 6px;
+  z-index: 1;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.generic-block .generic-content .generic-block-title {
+  flex: 1;
+  color: #fff;
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.generic-block .generic-content .generic-block-settings {
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 3px;
+  line-height: 1;
+  flex-shrink: 0;
+  pointer-events: all;
+  border-radius: 3px;
+}
+
+.generic-block .generic-content .generic-block-settings:hover {
+  color: #ffd700;
+  background: rgba(255, 255, 255, 0.15);
+}
+
 .generic-block .generic-content .clock {
   position: absolute;
 }
@@ -251,7 +297,7 @@ g {
 .generic-block .generic-content .img-container {
   position: absolute;
   margin: auto;
-  top: 8px;
+  top: 32px;
   left: 8px;
   right: 8px;
   bottom: 8px;
@@ -284,7 +330,7 @@ g {
 
 .generic-block .generic-content label {
   display: block;
-  margin-top: 20px;
+  margin-top: 30px;
   text-align: center;
   font-size: 14px;
   color: #333;

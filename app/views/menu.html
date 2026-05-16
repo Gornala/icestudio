@@ -127,6 +127,13 @@
 
     <input id="input-import-verilog" type="file" accept=".v" class="hidden" />
 
+    <input
+      id="input-import-verilog-project"
+      type="file"
+      accept=".v"
+      class="hidden"
+    />
+
     <!-- Top navigation bar -->
     <nav
       class="navbar navbar-default navbar-static-top ice-bar"
@@ -282,6 +289,13 @@
                     >
                   </li>
                 </ul>
+              </li>
+
+              <!-- File/Import Verilog Project -->
+              <li>
+                <a href ng-click="importVerilogProject()">
+                  {{ 'Import Verilog Project' | translate }}...
+                </a>
               </li>
 
               <!-- Divisor line between sections of the menu -->

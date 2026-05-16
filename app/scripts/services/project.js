@@ -82,8 +82,8 @@ angular
         var self = this;
         self.path = emptyPath ? '' : filepath;
         self.filepath = filepath;
-        if (!emptyPath && window.iceGitManager) {
-          window.iceGitManager.setDir(utils.dirname(filepath));
+        if (window.iceGitManager) {
+          window.iceGitManager.setDir(emptyPath ? '' : filepath);
         }
         utils
           .readFile(filepath)
@@ -438,7 +438,7 @@ angular
               let bdir = utils.filepath2buildpath(self.filepath);
               common.setBuildDir(bdir);
               if (window.iceGitManager) {
-                window.iceGitManager.setDir(utils.dirname(filepath));
+                window.iceGitManager.setDir(filepath);
                 window.iceGitManager.scheduleCommit('Save');
               }
               alertify.success(

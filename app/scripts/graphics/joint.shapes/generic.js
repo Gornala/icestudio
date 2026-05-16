@@ -24,6 +24,10 @@ joint.shapes.ice.GenericView = joint.shapes.ice.ModelView.extend({
     '\
   <div class="generic-block">\
     <div class="generic-content">\
+      <div class="generic-block-header">\
+        <span class="generic-block-title"></span>\
+        <button class="generic-block-settings" title="Properties">&#9881;</button>\
+      </div>\
       <div class="img-container"><img></div>\
       <label></label>\
       <span class="tooltiptext"></span>\
@@ -83,6 +87,13 @@ joint.shapes.ice.GenericView = joint.shapes.ice.ModelView.extend({
     }
   },
 
+  openPropertiesDialog: function () {
+    iceStudio.bus.events.publish('block:editProperties', {
+      cellId: this.model.id,
+      typeId: this.model.get('blockType'),
+    });
+  },
+
   cache: { dom: {} },
   initialize: function () {
     joint.shapes.ice.ModelView.prototype.initialize.apply(this, arguments);
@@ -105,6 +116,14 @@ joint.shapes.ice.GenericView = joint.shapes.ice.ModelView.extend({
     if (this.model.get('config')) {
       this.$box.find('.generic-content').addClass('config-block');
     }
+
+    // Set the header title and wire up the settings button
+    this.$box.find('.generic-block-title').text(this.model.get('label') || '');
+    var self = this;
+    this.$box.find('.generic-block-settings').on('click', function (e) {
+      e.stopPropagation();
+      self.openPropertiesDialog();
+    });
 
     // Initialize content
     this.initializeContent();
@@ -198,6 +217,11 @@ joint.shapes.ice.GenericView = joint.shapes.ice.ModelView.extend({
 
       this.onUpdating = false;
       this.place('.generic-content', bbox, state, []);
+
+      // Keep header title in sync with model label
+      this.$box
+        .find('.generic-block-title')
+        .text(this.model.get('label') || '');
     }
   },
 });

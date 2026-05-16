@@ -1,0 +1,35 @@
+﻿# -----------------------------------------------------------------------------
+#- Two_borthers constraint file (.pcf)
+#- By Georg Wachter
+#- October - 2024
+#- GPL license
+# -----------------------------------------------------------------------------
+
+
+# ------------ LEDs -----------------------------------------------------------
+set_io --warn-no-port LED1 142  # output
+set_io --warn-no-port LED2 143  # output
+set_io --warn-no-port LED3 144  # output
+
+# ------------ System 12 MHz clock --------------------------------------------
+set_io --warn-no-port CLK 128  # input
+
+
+# ------------ pico spi --------------------------------------------------------
+# SPI
+set_io --warn-no-port SDI  68  # input
+set_io --warn-no-port SDO  67  # output
+set_io --warn-no-port SCK  70  # input
+set_io --warn-no-port SS   71  # input
+
+set_io --warn-no-port CRESET 66  # input
+set_io --warn-no-port CDONE  65  # output
+
+# ----------------------------- BANK-A (left connector)-------------------------
+
+
+# ----------------------------- BANK-B (rigth connector)------------------------
+set_io --warn-no-port B2 A6
+
+# ----------------------------- BANK-C (connected to pico)----------------------
+

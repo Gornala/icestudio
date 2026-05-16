@@ -320,8 +320,7 @@ window._iceblockforms.codeForms = function (ctx) {
   }
 
   function getCodeFormData(callback) {
-    var form = new ctx.forms.FormBasicCode('', '', '', '', '', '');
-    $('.ajs-input').val('');
+    var form = new ctx.forms.FormGenericEdit('', '', '', '', '', '');
     form.display(function (evt) {
       form.process(evt);
       if (evt.cancel) {
@@ -331,8 +330,52 @@ window._iceblockforms.codeForms = function (ctx) {
         inPortsInfo: form.inPortsInfo,
         outPortsInfo: form.outPortsInfo,
         inParamsInfo: form.inParamsInfo,
+        inoutLeftPortsInfo: form.inoutLeftPortsInfo || [],
+        inoutRightPortsInfo: form.inoutRightPortsInfo || [],
         label: form.label,
         code: form.code,
+        pkgVersion: form.pkgVersion,
+        pkgDesc: form.pkgDesc,
+        pkgAuthor: form.pkgAuthor,
+        pkgImage: form.pkgImage,
+      });
+    });
+  }
+
+  function getCodeFormDataWith(
+    inPortStr,
+    outPortStr,
+    paramStr,
+    label,
+    pkgInfo,
+    callback
+  ) {
+    var form = new ctx.forms.FormGenericEdit(
+      inPortStr,
+      outPortStr,
+      paramStr,
+      '',
+      '',
+      label,
+      pkgInfo
+    );
+    form.display(function (evt) {
+      form.process(evt);
+      if (evt.cancel) {
+        return;
+      }
+      callback({
+        inPortsInfo: form.inPortsInfo,
+        outPortsInfo: form.outPortsInfo,
+        inParamsInfo: form.inParamsInfo,
+        inoutLeftPortsInfo: form.inoutLeftPortsInfo || [],
+        inoutRightPortsInfo: form.inoutRightPortsInfo || [],
+        label: form.label,
+        code: form.code,
+        pkgVersion: form.pkgVersion,
+        pkgDesc: form.pkgDesc,
+        pkgAuthor: form.pkgAuthor,
+        pkgImage: form.pkgImage,
       });
     });
   }
@@ -342,5 +385,6 @@ window._iceblockforms.codeForms = function (ctx) {
     loadBasicCode: loadBasicCode,
     editBasicCode: editBasicCode,
     getCodeFormData: getCodeFormData,
+    getCodeFormDataWith: getCodeFormDataWith,
   };
 };

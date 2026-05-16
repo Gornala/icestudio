@@ -379,12 +379,39 @@
       if (!srcSvg) {
         return;
       }
-      // Clear drawing layer and copy children
+      // Clear drawing layer
       while (_svgEl.firstChild) {
         _svgEl.removeChild(_svgEl.firstChild);
       }
-      while (srcSvg.firstChild) {
-        _svgEl.appendChild(document.importNode(srcSvg.firstChild, true));
+      // Compute scale so content fits the 64×64 canvas.
+      // Thumbnail-maker SVGs already use viewBox "0 0 64 64" (scale = 1).
+      // External SVGs normalised by _normalizeSvg() carry the original
+      // dimensions in their viewBox, so we scale them down here.
+      var scaleX = 1,
+        scaleY = 1;
+      var vb = srcSvg.getAttribute('viewBox');
+      if (vb) {
+        var parts = vb.trim().split(/[\s,]+/);
+        var vbW = parseFloat(parts[2]);
+        var vbH = parseFloat(parts[3]);
+        if (vbW > 0 && vbH > 0 && (vbW !== 64 || vbH !== 64)) {
+          scaleX = 64 / vbW;
+          scaleY = 64 / vbH;
+        }
+      }
+      var nodes = Array.from(srcSvg.childNodes);
+      var i;
+      if (scaleX !== 1 || scaleY !== 1) {
+        var g = document.createElementNS(SVG_NS, 'g');
+        g.setAttribute('transform', 'scale(' + scaleX + ',' + scaleY + ')');
+        for (i = 0; i < nodes.length; i++) {
+          g.appendChild(document.importNode(nodes[i], true));
+        }
+        _svgEl.appendChild(g);
+      } else {
+        for (i = 0; i < nodes.length; i++) {
+          _svgEl.appendChild(document.importNode(nodes[i], true));
+        }
       }
     };
 

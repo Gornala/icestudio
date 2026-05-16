@@ -569,6 +569,744 @@ window._iceforms.blockForms = function (deps) {
   }
 
   //-------------------------------------------------------------------------
+  //-- ImageField: SVG thumbnail picker for the Package Info tab
+  //-------------------------------------------------------------------------
+  class ImageField {
+    constructor(initialImage) {
+      this.image = initialImage || '';
+      this.thumbMaker = null;
+    }
+
+    // Extract only the <svg>...</svg> portion — strip XML declaration, DOCTYPE, etc.
+    _extractSvg(raw) {
+      var idx = raw.search(/<svg[\s>]/i);
+      return idx >= 0 ? raw.substring(idx) : '';
+    }
+
+    // Normalize an SVG to 64×64 pixels (matching the thumbnail maker canvas).
+    // Ensures a viewBox is present (built from width/height if missing) so the
+    // original proportions are preserved, then sets width/height to 64.
+    _normalizeSvg(svgString) {
+      if (!svgString) {
+        return svgString;
+      }
+      var parser = new DOMParser();
+      var doc = parser.parseFromString(svgString, 'image/svg+xml');
+      var svgEl = doc.querySelector('svg');
+      if (!svgEl) {
+        return svgString;
+      }
+      if (!svgEl.getAttribute('viewBox')) {
+        var w = parseFloat(svgEl.getAttribute('width')) || 64;
+        var h = parseFloat(svgEl.getAttribute('height')) || 64;
+        svgEl.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+      }
+      svgEl.setAttribute('width', '64');
+      svgEl.setAttribute('height', '64');
+      return new XMLSerializer().serializeToString(svgEl);
+    }
+
+    // Decode stored URI-encoded image back to an SVG string
+    _decodeSvg() {
+      if (!this.image) {
+        return '';
+      }
+      if (this.image.startsWith('%3Csvg') || this.image.startsWith('%3csvg')) {
+        return decodeURI(this.image);
+      }
+      if (this.image.startsWith('<svg')) {
+        return this.image;
+      }
+      return '';
+    }
+
+    // Render svgContent (raw string) into the preview div via a data-URI <img>
+    _showPreview(svgContent) {
+      var preview = $('#pkgi-preview');
+      if (!svgContent) {
+        var blank =
+          'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+        preview.html(
+          '<img src="' +
+            blank +
+            '" style="max-width:100%;max-height:100%;opacity:0.3">'
+        );
+        return;
+      }
+      var dataUrl =
+        'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent);
+      preview.html(
+        '<img src="' +
+          dataUrl +
+          '" style="max-width:100%;max-height:100%;object-fit:contain">'
+      );
+    }
+
+    html() {
+      var existingSvg = this._decodeSvg();
+      var previewHtml;
+      if (existingSvg) {
+        var dataUrl =
+          'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(existingSvg);
+        previewHtml =
+          '<img src="' +
+          dataUrl +
+          '" style="max-width:100%;max-height:100%;object-fit:contain">';
+      } else {
+        var blank =
+          'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+        previewHtml =
+          '<img src="' +
+          blank +
+          '" style="max-width:100%;max-height:100%;opacity:0.3">';
+      }
+      var saveFor = this.image ? 'pkgi-save-file' : '';
+      var saveDisabled = this.image ? '' : ' disabled';
+      return [
+        '<p>' + gettextCatalog.getString('Image') + '</p>',
+        '<input id="pkgi-open-file" type="file" accept=".svg" class="hidden">',
+        '<input id="pkgi-save-file" type="file" accept=".svg" class="hidden" nwsaveas="image.svg">',
+        '<div id="pkgi-preview" style="width:100%;height:120px;border:1px solid #555;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#1a1a2e;margin-bottom:4px">' +
+          previewHtml +
+          '</div>',
+        '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">',
+        '  <label for="pkgi-open-file" class="btn">' +
+          gettextCatalog.getString('Open SVG') +
+          '</label>',
+        '  <label id="pkgi-save-lbl" for="' +
+          saveFor +
+          '" class="btn' +
+          saveDisabled +
+          '">' +
+          gettextCatalog.getString('Save SVG') +
+          '</label>',
+        '  <label id="pkgi-reset-lbl" class="btn">' +
+          gettextCatalog.getString('Reset SVG') +
+          '</label>',
+        '  <label id="pkgi-thumb-toggle" class="btn" title="Draw Thumbnail"><i class="fa fa-paint-brush"></i></label>',
+        '</div>',
+        '<div id="pkgi-thumbmaker" class="tm-panel tm-hidden"></div>',
+      ].join('\n');
+    }
+
+    _updateSave() {
+      var self = this;
+      var lbl = $('#pkgi-save-lbl');
+      if (this.image) {
+        lbl.removeClass('disabled').attr('for', 'pkgi-save-file');
+        $('#pkgi-save-file')
+          .off('change')
+          .on('change', function () {
+            var fp = $(this).val();
+            if (!fp.endsWith('.svg')) {
+              fp += '.svg';
+            }
+            var out = self._decodeSvg() || self.image;
+            nodeFs.writeFile(fp, out, function (err) {
+              if (err) {
+                console.error(err);
+              }
+            });
+            $(this).val('');
+          });
+      } else {
+        lbl.addClass('disabled').attr('for', '');
+      }
+    }
+
+    init() {
+      var self = this;
+
+      $(document).off('click.pkgimg');
+
+      // Open SVG — extract <svg> element, strip XML preamble, normalize to 64×64
+      $('#pkgi-open-file')
+        .off('change')
+        .on('change', function () {
+          var fp = $(this).val();
+          nodeFs.readFile(fp, 'utf8', function (err, data) {
+            if (err) {
+              return;
+            }
+            var svgContent = self._normalizeSvg(self._extractSvg(data));
+            if (!svgContent) {
+              return;
+            }
+            self.image = encodeURI(svgContent);
+            self._updateSave();
+            self._showPreview(svgContent);
+          });
+          $(this).val('');
+        });
+
+      this._updateSave();
+
+      // Reset SVG
+      $('#pkgi-reset-lbl')
+        .off('click')
+        .on('click', function () {
+          self.image = '';
+          self._updateSave();
+          self._showPreview('');
+        });
+
+      // Thumbnail maker toggle
+      var toggleBtn = document.getElementById('pkgi-thumb-toggle');
+      var panel = document.getElementById('pkgi-thumbmaker');
+      if (toggleBtn && panel) {
+        toggleBtn.addEventListener('click', function () {
+          if (panel.classList.contains('tm-hidden')) {
+            panel.classList.remove('tm-hidden');
+            if (!self.thumbMaker) {
+              self.thumbMaker = new window.ThumbnailMaker(panel);
+              self.thumbMaker.init();
+              var existing = self._decodeSvg();
+              if (existing) {
+                self.thumbMaker.loadSVG(existing);
+              }
+            }
+          } else {
+            panel.classList.add('tm-hidden');
+          }
+        });
+
+        $(document).on('click.pkgimg', '#tm-apply', function () {
+          if (self.thumbMaker) {
+            var svg = self.thumbMaker.exportSVG();
+            self.image = encodeURI(svg);
+            self._updateSave();
+            self._showPreview(svg);
+          }
+        });
+
+        $(document).on('click.pkgimg', '#tm-close', function () {
+          if (panel) {
+            panel.classList.add('tm-hidden');
+          }
+        });
+      }
+    }
+
+    destroy() {
+      $(document).off('click.pkgimg');
+      if (this.thumbMaker) {
+        this.thumbMaker.destroy();
+        this.thumbMaker = null;
+      }
+    }
+
+    read() {
+      return this.image;
+    }
+  }
+
+  //-------------------------------------------------------------------------
+  //-- Helper: RFC 4122-like UUID (ctx.joint not available in forms scope)
+  //-------------------------------------------------------------------------
+  function generateBlockId() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+      /[xy]/g,
+      function (c) {
+        var r = Math.floor(Math.random() * 16);
+        var v = c === 'x' ? r : (r % 4) + 8;
+        return v.toString(16);
+      }
+    );
+  }
+
+  //-------------------------------------------------------------------------
+  //-- Helper: build a pins array from a Verilog bus-range string "[N:M]"
+  //-------------------------------------------------------------------------
+  function buildPinsFromRange(range) {
+    if (!range) {
+      return [{ index: '0', name: '', value: '0' }];
+    }
+    var m = range.match(/\[(\d+):(\d+)\]/);
+    if (!m) {
+      return [{ index: '0', name: '', value: '0' }];
+    }
+    var hi = parseInt(m[1], 10);
+    var lo = parseInt(m[2], 10);
+    var width = Math.abs(hi - lo) + 1;
+    var pins = [];
+    for (var pi = width - 1; pi >= 0; pi--) {
+      pins.push({ index: String(pi), name: '', value: '0' });
+    }
+    return pins;
+  }
+
+  //-------------------------------------------------------------------------
+  //-- RawHtmlField: injects arbitrary HTML into a form tab (no input value)
+  //-------------------------------------------------------------------------
+  class RawHtmlField {
+    constructor(htmlContent) {
+      this._html = htmlContent;
+    }
+    html() {
+      return this._html;
+    }
+    read() {
+      return null;
+    }
+    allowEnter() {
+      return true;
+    }
+  }
+
+  //-------------------------------------------------------------------------
+  //-- CLASS: FormGenericEdit — FormBasicCode + "Package Info" + "Add to Collection" tabs
+  //-------------------------------------------------------------------------
+  class FormGenericEdit extends FormBasicCode {
+    constructor(
+      portsIn,
+      portsOut,
+      paramsIn,
+      portsInOutLeft,
+      portsInOutRight,
+      label,
+      pkgInfo
+    ) {
+      super(
+        portsIn,
+        portsOut,
+        paramsIn,
+        portsInOutLeft,
+        portsInOutRight,
+        label
+      );
+
+      var pkg = pkgInfo || {};
+      var pkgTabLabel = gettextCatalog.getString('Package Info');
+
+      var fieldPkgVersion = new TextField(
+        gettextCatalog.getString('Version'),
+        pkg.version || '',
+        21
+      );
+      var fieldPkgDesc = new TextField(
+        gettextCatalog.getString('Description'),
+        pkg.desc || '',
+        22
+      );
+      var fieldPkgAuthor = new TextField(
+        gettextCatalog.getString('Author'),
+        pkg.author || '',
+        23
+      );
+      var fieldPkgImage = new ImageField(pkg.image || '');
+
+      this.addField(fieldPkgVersion, pkgTabLabel);
+      this.addField(fieldPkgDesc, pkgTabLabel);
+      this.addField(fieldPkgAuthor, pkgTabLabel);
+      this.addField(fieldPkgImage, pkgTabLabel);
+
+      this._pkgVersionField = fieldPkgVersion;
+      this._pkgDescField = fieldPkgDesc;
+      this._pkgAuthorField = fieldPkgAuthor;
+      this._pkgImageField = fieldPkgImage;
+
+      // When editing an existing block, the caller threads the actual dependency
+      // design through pkgInfo so _saveToCollection can export it verbatim instead
+      // of synthesising a new graph from the port-name fields only.
+      this._blockDesign = pkg.blockDesign || null;
+      this._blockDependencies = pkg.blockDependencies || null;
+
+      var atcTabLabel = gettextCatalog.getString('Add to Collection');
+      var atcHtml = [
+        '<div id="atc-container" style="padding:8px">',
+        '<p>' + gettextCatalog.getString('Collection') + '</p>',
+        '<select id="atc-coll-select" class="ajs-input" style="width:100%"></select>',
+        '<p id="atc-new-label" style="display:none;margin-top:8px">' +
+          gettextCatalog.getString('New collection name') +
+          '</p>',
+        '<input id="atc-new-name" class="ajs-input" type="text" value="Custom" style="display:none;width:100%;margin-bottom:8px">',
+        '<button id="atc-save-btn" style="margin-top:12px;width:100%;padding:6px;cursor:pointer">' +
+          gettextCatalog.getString('Add to Collection') +
+          '</button>',
+        '</div>',
+      ].join('\n');
+
+      this.addField(new RawHtmlField(atcHtml), atcTabLabel);
+    }
+
+    get pkgVersion() {
+      return this._pkgVersionField ? this._pkgVersionField.read() : '';
+    }
+    get pkgDesc() {
+      return this._pkgDescField ? this._pkgDescField.read() : '';
+    }
+    get pkgAuthor() {
+      return this._pkgAuthorField ? this._pkgAuthorField.read() : '';
+    }
+    get pkgImage() {
+      return this._pkgImageField ? this._pkgImageField.read() : '';
+    }
+
+    init() {
+      super.init();
+      var self = this;
+
+      var select = document.getElementById('atc-coll-select');
+      if (!select) {
+        return;
+      }
+
+      var nodePath = require('path');
+      var nodeFs = require('fs');
+      var existingColls = [];
+      var i;
+      try {
+        var entries = nodeFs.readdirSync(common.INTERNAL_COLLECTIONS_DIR);
+        for (i = 0; i < entries.length; i++) {
+          var entryPath = nodePath.join(
+            common.INTERNAL_COLLECTIONS_DIR,
+            entries[i]
+          );
+          try {
+            if (nodeFs.statSync(entryPath).isDirectory()) {
+              existingColls.push(entries[i]);
+            }
+          } catch (eStat) {}
+        }
+        existingColls.sort();
+      } catch (eDir) {}
+
+      existingColls.forEach(function (coll) {
+        var opt = document.createElement('option');
+        opt.value = coll;
+        opt.textContent = coll;
+        select.appendChild(opt);
+      });
+
+      var newOpt = document.createElement('option');
+      newOpt.value = '__new__';
+      newOpt.textContent = gettextCatalog.getString('-- New collection --');
+      select.appendChild(newOpt);
+
+      var lbl = document.getElementById('atc-new-label');
+      var inp = document.getElementById('atc-new-name');
+
+      var toggle = function () {
+        var isNew = select.value === '__new__';
+        if (lbl) {
+          lbl.style.display = isNew ? '' : 'none';
+        }
+        if (inp) {
+          inp.style.display = isNew ? '' : 'none';
+        }
+      };
+      select.addEventListener('change', toggle);
+      toggle();
+
+      var btn = document.getElementById('atc-save-btn');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          var collName =
+            select.value === '__new__'
+              ? ((inp ? inp.value : '') || '').trim()
+              : select.value;
+          self._saveToCollection(collName);
+        });
+      }
+    }
+
+    _saveToCollection(collectionName) {
+      var nodePath = require('path');
+      var nodeFs = require('fs');
+
+      if (!collectionName) {
+        alertify.warning(
+          gettextCatalog.getString('Collection name cannot be empty')
+        );
+        return;
+      }
+
+      var moduleName = this.label || 'Untitled';
+      var pkgVersion = this.pkgVersion || '1.0.0';
+      var pkgDesc = this.pkgDesc || '';
+      var pkgAuthor = this.pkgAuthor || '';
+      var pkgImage = this.pkgImage || '';
+      var boardName =
+        common.selectedBoard && common.selectedBoard.name
+          ? common.selectedBoard.name
+          : 'alhambra-ii';
+
+      var graphData;
+      var dependencies = {};
+
+      if (this._blockDesign) {
+        // Editing an existing block: export the actual live design verbatim so
+        // all manually-drawn wires are preserved.
+        graphData = {
+          blocks:
+            (this._blockDesign.graph && this._blockDesign.graph.blocks) || [],
+          wires:
+            (this._blockDesign.graph && this._blockDesign.graph.wires) || [],
+        };
+        dependencies = this._blockDependencies || {};
+      } else {
+        // Creating a new block: synthesise the design from the form values,
+        // mirroring buildSubmoduleDesign exactly (wires only when code present).
+        var fakeEvt = { cancel: false };
+        this.process(fakeEvt);
+        if (fakeEvt.cancel) {
+          return;
+        }
+
+        var portsIn = this.inPortsInfo || [];
+        var portsOut = this.outPortsInfo || [];
+        var params = this.inParamsInfo || [];
+        var inoutLeft = this.inoutLeftPortsInfo || [];
+        var inoutRight = this.inoutRightPortsInfo || [];
+        var codeStr = (this.code || '').trim();
+        var yStep = 80;
+        var codeBlockId = generateBlockId();
+
+        var mapPort = function (p) {
+          var o = { name: p.name };
+          if (p.range) {
+            o.range = p.range;
+          }
+          return o;
+        };
+
+        var allBlocks = [];
+        var allWires = [];
+
+        portsIn.forEach(function (port, idx) {
+          var id = generateBlockId();
+          var inputData = {
+            name: port.name,
+            pins: buildPinsFromRange(port.range),
+            virtual: true,
+            clock: false,
+          };
+          if (port.range) {
+            inputData.range = port.range;
+          }
+          allBlocks.push({
+            id: id,
+            type: 'basic.input',
+            data: inputData,
+            position: { x: 50, y: 80 + idx * yStep },
+          });
+          if (codeStr) {
+            allWires.push({
+              source: { block: id, port: 'out' },
+              target: { block: codeBlockId, port: port.name },
+            });
+          }
+        });
+
+        inoutLeft.forEach(function (port, idx) {
+          var id = generateBlockId();
+          var inputData = {
+            name: port.name,
+            pins: buildPinsFromRange(port.range),
+            virtual: true,
+            clock: false,
+            inout: true,
+          };
+          if (port.range) {
+            inputData.range = port.range;
+          }
+          allBlocks.push({
+            id: id,
+            type: 'basic.input',
+            data: inputData,
+            position: { x: 50, y: 80 + (portsIn.length + idx) * yStep },
+          });
+        });
+
+        portsOut.forEach(function (port, idx) {
+          var id = generateBlockId();
+          var outputData = {
+            name: port.name,
+            pins: buildPinsFromRange(port.range),
+            virtual: true,
+          };
+          if (port.range) {
+            outputData.range = port.range;
+          }
+          allBlocks.push({
+            id: id,
+            type: 'basic.output',
+            data: outputData,
+            position: { x: 750, y: 80 + idx * yStep },
+          });
+          if (codeStr) {
+            allWires.push({
+              source: { block: codeBlockId, port: port.name },
+              target: { block: id, port: 'in' },
+            });
+          }
+        });
+
+        inoutRight.forEach(function (port, idx) {
+          var id = generateBlockId();
+          var outputData = {
+            name: port.name,
+            pins: buildPinsFromRange(port.range),
+            virtual: true,
+            inout: true,
+          };
+          if (port.range) {
+            outputData.range = port.range;
+          }
+          allBlocks.push({
+            id: id,
+            type: 'basic.output',
+            data: outputData,
+            position: { x: 750, y: 80 + (portsOut.length + idx) * yStep },
+          });
+        });
+
+        params.forEach(function (param, idx) {
+          var id = generateBlockId();
+          allBlocks.push({
+            id: id,
+            type: 'basic.constant',
+            data: { name: param.name, value: '', local: false },
+            position: { x: 300 + idx * 150, y: 20 },
+          });
+          if (codeStr) {
+            allWires.push({
+              source: { block: id, port: 'constant-out' },
+              target: { block: codeBlockId, port: param.name },
+            });
+          }
+        });
+
+        if (codeStr) {
+          var leftCount = Math.max(
+            portsIn.length + inoutLeft.length,
+            params.length
+          );
+          var rightCount = portsOut.length + inoutRight.length;
+          var codeHeight = Math.max(
+            300,
+            Math.max(leftCount, rightCount) * 80 + 160
+          );
+          allBlocks.push({
+            id: codeBlockId,
+            type: 'basic.code',
+            data: {
+              label: moduleName,
+              code: codeStr,
+              params: params.map(function (p) {
+                return { name: p.name };
+              }),
+              ports: {
+                in: portsIn.map(mapPort),
+                out: portsOut.map(mapPort),
+                inoutLeft: inoutLeft.map(mapPort),
+                inoutRight: inoutRight.map(mapPort),
+              },
+            },
+            position: { x: 300, y: 150 },
+            size: { width: 800, height: codeHeight },
+          });
+        }
+
+        graphData = { blocks: allBlocks, wires: allWires };
+      }
+
+      var iceProject = {
+        version: '1.2',
+        package: {
+          name: moduleName,
+          version: pkgVersion,
+          description: pkgDesc,
+          author: pkgAuthor,
+          image: pkgImage,
+        },
+        design: { board: boardName, graph: graphData },
+        dependencies: dependencies,
+      };
+
+      var collDir = nodePath.join(
+        common.INTERNAL_COLLECTIONS_DIR,
+        collectionName
+      );
+      var blocksDir = nodePath.join(collDir, 'blocks');
+
+      try {
+        nodeFs.mkdirSync(blocksDir, { recursive: true });
+      } catch (e) {
+        alertify.error('Failed to create collection directory: ' + e);
+        return;
+      }
+
+      var pkgPath = nodePath.join(collDir, 'package.json');
+      if (!nodeFs.existsSync(pkgPath)) {
+        var pkgData = {
+          name: collectionName,
+          version: '1.0.0',
+          description: 'Custom collection',
+          keywords: ['custom', 'collection'],
+          license: 'GPL-2.0',
+        };
+        nodeFs.writeFileSync(pkgPath, JSON.stringify(pkgData, null, 2));
+      }
+
+      var safeName =
+        moduleName.replace(/[^a-zA-Z0-9_\-\s]/g, '_').trim() || 'Untitled';
+      var filePath = nodePath.join(blocksDir, safeName + '.ice');
+
+      var doSave = function () {
+        try {
+          nodeFs.writeFileSync(filePath, JSON.stringify(iceProject, null, 2));
+          alertify.success(
+            gettextCatalog.getString('Block saved to collection') +
+              ': ' +
+              moduleName
+          );
+
+          var pkgCachePath = nodePath.resolve(pkgPath);
+          if (require.cache[pkgCachePath]) {
+            delete require.cache[pkgCachePath];
+          }
+
+          var collections = angular
+            .element(document.body)
+            .injector()
+            .get('collections');
+          collections.loadAllCollections();
+          collections.selectCollection(collDir);
+          iceStudio.updateEnv(common);
+        } catch (e) {
+          alertify.error(
+            gettextCatalog.getString('Failed to save block') + ': ' + e
+          );
+        }
+      };
+
+      if (nodeFs.existsSync(filePath)) {
+        alertify.confirm(
+          gettextCatalog.getString(
+            'A block named "' + safeName + '" already exists. Overwrite?'
+          ),
+          function () {
+            doSave();
+          }
+        );
+      } else {
+        doSave();
+      }
+    }
+
+    display(callback) {
+      var self = this;
+      super.display(function (evt) {
+        callback(evt);
+        if (!evt.cancel) {
+          self._pkgImageField.destroy();
+        }
+      });
+    }
+  }
+
+  //-------------------------------------------------------------------------
   //-- CLASS: FormBasicMemory
   //-------------------------------------------------------------------------
   class FormBasicMemory extends Form {
@@ -1265,6 +2003,7 @@ window._iceforms.blockForms = function (deps) {
 
   return {
     FormBasicCode: FormBasicCode,
+    FormGenericEdit: FormGenericEdit,
     FormBasicMemory: FormBasicMemory,
     FormBasicConstant: FormBasicConstant,
     FormBasicGenerate: FormBasicGenerate,

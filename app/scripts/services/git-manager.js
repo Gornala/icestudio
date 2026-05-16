@@ -7,13 +7,15 @@ window.iceGitManager = (function () {
   var nodeFs = require('fs');
   var childProcess = require('child_process');
 
-  var _dir = '';
+  var _filepath = ''; // full path to .ice file
+  var _dir = ''; // dirname of _filepath (work tree)
+  var _filename = ''; // basename of _filepath (e.g. "A.ice")
+  var _gitDir = ''; // per-file git metadata dir
   var _timer = null;
   var _pendingMsg = 'Save';
   var DEBOUNCE = 1500;
 
   // ── Split a shell-style argument string into an array (no shell needed) ────
-  // Handles double-quoted tokens; strips quotes. Keeps | % & etc. literal.
   function _splitArgs(str) {
     var args = [];
     var cur = '';
@@ -43,44 +45,48 @@ window.iceGitManager = (function () {
     return args;
   }
 
-  // ── Low-level git exec (shell-free via execFile to avoid cmd.exe issues) ───
-  function exec(args, dir, cb) {
-    var argList = _splitArgs(args);
+  // ── Low-level git exec — always uses per-file --git-dir / --work-tree ──────
+  // args may be a string (split by _splitArgs) or an array (used as-is).
+  // Passing filenames as array elements avoids quoting issues with spaces.
+  function exec(args, cb) {
+    var argList = ['--git-dir=' + _gitDir, '--work-tree=' + _dir].concat(
+      Array.isArray(args) ? args : _splitArgs(args)
+    );
     childProcess.execFile(
       'git',
       argList,
-      { cwd: dir, timeout: 20000 },
+      { cwd: _dir, timeout: 20000 },
       function (err, stdout, stderr) {
         cb(err ? stderr || err.message : null, stdout ? stdout.trim() : '');
       }
     );
   }
 
-  // ── Ensure git repo exists, create if not ────────────────────────────────
-  // Check dir itself (not parent dirs) so projects saved inside the icestudio
-  // source tree don't accidentally commit into the icestudio repo.
-  function ensureRepo(dir, cb) {
-    if (nodeFs.existsSync(nodePath.join(dir, '.git'))) {
+  // ── Ensure per-file git repo exists, create if not ────────────────────────
+  function ensureRepo(cb) {
+    if (nodeFs.existsSync(nodePath.join(_gitDir, 'HEAD'))) {
       cb(null);
       return;
     }
-    exec('init', dir, function (err2) {
+    try {
+      nodeFs.mkdirSync(_gitDir, { recursive: true });
+    } catch (e) {
+      if (cb) {
+        cb(String(e));
+      }
+      return;
+    }
+    exec('init', function (err2) {
       if (err2) {
         if (cb) {
           cb(err2);
         }
         return;
       }
-      var gi = nodePath.join(dir, '.gitignore');
-      if (!nodeFs.existsSync(gi)) {
-        try {
-          nodeFs.writeFileSync(gi, '*.v\n*.pcf\nbuild/\n');
-        } catch (e) {}
-      }
-      exec('config user.email "icestudio@local"', dir, function () {
-        exec('config user.name "Icestudio"', dir, function () {
-          exec('add -A', dir, function () {
-            exec('commit -m "Initial project"', dir, function () {
+      exec('config user.email "icestudio@local"', function () {
+        exec('config user.name "Icestudio"', function () {
+          exec(['add', _filename], function () {
+            exec('commit -m "Initial project"', function () {
               if (cb) {
                 cb(null);
               }
@@ -91,22 +97,21 @@ window.iceGitManager = (function () {
     });
   }
 
-  // ── Internal commit: stages all and commits if anything changed ───────────
-  function _doCommit(dir, msg) {
-    if (!dir) {
+  // ── Internal commit: stages the project file and commits if changed ────────
+  function _doCommit(msg) {
+    if (!_dir || !_gitDir) {
       return;
     }
-    ensureRepo(dir, function (err) {
+    ensureRepo(function (err) {
       if (err) {
         return;
       }
-      exec('add -A', dir, function () {
-        // diff --cached --quiet: exits 1 (err) if staged changes exist
-        exec('diff --cached --quiet', dir, function (changed) {
+      exec(['add', _filename], function () {
+        exec('diff --cached --quiet', function (changed) {
           if (!changed) {
             return; // null = exit 0 = nothing staged
           }
-          exec('commit -m "' + msg.replace(/"/g, "'") + '"', dir, function () {
+          exec('commit -m "' + msg.replace(/"/g, "'") + '"', function () {
             if (window.iceTimeline) {
               window.iceTimeline.refresh();
             }
@@ -121,7 +126,7 @@ window.iceGitManager = (function () {
     if (_timer) {
       clearTimeout(_timer);
       _timer = null;
-      _doCommit(_dir, _pendingMsg);
+      _doCommit(_pendingMsg);
     }
   }
 
@@ -136,21 +141,36 @@ window.iceGitManager = (function () {
     }
     _timer = setTimeout(function () {
       _timer = null;
-      _doCommit(_dir, _pendingMsg);
+      _doCommit(_pendingMsg);
     }, DEBOUNCE);
   }
 
-  // ── Set / switch active project directory ─────────────────────────────────
-  function setDir(dir) {
-    if (!dir || dir === _dir) {
-      return;
-    }
+  // ── Set active project file (full filepath) ───────────────────────────────
+  // Pass '' or null to clear state when a new unsaved project is created.
+  // Each .ice file gets its own git repo in .ice_history/<filename>/ next to it.
+  function setDir(filepath) {
     if (_timer) {
       clearTimeout(_timer);
       _timer = null;
     }
-    _dir = dir;
-    ensureRepo(dir, function () {
+    if (!filepath) {
+      _filepath = '';
+      _dir = '';
+      _filename = '';
+      _gitDir = '';
+      if (window.iceTimeline) {
+        window.iceTimeline.refresh();
+      }
+      return;
+    }
+    if (filepath === _filepath) {
+      return;
+    }
+    _filepath = filepath;
+    _dir = nodePath.dirname(filepath);
+    _filename = nodePath.basename(filepath);
+    _gitDir = nodePath.join(_dir, '.ice_history', _filename);
+    ensureRepo(function () {
       if (window.iceTimeline) {
         window.iceTimeline.refresh();
       }
@@ -159,17 +179,17 @@ window.iceGitManager = (function () {
 
   // ── Commit log (all branches) ─────────────────────────────────────────────
   function getLog(cb) {
-    if (!_dir) {
+    if (!_gitDir) {
       cb(null, []);
       return;
     }
     var fmt = '--pretty=format:%H|%h|%P|%s|%D|%ci';
-    exec('log --all ' + fmt, _dir, function (err, out) {
+    exec('log --all ' + fmt, function (err, out) {
       if (err || !out) {
         cb(null, []);
         return;
       }
-      var labelsFile = nodePath.join(_dir, '.git', 'ice_labels.json');
+      var labelsFile = nodePath.join(_gitDir, 'ice_labels.json');
       var labels = {};
       try {
         labels = JSON.parse(nodeFs.readFileSync(labelsFile, 'utf8'));
@@ -195,25 +215,25 @@ window.iceGitManager = (function () {
 
   // ── Current HEAD hash ─────────────────────────────────────────────────────
   function getHead(cb) {
-    if (!_dir) {
+    if (!_gitDir) {
       cb('');
       return;
     }
-    exec('rev-parse HEAD', _dir, function (err, out) {
+    exec('rev-parse HEAD', function (err, out) {
       cb(err ? '' : out);
     });
   }
 
   // ── Time-travel: checkout a commit ────────────────────────────────────────
   function checkout(hash, cb) {
-    if (!_dir) {
+    if (!_gitDir) {
       if (cb) {
         cb('No project dir');
       }
       return;
     }
     flushCommit();
-    exec('checkout ' + hash, _dir, function (err) {
+    exec('checkout ' + hash, function (err) {
       if (cb) {
         cb(err);
       }
@@ -223,18 +243,16 @@ window.iceGitManager = (function () {
     });
   }
 
-  // ── Create a branch at a commit ───────────────────────────────────────────
+  // ── Create a branch at a commit (no HEAD switch) ──────────────────────────
   function createBranch(hash, name, cb) {
-    if (!_dir) {
+    if (!_gitDir) {
       if (cb) {
         cb('No project dir');
       }
       return;
     }
-    var args = hash
-      ? 'checkout -b ' + name + ' ' + hash
-      : 'checkout -b ' + name;
-    exec(args, _dir, function (err) {
+    var args = hash ? ['branch', name, hash] : ['branch', name];
+    exec(args, function (err) {
       if (cb) {
         cb(err);
       }
@@ -246,14 +264,14 @@ window.iceGitManager = (function () {
 
   // ── Switch to an existing branch ─────────────────────────────────────────
   function switchBranch(name, cb) {
-    if (!_dir) {
+    if (!_gitDir) {
       if (cb) {
         cb('No project dir');
       }
       return;
     }
     flushCommit();
-    exec('checkout ' + name, _dir, function (err) {
+    exec('checkout ' + name, function (err) {
       if (cb) {
         cb(err);
       }
@@ -265,13 +283,13 @@ window.iceGitManager = (function () {
 
   // ── Delete a branch ──────────────────────────────────────────────────────
   function deleteBranch(name, cb) {
-    if (!_dir) {
+    if (!_gitDir) {
       if (cb) {
         cb('No project dir');
       }
       return;
     }
-    exec('branch -d ' + name, _dir, function (err) {
+    exec('branch -d ' + name, function (err) {
       if (!err) {
         if (cb) {
           cb(null);
@@ -281,7 +299,7 @@ window.iceGitManager = (function () {
         }
         return;
       }
-      exec('branch -D ' + name, _dir, function (err2) {
+      exec('branch -D ' + name, function (err2) {
         if (cb) {
           cb(err2);
         }
@@ -294,24 +312,24 @@ window.iceGitManager = (function () {
 
   // ── List all local branches ───────────────────────────────────────────────
   function listBranches(cb) {
-    if (!_dir) {
+    if (!_gitDir) {
       cb(null, []);
       return;
     }
-    exec('branch --format=%(refname:short)', _dir, function (err, out) {
+    exec('branch --format=%(refname:short)', function (err, out) {
       cb(null, err || !out ? [] : out.split('\n').filter(Boolean));
     });
   }
 
   // ── Create a version tag ─────────────────────────────────────────────────
   function createTag(hash, version, cb) {
-    if (!_dir) {
+    if (!_gitDir) {
       if (cb) {
         cb('No project dir');
       }
       return;
     }
-    exec('tag ' + version + ' ' + hash, _dir, function (err) {
+    exec('tag ' + version + ' ' + hash, function (err) {
       if (cb) {
         cb(err);
       }
@@ -322,9 +340,9 @@ window.iceGitManager = (function () {
   }
 
   // ── Rename a commit
-  // HEAD → git amend; older → label override in .git/ice_labels.json
+  // HEAD → git amend; older → label override in <gitDir>/ice_labels.json
   function renameCommit(hash, newMsg, cb) {
-    if (!_dir) {
+    if (!_gitDir) {
       if (cb) {
         cb('No project dir');
       }
@@ -334,7 +352,6 @@ window.iceGitManager = (function () {
       if (headHash && headHash === hash) {
         exec(
           'commit --amend -m "' + newMsg.replace(/"/g, "'") + '"',
-          _dir,
           function (err) {
             if (cb) {
               cb(err);
@@ -346,7 +363,7 @@ window.iceGitManager = (function () {
         );
         return;
       }
-      var labelsFile = nodePath.join(_dir, '.git', 'ice_labels.json');
+      var labelsFile = nodePath.join(_gitDir, 'ice_labels.json');
       var labels = {};
       try {
         labels = JSON.parse(nodeFs.readFileSync(labelsFile, 'utf8'));
@@ -370,7 +387,7 @@ window.iceGitManager = (function () {
 
   // ── Squash a commit into its parent (retire) ─────────────────────────────
   function squashIntoParent(hash, cb) {
-    if (!_dir) {
+    if (!_gitDir) {
       if (cb) {
         cb('No project dir');
       }
@@ -378,8 +395,8 @@ window.iceGitManager = (function () {
     }
     getHead(function (headHash) {
       if (headHash && headHash === hash) {
-        exec('log -1 --pretty=%s HEAD~1', _dir, function (msgErr, parentMsg) {
-          exec('reset --soft HEAD~1', _dir, function (err) {
+        exec('log -1 --pretty=%s HEAD~1', function (msgErr, parentMsg) {
+          exec('reset --soft HEAD~1', function (err) {
             if (err) {
               if (cb) {
                 cb(err);
@@ -390,7 +407,6 @@ window.iceGitManager = (function () {
               'commit --amend -m "' +
                 (parentMsg || 'Squashed').replace(/"/g, "'") +
                 '"',
-              _dir,
               function (err2) {
                 if (cb) {
                   cb(err2);
@@ -404,7 +420,6 @@ window.iceGitManager = (function () {
         });
         return;
       }
-      // Non-HEAD: use rebase with a node-script sequence editor
       var dataDir = nw.App.dataPath;
       var seqPath = nodePath.join(dataDir, 'ice_git_seq.js');
       var sh = hash.substring(0, 7);
@@ -426,6 +441,8 @@ window.iceGitManager = (function () {
         return;
       }
       var env = Object.assign({}, process.env, {
+        GIT_DIR: _gitDir,
+        GIT_WORK_TREE: _dir,
         GIT_SEQUENCE_EDITOR: 'node "' + seqPath + '"',
         GIT_EDITOR: 'true',
       });
@@ -445,21 +462,18 @@ window.iceGitManager = (function () {
   }
 
   // ── Export branch as a detached new project folder ───────────────────────
+  // Clones the per-file git repo (which tracks only the .ice file), then
+  // removes the .git dir from the export so it is a plain project copy.
   function exportAsNewProject(branch, destDir, cb) {
-    if (!_dir) {
+    if (!_gitDir) {
       if (cb) {
         cb('No project dir');
       }
       return;
     }
-    childProcess.exec(
-      'git clone --branch ' +
-        branch +
-        ' --single-branch "' +
-        _dir +
-        '" "' +
-        destDir +
-        '"',
+    childProcess.execFile(
+      'git',
+      ['clone', '--branch', branch, '--single-branch', _gitDir, destDir],
       { timeout: 30000 },
       function (err, stdout, stderr) {
         if (err) {
@@ -468,11 +482,11 @@ window.iceGitManager = (function () {
           }
           return;
         }
-        var gitDir = nodePath.join(destDir, '.git');
+        var gitD = nodePath.join(destDir, '.git');
         var rmCmd =
           process.platform === 'win32'
-            ? 'rmdir /s /q "' + gitDir + '"'
-            : 'rm -rf "' + gitDir + '"';
+            ? 'rmdir /s /q "' + gitD + '"'
+            : 'rm -rf "' + gitD + '"';
         childProcess.exec(rmCmd, { timeout: 10000 }, function () {
           if (cb) {
             cb(null, destDir);

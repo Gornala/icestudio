@@ -96,9 +96,10 @@ window.iceTimeline = (function () {
 
   function _parseRefs(refs) {
     var tags = [],
-      heads = [];
+      heads = [],
+      headBranch = '';
     if (!refs) {
-      return { tags: tags, heads: heads };
+      return { tags: tags, heads: heads, headBranch: headBranch };
     }
     var parts = refs.split(',');
     for (var i = 0; i < parts.length; i++) {
@@ -107,7 +108,8 @@ window.iceTimeline = (function () {
         continue;
       }
       if (r.indexOf('HEAD -> ') === 0) {
-        heads.push(r.replace('HEAD -> ', ''));
+        headBranch = r.replace('HEAD -> ', '');
+        heads.push(headBranch);
         continue;
       }
       if (r.indexOf('tag: ') === 0) {
@@ -118,7 +120,7 @@ window.iceTimeline = (function () {
         heads.push(r);
       }
     }
-    return { tags: tags, heads: heads };
+    return { tags: tags, heads: heads, headBranch: headBranch };
   }
 
   function _findCommit(hash) {
@@ -283,8 +285,30 @@ window.iceTimeline = (function () {
     var laneOf = la.laneOf;
     var numLanes = la.numLanes;
 
+    // Virtual branch nodes: branches that share the HEAD commit but have no
+    // commits of their own yet. Rendered as separate dots on new lanes so the
+    // user can see them diverging even before they've made any saves on them.
+    var virtualNodes = [];
+    for (i = 0; i < visible.length; i++) {
+      c = visible[i];
+      var cRefs = _parseRefs(c.refs);
+      if (cRefs.headBranch && cRefs.heads.length > 1) {
+        for (j = 0; j < cRefs.heads.length; j++) {
+          if (cRefs.heads[j] !== cRefs.headBranch) {
+            virtualNodes.push({
+              col: c._col,
+              hash: c.hash,
+              branchName: cRefs.heads[j],
+              lane: numLanes + virtualNodes.length,
+            });
+          }
+        }
+      }
+    }
+    var totalLanes = numLanes + virtualNodes.length;
+
     // Expand panel height to fit all lanes (user can shrink manually)
-    var minH = numLanes * LANE_H + 28;
+    var minH = totalLanes * LANE_H + 28;
     if (_panelH < minH) {
       _panelH = minH;
       var panel = document.getElementById('tl-panel');
@@ -294,7 +318,7 @@ window.iceTimeline = (function () {
     }
 
     var totalW = PAD + visible.length * COL_W + PAD;
-    var totalH = numLanes * LANE_H;
+    var totalH = totalLanes * LANE_H;
 
     // ── SVG connector lines ──
     var svgParts = [
@@ -367,6 +391,29 @@ window.iceTimeline = (function () {
         }
       }
     }
+    // Dashed vertical lines from the HEAD dot down to each virtual branch dot
+    var vn, vColor;
+    for (i = 0; i < virtualNodes.length; i++) {
+      vn = virtualNodes[i];
+      var vBaseLane = laneOf[vn.hash] !== undefined ? laneOf[vn.hash] : 0;
+      var vx = PAD + vn.col * COL_W + COL_W / 2;
+      var vy1 = vBaseLane * LANE_H + DOT_Y;
+      var vy2 = vn.lane * LANE_H + DOT_Y;
+      vColor = LANE_COLORS[vn.lane % LANE_COLORS.length];
+      svgParts.push(
+        '<line x1="',
+        vx,
+        '" y1="',
+        vy1,
+        '" x2="',
+        vx,
+        '" y2="',
+        vy2,
+        '" stroke="',
+        vColor,
+        '" stroke-width="2" stroke-dasharray="4,3"/>'
+      );
+    }
     svgParts.push('</svg>');
 
     // ── Commit elements ──
@@ -419,19 +466,60 @@ window.iceTimeline = (function () {
         dotColor,
         '"></div>',
 
-        // Branch / tag refs — below the dot
+        // Branch / tag refs — below the dot.
+        // When this is the HEAD commit with floating branches, those branches
+        // get their own virtual dots below, so only show the HEAD branch here.
         refs.tags.length
           ? '<div class="tl-tag">' + _esc(refs.tags[0]) + '</div>'
           : '',
-        refs.heads.length
-          ? '<div class="tl-ref">' + _esc(refs.heads[0]) + '</div>'
-          : '',
-
+        refs.headBranch && refs.heads.length > 1
+          ? '<div class="tl-ref">' + _esc(refs.headBranch) + '</div>'
+          : refs.heads
+              .map(function (h) {
+                return '<div class="tl-ref">' + _esc(h) + '</div>';
+              })
+              .join(''),
         // Date
         '<div class="tl-date">',
         _esc(_fmtDate(c.date)),
         '</div>',
 
+        '</div>'
+      );
+    }
+
+    // Virtual branch dots (one per floating branch, below the HEAD dot)
+    for (i = 0; i < virtualNodes.length; i++) {
+      vn = virtualNodes[i];
+      var vleft = PAD + vn.col * COL_W;
+      var vtop = vn.lane * LANE_H;
+      vColor = LANE_COLORS[vn.lane % LANE_COLORS.length];
+      var visSel = vn.hash === _selected;
+      dotParts.push(
+        '<div class="tl-commit tl-virtual',
+        visSel ? ' tl-selected' : '',
+        '" data-hash="',
+        _esc(vn.hash),
+        '" title="',
+        _esc(vn.branchName),
+        ' (no commits yet)"',
+        ' style="left:',
+        vleft,
+        'px;top:',
+        vtop,
+        'px;width:',
+        COL_W,
+        'px;height:',
+        LANE_H,
+        'px">',
+        '<div class="tl-dot" style="background:',
+        vColor,
+        ';box-shadow:0 0 0 2px ',
+        vColor,
+        ';opacity:0.55"></div>',
+        '<div class="tl-ref">',
+        _esc(vn.branchName),
+        '</div>',
         '</div>'
       );
     }
@@ -443,10 +531,15 @@ window.iceTimeline = (function () {
     track.style.minWidth = '0';
     track.innerHTML = svgParts.join('') + dotParts.join('');
 
-    // Scroll HEAD into view
-    var headEl = track.querySelector('.tl-head');
-    if (headEl) {
-      headEl.scrollIntoView({
+    // Scroll selected commit into view, falling back to HEAD
+    var scrollTarget = _selected
+      ? track.querySelector('[data-hash="' + _selected + '"]')
+      : track.querySelector('.tl-head');
+    if (!scrollTarget) {
+      scrollTarget = track.querySelector('.tl-head');
+    }
+    if (scrollTarget) {
+      scrollTarget.scrollIntoView({
         behavior: 'smooth',
         inline: 'center',
         block: 'nearest',
@@ -531,6 +624,29 @@ window.iceTimeline = (function () {
     });
   }
 
+  // ── Loading overlay (reuses the same spinner as project open) ────────────
+  function _beginTask() {
+    var spinner = document.getElementById('spin-blocking-task');
+    if (spinner) {
+      spinner.classList.add('waiting');
+    }
+    var menu = document.getElementById('menu');
+    if (menu) {
+      menu.classList.add('is-disabled');
+    }
+  }
+
+  function _endTask() {
+    var spinner = document.getElementById('spin-blocking-task');
+    if (spinner) {
+      spinner.classList.remove('waiting');
+    }
+    var menu = document.getElementById('menu');
+    if (menu) {
+      menu.classList.remove('is-disabled');
+    }
+  }
+
   // ── Action: go to commit (time travel) ────────────────────────────────────
   function _goHere(hash) {
     if (!hash) {
@@ -540,9 +656,12 @@ window.iceTimeline = (function () {
     if (!gm) {
       return;
     }
+    _beginTask();
     gm.checkout(hash, function (err) {
       if (!err && window.icestudioTimeTravel) {
         window.icestudioTimeTravel();
+      } else {
+        _endTask();
       }
     });
   }
@@ -617,7 +736,9 @@ window.iceTimeline = (function () {
             _selected,
             name.trim(),
             function (err) {
-              if (!err) {
+              if (err) {
+                alert('Branch creation failed:\n' + err);
+              } else {
                 refresh();
               }
             }
@@ -690,9 +811,12 @@ window.iceTimeline = (function () {
       branchSel.addEventListener('change', function () {
         var name = branchSel.value;
         if (name) {
+          _beginTask();
           window.iceGitManager.switchBranch(name, function (err) {
             if (!err && window.icestudioTimeTravel) {
               window.icestudioTimeTravel();
+            } else {
+              _endTask();
             }
           });
         }

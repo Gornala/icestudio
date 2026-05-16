@@ -22,7 +22,12 @@ window._icegraph.canvasPaper = function (ctx) {
       height: 3000,
       model: ctx.graph,
       gridSize: ctx.gridsize,
-      interactive: true,
+      interactive: function () {
+        // Block all element interaction (drag, link creation) when the paper
+        // is in write-protected mode.  cell:pointerdblclick is still fired by
+        // JointJS regardless of this flag, so submodule navigation is unaffected.
+        return ctx.paper ? ctx.paper.options.enabled !== false : true;
+      },
       clickThreshold: 6,
       snapLinks: { radius: 16 },
       linkPinning: false,
@@ -201,13 +206,18 @@ window._icegraph.canvasPaper = function (ctx) {
     // Re-listen for undo/redo (commandManager was not touched while hidden)
     ctx.commandManager.listen();
 
-    // Resize every ACE editor — they were alive but hidden and may have an
-    // incorrect size if the window was resized while we were in the submodule
+    // Re-apply SVG attrs for all element views now that the paper is visible.
+    // While the paper was hidden (display:none), getBBox() returned 0 for all
+    // SVG elements, so ref-y port positions were resolved to 0.  Calling
+    // view.update() re-runs updateDOMSubtreeAttributes() with correct bboxes.
     ctx.graph.getCells().forEach(function (cell) {
       if (!cell.isLink()) {
         var view = ctx.paper.findViewByModel(cell);
-        if (view && view.editor) {
-          view.editor.resize();
+        if (view) {
+          if (view.editor) {
+            view.editor.resize();
+          }
+          view.update();
         }
       }
     });
@@ -238,5 +248,13 @@ window._icegraph.canvasPaper = function (ctx) {
     pushPaper: pushPaper,
     popPaper: popPaper,
     clearStack: clearStack,
+    getPaperStackDepth: function () {
+      return _paperStack.length;
+    },
+    getParentEntry: function () {
+      return _paperStack.length > 0
+        ? _paperStack[_paperStack.length - 1]
+        : null;
+    },
   };
 };

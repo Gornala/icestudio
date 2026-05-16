@@ -86,14 +86,18 @@ window._iceblockforms.genericWireForms = function (ctx) {
       }
     }
 
-    var size = false;
+    // Allow the block instance JSON to supply a custom size (used by the
+    // Verilog importer to match module height to the stacked I/O blocks).
+    var size = instance.size || false;
     if (!size) {
       var numPortsHeight = Math.max(leftPorts.length, rightPorts.length);
       var numPortsWidth = Math.max(topPorts.length, bottomPorts.length);
+      var nameLen = ((block.package && block.package.name) || '').length;
+      var nameW = Math.max(96, Math.ceil((nameLen * 7 + 36) / 8) * 8);
 
       size = {
-        width: Math.max(4 * ctx.gridsize * numPortsWidth, 12 * ctx.gridsize),
-        height: Math.max(4 * ctx.gridsize * numPortsHeight, 8 * ctx.gridsize),
+        width: Math.max(nameW, 4 * ctx.gridsize * numPortsWidth),
+        height: Math.max(8 * ctx.gridsize * numPortsHeight, 8 * ctx.gridsize),
       };
     }
 
