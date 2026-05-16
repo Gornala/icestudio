@@ -380,6 +380,7 @@ window._iceVerilogImporter = (function () {
         type: 'basic.input',
         data: {
           name: port.name,
+          range: port.range || '',
           pins: makePins(port.size),
           virtual: true,
           clock: false,
@@ -399,7 +400,12 @@ window._iceVerilogImporter = (function () {
       blocks.push({
         id: id,
         type: 'basic.output',
-        data: { name: port.name, pins: makePins(port.size), virtual: true },
+        data: {
+          name: port.name,
+          range: port.range || '',
+          pins: makePins(port.size),
+          virtual: true,
+        },
         position: { x: 750, y: 80 + i * 80 },
       });
       wires.push({
@@ -624,6 +630,7 @@ window._iceVerilogImporter = (function () {
         type: 'basic.input',
         data: {
           name: port.name,
+          range: port.range || '',
           pins: makePins(port.size),
           virtual: true,
           clock: false,
@@ -634,7 +641,11 @@ window._iceVerilogImporter = (function () {
       blocks.push({
         id: lblId,
         type: 'basic.inputLabel',
-        data: { name: port.name, range: '', blockColor: sigColor(port.name) },
+        data: {
+          name: port.name,
+          range: port.range || '',
+          blockColor: sigColor(port.name),
+        },
         position: {
           x: MARGIN + maxBndInW + 8,
           y: portY + Math.round((PORT_H - LABEL_H) / 2),
@@ -657,7 +668,12 @@ window._iceVerilogImporter = (function () {
       blocks.push({
         id: bId,
         type: 'basic.output',
-        data: { name: port.name, pins: makePins(port.size), virtual: true },
+        data: {
+          name: port.name,
+          range: port.range || '',
+          pins: makePins(port.size),
+          virtual: true,
+        },
         position: { x: gridRight, y: portY },
       });
       var lblId = uid();
@@ -665,7 +681,11 @@ window._iceVerilogImporter = (function () {
       blocks.push({
         id: lblId,
         type: 'basic.outputLabel',
-        data: { name: port.name, range: '', blockColor: sigColor(port.name) },
+        data: {
+          name: port.name,
+          range: port.range || '',
+          blockColor: sigColor(port.name),
+        },
         position: {
           x: gridRight - lblW - 8,
           y: portY + Math.round((PORT_H - LABEL_H) / 2),
@@ -754,7 +774,11 @@ window._iceVerilogImporter = (function () {
         blocks.push({
           id: lblIn,
           type: 'basic.outputLabel',
-          data: { name: sig, range: '', blockColor: sigColor(sig) },
+          data: {
+            name: sig,
+            range: subPort.range || '',
+            blockColor: sigColor(sig),
+          },
           position: { x: cx - subIG - lblW, y: lblY },
         });
         wires.push({
@@ -784,7 +808,11 @@ window._iceVerilogImporter = (function () {
         blocks.push({
           id: lblOut,
           type: 'basic.inputLabel',
-          data: { name: sig, range: '', blockColor: sigColor(sig) },
+          data: {
+            name: sig,
+            range: subPort.range || '',
+            blockColor: sigColor(sig),
+          },
           position: { x: lblRightX, y: lblY },
         });
         wires.push({
@@ -888,6 +916,7 @@ window._iceVerilogImporter = (function () {
         type: 'basic.input',
         data: {
           name: port.name,
+          range: port.range || '',
           pins: makePins(port.size),
           virtual: true,
           clock: false,
@@ -908,7 +937,12 @@ window._iceVerilogImporter = (function () {
       blocks.push({
         id: bId,
         type: 'basic.output',
-        data: { name: port.name, pins: makePins(port.size), virtual: true },
+        data: {
+          name: port.name,
+          range: port.range || '',
+          pins: makePins(port.size),
+          virtual: true,
+        },
         position: { x: outputX, y: moduleY + outOffY + i * PORT_H },
       });
       if (topPortMap.outputs[port.name]) {

@@ -356,14 +356,30 @@ window._icegraph.cellManager = function (ctx) {
     var inputPorts = [];
     var outputPorts = [];
     var paramPorts = [];
+    // Build a range-by-name lookup from the basic.code block's ports so that
+    // files saved before the importer stored range on basic.input/basic.output
+    // still show the correct dimensions in the dialog.
+    var codePortRanges = {};
     (dep.design.graph.blocks || []).forEach(function (item) {
-      if (item.type === 'basic.input') {
-        inputPorts.push({ name: item.data.name, range: item.data.range || '' });
-      } else if (item.type === 'basic.output') {
-        outputPorts.push({
-          name: item.data.name,
-          range: item.data.range || '',
+      if (item.type === 'basic.code') {
+        var allCodePorts = (item.data.ports.in || []).concat(
+          item.data.ports.out || []
+        );
+        allCodePorts.forEach(function (p) {
+          if (p.range) {
+            codePortRanges[p.name] = p.range;
+          }
         });
+      }
+    });
+    (dep.design.graph.blocks || []).forEach(function (item) {
+      var range;
+      if (item.type === 'basic.input') {
+        range = item.data.range || codePortRanges[item.data.name] || '';
+        inputPorts.push({ name: item.data.name, range: range });
+      } else if (item.type === 'basic.output') {
+        range = item.data.range || codePortRanges[item.data.name] || '';
+        outputPorts.push({ name: item.data.name, range: range });
       } else if (
         (item.type === 'basic.constant' || item.type === 'basic.memory') &&
         !item.data.local
@@ -435,13 +451,19 @@ window._icegraph.cellManager = function (ctx) {
 
         formData.inPortsInfo.forEach(function (port, idx) {
           var key = 'basic.input:' + port.name;
+          var portRange = port.rangestr || '';
+          var pinCount = port.size || 1;
+          var pins = [];
+          for (var pi = 0; pi < pinCount; pi++) {
+            pins.push({ index: String(pi), name: '', value: '0' });
+          }
           nonBoundaryBlocks.push({
             id: oldBoundaryIds[key] || ctx.joint.util.uuid(),
             type: 'basic.input',
             data: {
               name: port.name,
-              range: port.range || '',
-              pins: [{ index: '0', name: '', value: '0' }],
+              range: portRange,
+              pins: pins,
               virtual: true,
               clock: false,
             },
@@ -451,13 +473,19 @@ window._icegraph.cellManager = function (ctx) {
 
         formData.outPortsInfo.forEach(function (port, idx) {
           var key = 'basic.output:' + port.name;
+          var portRange = port.rangestr || '';
+          var pinCount = port.size || 1;
+          var pins = [];
+          for (var pi = 0; pi < pinCount; pi++) {
+            pins.push({ index: String(pi), name: '', value: '0' });
+          }
           nonBoundaryBlocks.push({
             id: oldBoundaryIds[key] || ctx.joint.util.uuid(),
             type: 'basic.output',
             data: {
               name: port.name,
-              range: port.range || '',
-              pins: [{ index: '0', name: '', value: '0' }],
+              range: portRange,
+              pins: pins,
               virtual: true,
             },
             position: { x: 750, y: 80 + idx * 80 },
