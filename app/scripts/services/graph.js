@@ -158,6 +158,7 @@ angular.module('icestudio').service(
     ctx.graphToCells = _fileIO.graphToCells;
     ctx.graphOrigin = _fileIO.graphOrigin;
     ctx.pushCodeBlockToCollection = _fileIO.pushCodeBlockToCollection;
+    ctx.transformCodeToSubmodule = _cellManager.transformCodeToSubmodule;
 
     ctx.setState = _viewState.setState;
     ctx.fitContent = _viewState.fitContent;

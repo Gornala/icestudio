@@ -87,6 +87,7 @@ joint.shapes.ice.CodeView = joint.shapes.ice.ModelView.extend({
               <div class="js-codeblock-testbench code-btn" data-blkId="${modelId}" title="Testbench"><i class="fas fa-vial"></i></div>
               <div class="js-codeblock-export-module code-btn" data-blkId="${modelId}" title="Export Module"><i class="fas fa-file-export"></i></div>
               <div class="js-codeblock-push-collection code-btn" data-blkId="${modelId}" title="Push to Collection"><i class="fas fa-archive"></i></div>
+              <div class="js-codeblock-transform-submodule code-btn" data-blkId="${modelId}" title="Transform to Submodule"><i class="fas fa-object-group"></i></div>
             </div>
           </div>
           <div class="code-editor" id="${editorLabel}"></div>

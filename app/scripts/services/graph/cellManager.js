@@ -1298,6 +1298,156 @@ window._icegraph.cellManager = function (ctx) {
     performStep({ x: 0, y: stepValue });
   }
 
+  //--------------------------------------------------------------------------
+  //-- Replace a basic.code cell with an equivalent Generic (submodule) cell.
+  //-- The code block's ports, params, and Verilog code are preserved inside
+  //-- the new submodule. Wires connected to the old cell are reconnected.
+  //--------------------------------------------------------------------------
+  function transformCodeToSubmodule(cellId) {
+    var cell = ctx.graph.getCell(cellId);
+    if (!cell) {
+      return;
+    }
+    var data = cell.attributes.data || {};
+    var portsIn = ((data.ports && data.ports.in) || []).map(function (p) {
+      return { name: p.name, range: p.range || '' };
+    });
+    var portsOut = ((data.ports && data.ports.out) || []).map(function (p) {
+      return { name: p.name, range: p.range || '' };
+    });
+    var params = (data.params || []).map(function (p) {
+      return { name: p.name };
+    });
+    var inoutLeft = ((data.ports && data.ports.inoutLeft) || []).map(
+      function (p) {
+        return { name: p.name, range: p.range || '' };
+      }
+    );
+    var inoutRight = ((data.ports && data.ports.inoutRight) || []).map(
+      function (p) {
+        return { name: p.name, range: p.range || '' };
+      }
+    );
+    var code = data.code || '';
+    var label = data.label || 'submodule';
+
+    var subGraph = buildSubmoduleDesign(
+      portsIn,
+      portsOut,
+      params,
+      inoutLeft,
+      inoutRight,
+      code,
+      label
+    );
+
+    // Map port name → inner block ID so we can update wire endpoints.
+    // basic.input covers both regular inputs and inout-left ports.
+    // basic.output covers both regular outputs and inout-right ports.
+    var inPortNameToId = {};
+    var outPortNameToId = {};
+    subGraph.blocks.forEach(function (block) {
+      if (block.type === 'basic.input') {
+        inPortNameToId[block.data.name] = block.id;
+      } else if (block.type === 'basic.output') {
+        outPortNameToId[block.data.name] = block.id;
+      }
+    });
+
+    var boardName =
+      ctx.common.selectedBoard && ctx.common.selectedBoard.name
+        ? ctx.common.selectedBoard.name
+        : 'alhambra-ii';
+
+    var blockData = {
+      version: '1.2',
+      package: {
+        name: label,
+        version: '1.0.0',
+        description: '',
+        author: '',
+        image: '',
+      },
+      design: {
+        board: boardName,
+        graph: subGraph,
+      },
+      dependencies: {},
+    };
+
+    var typeId = ctx.utils.dependencyID(blockData);
+    ctx.common.allDependencies[typeId] = blockData;
+
+    var connectedWires = ctx.graph.getConnectedLinks(cell);
+    var oldPosition = cell.get('position');
+
+    // Omit size so loadGeneric computes it from port count
+    var newCell = ctx.blockforms.loadGeneric(
+      { id: cellId, type: typeId, position: oldPosition },
+      blockData,
+      false
+    );
+
+    ctx.graph.startBatch('change');
+    cell.remove();
+    addCell(newCell);
+
+    var newLeft = newCell.get('leftPorts') || [];
+    var newRight = newCell.get('rightPorts') || [];
+
+    connectedWires.forEach(function (wire) {
+      var src = wire.get('source');
+      var tgt = wire.get('target');
+      var newSrc = src;
+      var newTgt = tgt;
+      var si, ti, newOutId, newInId;
+
+      if (src.id === cellId) {
+        newOutId = outPortNameToId[src.port];
+        if (newOutId) {
+          for (si = 0; si < newRight.length; si++) {
+            if (newRight[si].id === newOutId) {
+              newSrc = { id: cellId, selector: si, port: newOutId };
+              break;
+            }
+          }
+        }
+      }
+      if (tgt.id === cellId) {
+        newInId = inPortNameToId[tgt.port];
+        if (newInId) {
+          for (ti = 0; ti < newLeft.length; ti++) {
+            if (newLeft[ti].id === newInId) {
+              newTgt = { id: cellId, selector: ti, port: newInId };
+              break;
+            }
+          }
+        }
+      }
+      var srcValid =
+        newSrc.id !== cellId ||
+        newRight.some(function (p) {
+          return p.id === newSrc.port;
+        });
+      var tgtValid =
+        newTgt.id !== cellId ||
+        newLeft.some(function (p) {
+          return p.id === newTgt.port;
+        });
+      if (srcValid && tgtValid) {
+        wire.set('source', newSrc);
+        wire.set('target', newTgt);
+        ctx.graph.addCell(wire);
+      }
+    });
+
+    ctx.graph.stopBatch('change');
+    iceStudio.bus.events.publish('project:changed');
+    alertify.success(
+      ctx.gettextCatalog.getString('Block transformed to submodule')
+    );
+  }
+
   return {
     updateCellAttributes: updateCellAttributes,
     addCell: addCell,
@@ -1334,5 +1484,6 @@ window._icegraph.cellManager = function (ctx) {
     stepRight: stepRight,
     stepDown: stepDown,
     cacheTopCells: cacheTopCells,
+    transformCodeToSubmodule: transformCodeToSubmodule,
   };
 };

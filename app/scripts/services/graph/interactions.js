@@ -655,6 +655,14 @@ window._icegraph.interactions = function (ctx) {
               pushBlockId
             );
             break;
+          } else if (target.matches('.js-codeblock-transform-submodule')) {
+            event.stopPropagation();
+            var transformBlockId = target.getAttribute('data-blkid');
+            if (!transformBlockId) {
+              break;
+            }
+            ctx.transformCodeToSubmodule(transformBlockId);
+            break;
           }
 
           if (mode) {
