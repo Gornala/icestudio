@@ -296,6 +296,12 @@ window._icetools.apio = function (ctx) {
     });
   }
 
+  function autoSaveIfPossible() {
+    if (ctx.project.autoSave) {
+      ctx.project.autoSave();
+    }
+  }
+
   function verifyCode(startMessage, endMessage) {
     console.log('APIO VERIFY', ctx.toolchain.apio);
     var board =
@@ -308,7 +314,9 @@ window._icetools.apio = function (ctx) {
     } else {
       apioParams = ['verify', '--board', board];
     }
-    return apioRun(apioParams, startMessage, endMessage);
+    return apioRun(apioParams, startMessage, endMessage).then(
+      autoSaveIfPossible
+    );
   }
 
   function buildCode(startMessage, endMessage) {
@@ -324,7 +332,9 @@ window._icetools.apio = function (ctx) {
     } else {
       apioParams = ['build', '--board', board];
     }
-    return apioRun(apioParams, startMessage, endMessage);
+    return apioRun(apioParams, startMessage, endMessage).then(
+      autoSaveIfPossible
+    );
   }
 
   function uploadCode(startMessage, endMessage) {
