@@ -475,6 +475,23 @@ window._icetools.errorHandler = function (ctx) {
               stdout,
               ctx.common.FPGAResources.nextpnr.Field0
             );
+            var boardLuts =
+              ctx.common.selectedBoard &&
+              ctx.common.selectedBoard.info &&
+              ctx.common.selectedBoard.info.FPGAResources &&
+              ctx.common.selectedBoard.info.FPGAResources.luts;
+            var f0 = ctx.common.FPGAResources.nextpnr.Field0;
+            if (
+              boardLuts &&
+              f0 &&
+              f0.used !== '-' &&
+              parseInt(boardLuts) < parseInt(f0.total)
+            ) {
+              f0.total = String(boardLuts);
+              f0.percentage = ((parseInt(f0.used) / boardLuts) * 100).toFixed(
+                1
+              );
+            }
             ctx.common.FPGAResources.nextpnr.Field1 = findValueNPNR(
               /_(RAM):\s{1,}(\d+)\/\s{1,}(\d+)\s{1,}(\d+)%/g,
               stdout,
