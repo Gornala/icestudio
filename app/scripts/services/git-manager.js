@@ -112,9 +112,30 @@ window.iceGitManager = (function () {
             return; // null = exit 0 = nothing staged
           }
           exec('commit -m "' + msg.replace(/"/g, "'") + '"', function () {
-            if (window.iceTimeline) {
-              window.iceTimeline.refresh();
-            }
+            // If HEAD is detached (time-travelled), auto-create a branch so
+            // these commits survive when the user switches back to master.
+            exec('symbolic-ref HEAD', function (symErr) {
+              if (symErr) {
+                var d = new Date();
+                var stamp =
+                  d.getFullYear() +
+                  ('0' + (d.getMonth() + 1)).slice(-2) +
+                  ('0' + d.getDate()).slice(-2) +
+                  '-' +
+                  ('0' + d.getHours()).slice(-2) +
+                  ('0' + d.getMinutes()).slice(-2) +
+                  ('0' + d.getSeconds()).slice(-2);
+                exec(['checkout', '-b', 'explore-' + stamp], function () {
+                  if (window.iceTimeline) {
+                    window.iceTimeline.refresh();
+                  }
+                });
+              } else {
+                if (window.iceTimeline) {
+                  window.iceTimeline.refresh();
+                }
+              }
+            });
           });
         });
       });
@@ -210,6 +231,62 @@ window.iceGitManager = (function () {
           };
         });
       cb(null, commits);
+    });
+  }
+
+  // ── Hidden branches (stored in <gitDir>/ice_hidden.json) ─────────────────
+  function getHiddenBranches(cb) {
+    if (!_gitDir) {
+      cb(null, []);
+      return;
+    }
+    var f = nodePath.join(_gitDir, 'ice_hidden.json');
+    try {
+      cb(null, JSON.parse(nodeFs.readFileSync(f, 'utf8')));
+    } catch (e) {
+      cb(null, []);
+    }
+  }
+
+  function setHiddenBranches(list, cb) {
+    if (!_gitDir) {
+      if (cb) {
+        cb('No project dir');
+      }
+      return;
+    }
+    try {
+      nodeFs.writeFileSync(
+        nodePath.join(_gitDir, 'ice_hidden.json'),
+        JSON.stringify(list)
+      );
+      if (cb) {
+        cb(null);
+      }
+    } catch (e) {
+      if (cb) {
+        cb(String(e));
+      }
+    }
+  }
+
+  function hideBranch(name, cb) {
+    getHiddenBranches(function (err, list) {
+      if (list.indexOf(name) === -1) {
+        list.push(name);
+      }
+      setHiddenBranches(list, cb);
+    });
+  }
+
+  function unhideBranch(name, cb) {
+    getHiddenBranches(function (err, list) {
+      setHiddenBranches(
+        list.filter(function (b) {
+          return b !== name;
+        }),
+        cb
+      );
     });
   }
 
@@ -511,6 +588,9 @@ window.iceGitManager = (function () {
     renameCommit: renameCommit,
     squashIntoParent: squashIntoParent,
     exportAsNewProject: exportAsNewProject,
+    getHiddenBranches: getHiddenBranches,
+    hideBranch: hideBranch,
+    unhideBranch: unhideBranch,
     getDir: function () {
       return _dir;
     },

@@ -9,6 +9,8 @@ window.iceTimeline = (function () {
   var _selected = null;
   var _initialized = false;
   var _hideAutoSave = true;
+  var _showHidden = false;
+  var _hiddenBranches = [];
   var _panelH = 152; // current panel height — updated by resize drag
 
   // ── Layout constants ──────────────────────────────────────────────────────
@@ -56,12 +58,15 @@ window.iceTimeline = (function () {
       _renderEmpty('No project saved yet.');
       return;
     }
-    gm.getLog(function (err, commits) {
-      _commits = (commits || []).slice().reverse(); // oldest → newest
-      gm.getHead(function (headHash) {
-        _head = headHash;
-        _renderTrack();
-        _renderBranchList();
+    gm.getHiddenBranches(function (err, hidden) {
+      _hiddenBranches = hidden || [];
+      gm.getLog(function (err2, commits) {
+        _commits = (commits || []).slice().reverse(); // oldest → newest
+        gm.getHead(function (headHash) {
+          _head = headHash;
+          _renderTrack();
+          _renderBranchList();
+        });
       });
     });
   }
@@ -232,6 +237,65 @@ window.iceTimeline = (function () {
     return { laneOf: laneOf, numLanes: maxLane + 1 };
   }
 
+  // ── Compute which commits belong exclusively to hidden branches ───────────
+  // Returns a hash-keyed object of commits to hide.
+  // A commit is hidden only if it is NOT reachable from HEAD or any
+  // non-hidden branch tip — i.e. its only path to a ref is through hidden branches.
+  function _computeHiddenCommits(commits, hiddenBranches, headHash) {
+    if (!hiddenBranches || !hiddenBranches.length) {
+      return {};
+    }
+    var i, j, h, c;
+    var hiddenSet = {};
+    for (i = 0; i < hiddenBranches.length; i++) {
+      hiddenSet[hiddenBranches[i]] = true;
+    }
+    var byHash = {};
+    for (i = 0; i < commits.length; i++) {
+      byHash[commits[i].hash] = commits[i];
+    }
+
+    // Seed the visible queue with HEAD and all non-hidden branch tips
+    var queue = [];
+    if (headHash && byHash[headHash]) {
+      queue.push(headHash);
+    }
+    for (i = 0; i < commits.length; i++) {
+      c = commits[i];
+      var refs = _parseRefs(c.refs);
+      for (j = 0; j < refs.heads.length; j++) {
+        if (!hiddenSet[refs.heads[j]]) {
+          queue.push(c.hash);
+          break;
+        }
+      }
+    }
+
+    // BFS backwards through parent links to mark all reachable commits visible
+    var visible = {};
+    while (queue.length) {
+      h = queue.pop();
+      if (visible[h]) {
+        continue;
+      }
+      visible[h] = true;
+      c = byHash[h];
+      if (c) {
+        for (j = 0; j < c.parents.length; j++) {
+          queue.push(c.parents[j]);
+        }
+      }
+    }
+
+    var hidden = {};
+    for (i = 0; i < commits.length; i++) {
+      if (!visible[commits[i].hash]) {
+        hidden[commits[i].hash] = true;
+      }
+    }
+    return hidden;
+  }
+
   // ── Render: git graph ─────────────────────────────────────────────────────
   function _renderTrack() {
     var wrapper = document.getElementById('tl-track-wrapper');
@@ -245,11 +309,19 @@ window.iceTimeline = (function () {
       return;
     }
 
-    var visible = _hideAutoSave
-      ? _commits.filter(function (c) {
-          return c.subject !== 'Auto-save';
-        })
-      : _commits;
+    var hiddenCommits = _showHidden
+      ? {}
+      : _computeHiddenCommits(_commits, _hiddenBranches, _head);
+
+    var visible = _commits.filter(function (c) {
+      if (hiddenCommits[c.hash]) {
+        return false;
+      }
+      if (_hideAutoSave && c.subject === 'Auto-save') {
+        return false;
+      }
+      return true;
+    });
 
     if (visible.length === 0) {
       _renderEmpty('All commits are auto-saves.');
@@ -610,18 +682,32 @@ window.iceTimeline = (function () {
       }
       sel.innerHTML = branches
         .map(function (b) {
+          var isH = _hiddenBranches.indexOf(b) !== -1;
+          var label = isH ? '(hidden) ' + b : b;
           return (
             '<option value="' +
             _esc(b) +
             '"' +
             (b === currentBranch ? ' selected' : '') +
             '>' +
-            _esc(b) +
+            _esc(label) +
             '</option>'
           );
         })
         .join('');
+      _updateHideButton();
     });
+  }
+
+  function _updateHideButton() {
+    var btn = document.getElementById('tl-btn-hide-branch');
+    var sel = document.getElementById('tl-branch-select');
+    if (!btn || !sel) {
+      return;
+    }
+    var name = sel.value;
+    btn.textContent =
+      name && _hiddenBranches.indexOf(name) !== -1 ? 'Show' : 'Hide';
   }
 
   // ── Loading overlay (reuses the same spinner as project open) ────────────
@@ -706,14 +792,52 @@ window.iceTimeline = (function () {
     var btnTag = document.getElementById('tl-btn-tag');
     var btnRetire = document.getElementById('tl-btn-retire');
     var branchSel = document.getElementById('tl-branch-select');
+    var btnHideBranch = document.getElementById('tl-btn-hide-branch');
     var btnDelBranch = document.getElementById('tl-btn-del-branch');
     var btnExport = document.getElementById('tl-btn-export');
     var chkHide = document.getElementById('tl-chk-hide-autosave');
+    var chkShowHidden = document.getElementById('tl-chk-show-hidden');
 
     if (chkHide) {
       chkHide.addEventListener('change', function () {
         _hideAutoSave = this.checked;
         _renderTrack();
+      });
+    }
+
+    if (chkShowHidden) {
+      chkShowHidden.addEventListener('change', function () {
+        _showHidden = this.checked;
+        _renderTrack();
+      });
+    }
+
+    if (btnHideBranch) {
+      btnHideBranch.addEventListener('click', function () {
+        var name = branchSel ? branchSel.value : '';
+        if (!name) {
+          return;
+        }
+        var gm = window.iceGitManager;
+        if (!gm) {
+          return;
+        }
+        var isHidden = _hiddenBranches.indexOf(name) !== -1;
+        if (isHidden) {
+          gm.unhideBranch(name, function () {
+            refresh();
+          });
+        } else {
+          gm.hideBranch(name, function () {
+            refresh();
+          });
+        }
+      });
+    }
+
+    if (branchSel) {
+      branchSel.addEventListener('change', function () {
+        _updateHideButton();
       });
     }
 
