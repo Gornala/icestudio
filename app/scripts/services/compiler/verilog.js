@@ -247,7 +247,36 @@ window._icecompiler.verilog = function (ctx) {
           );
         } else {
           // Regular wires
-          var range = wire.size ? ' [' + (wire.size - 1) + ':0] ' : ' ';
+          var wireSize = wire.size;
+          if (!wireSize) {
+            var srcBlk = ctx.findBlock(wire.source.block, graph);
+            if (
+              srcBlk &&
+              srcBlk.type === ctx.blocks.BASIC_INPUT &&
+              srcBlk.data &&
+              srcBlk.data.range
+            ) {
+              var rm = srcBlk.data.range.match(/\[(\d+):(\d+)\]/);
+              if (rm) {
+                wireSize = parseInt(rm[1]) - parseInt(rm[2]) + 1;
+              }
+            }
+            if (!wireSize) {
+              var tgtBlk = ctx.findBlock(wire.target.block, graph);
+              if (
+                tgtBlk &&
+                tgtBlk.type === ctx.blocks.BASIC_OUTPUT &&
+                tgtBlk.data &&
+                tgtBlk.data.range
+              ) {
+                var rm2 = tgtBlk.data.range.match(/\[(\d+):(\d+)\]/);
+                if (rm2) {
+                  wireSize = parseInt(rm2[1]) - parseInt(rm2[2]) + 1;
+                }
+              }
+            }
+          }
+          var range = wireSize ? ' [' + (wireSize - 1) + ':0] ' : ' ';
           connections.wire.push('wire' + range + 'w' + w + ';');
         }
       }

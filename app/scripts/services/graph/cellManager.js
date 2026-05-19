@@ -93,6 +93,14 @@ window._icegraph.cellManager = function (ctx) {
   ) {
     var allBlocks = [];
     var allWires = [];
+
+    var rangeToSize = function (range) {
+      if (!range) {
+        return undefined;
+      }
+      var m = range.match(/\[(\d+):(\d+)\]/);
+      return m ? parseInt(m[1]) - parseInt(m[2]) + 1 : undefined;
+    };
     var codeBlockId = ctx.joint.util.uuid();
     var yStep = 80;
     var includeCode = forceCodeBlock || !!code;
@@ -115,10 +123,15 @@ window._icegraph.cellManager = function (ctx) {
         position: { x: 50, y: 80 + idx * yStep },
       });
       if (includeCode) {
-        allWires.push({
+        var inWire = {
           source: { block: id, port: 'out' },
           target: { block: codeBlockId, port: port.name },
-        });
+        };
+        var inSize = rangeToSize(port.range);
+        if (inSize) {
+          inWire.size = inSize;
+        }
+        allWires.push(inWire);
       }
     });
 
@@ -161,10 +174,15 @@ window._icegraph.cellManager = function (ctx) {
         position: { x: 750, y: 80 + idx * yStep },
       });
       if (includeCode) {
-        allWires.push({
+        var outWire = {
           source: { block: codeBlockId, port: port.name },
           target: { block: id, port: 'in' },
-        });
+        };
+        var outSize = rangeToSize(port.range);
+        if (outSize) {
+          outWire.size = outSize;
+        }
+        allWires.push(outWire);
       }
     });
 
