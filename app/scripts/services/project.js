@@ -455,26 +455,6 @@ angular
             });
         }; //doSaveProject
 
-        this.autoSave = function () {
-          var fp = this.path;
-          if (!fp) {
-            return;
-          }
-          var s = this;
-          sortGraph();
-          s.update();
-          utils
-            .saveFile(fp, pruneProject(project))
-            .then(function () {
-              var bdir = utils.filepath2buildpath(s.filepath);
-              common.setBuildDir(bdir);
-              if (window.iceGitManager) {
-                window.iceGitManager.scheduleCommit('Auto-save');
-              }
-            })
-            .catch(function () {}); // silent failure
-        };
-
         if (subModuleActive) {
           backupProject = utils.clone(project);
         } else {
@@ -527,6 +507,26 @@ angular
           this.path = filepath;
           this.filepath = filepath;
         }
+      };
+
+      this.autoSave = function (label) {
+        var fp = this.path;
+        if (!fp) {
+          return;
+        }
+        var s = this;
+        sortGraph();
+        s.update();
+        utils
+          .saveFile(fp, pruneProject(project))
+          .then(function () {
+            var bdir = utils.filepath2buildpath(s.filepath);
+            common.setBuildDir(bdir);
+            if (window.iceGitManager) {
+              window.iceGitManager.scheduleCommit(label || 'Auto-save');
+            }
+          })
+          .catch(function () {}); // silent failure
       };
 
       function sortGraph() {
