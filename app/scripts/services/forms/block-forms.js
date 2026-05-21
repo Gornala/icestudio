@@ -145,6 +145,10 @@ window._iceforms.blockForms = function (deps) {
 
               self.code = result.moduleBody;
 
+              if (result.moduleName && self._labelField) {
+                self._labelField.write(result.moduleName);
+              }
+
               $('[data-tab="Module Ports"]').click();
             } catch (err) {
               alertify.error(

@@ -102,32 +102,61 @@ window._icegraph.cellManager = function (ctx) {
       return m ? parseInt(m[1]) - parseInt(m[2]) + 1 : undefined;
     };
     var codeBlockId = ctx.joint.util.uuid();
-    var yStep = 80;
     var includeCode = forceCodeBlock || !!code;
+
+    // Layout constants
+    var CODE_X = 398;
+    var CODE_Y = 134;
+    var CODE_WIDTH = 800;
+    var IO_HALF_H = 16; // half of the 32px default ice.Input/Output height
+    var totalLeftPorts = portsIn.length + inoutLeft.length;
+    var totalRightPorts = portsOut.length + inoutRight.length;
+    var leftCount = Math.max(totalLeftPorts, params.length);
+    var rightCount = totalRightPorts;
+    var codeHeight = Math.max(300, Math.max(leftCount, rightCount) * 80 + 160);
+    var ioRightX = CODE_X + CODE_WIDTH + 240;
+
+    // Returns the absolute Y of code-block port[index] of [total] on one side.
+    // Mirrors the JointJS getPortAttrs formula in joint.shapes.js.
+    var codePortY = function (index, total) {
+      var gridunits = codeHeight / 8;
+      var pos = Math.round(((index + 0.5) / total) * gridunits) / gridunits;
+      return CODE_Y + pos * codeHeight;
+    };
+
+    // Y position for an IO block so its port (at block-center) aligns with
+    // the corresponding code-block port.  Falls back to simple spacing when
+    // there is no code block or no ports on that side.
+    var ioY = function (index, total) {
+      if (includeCode && total > 0) {
+        return codePortY(index, total) - IO_HALF_H;
+      }
+      return 80 + index * 80;
+    };
 
     portsIn.forEach(function (port, idx) {
       var id = ctx.joint.util.uuid();
       var inputData = {
         name: port.name,
-        pins: buildSubmodulePins(port.range),
+        pins: buildSubmodulePins(port.rangestr),
         virtual: true,
         clock: false,
       };
-      if (port.range) {
-        inputData.range = port.range;
+      if (port.rangestr) {
+        inputData.range = port.rangestr;
       }
       allBlocks.push({
         id: id,
         type: 'basic.input',
         data: inputData,
-        position: { x: 50, y: 80 + idx * yStep },
+        position: { x: 50, y: ioY(idx, totalLeftPorts) },
       });
       if (includeCode) {
         var inWire = {
           source: { block: id, port: 'out' },
           target: { block: codeBlockId, port: port.name },
         };
-        var inSize = rangeToSize(port.range);
+        var inSize = rangeToSize(port.rangestr);
         if (inSize) {
           inWire.size = inSize;
         }
@@ -141,19 +170,19 @@ window._icegraph.cellManager = function (ctx) {
       var id = ctx.joint.util.uuid();
       var inputData = {
         name: port.name,
-        pins: buildSubmodulePins(port.range),
+        pins: buildSubmodulePins(port.rangestr),
         virtual: true,
         clock: false,
         inout: true,
       };
-      if (port.range) {
-        inputData.range = port.range;
+      if (port.rangestr) {
+        inputData.range = port.rangestr;
       }
       allBlocks.push({
         id: id,
         type: 'basic.input',
         data: inputData,
-        position: { x: 50, y: 80 + (portsIn.length + idx) * yStep },
+        position: { x: 50, y: ioY(portsIn.length + idx, totalLeftPorts) },
       });
     });
 
@@ -161,24 +190,24 @@ window._icegraph.cellManager = function (ctx) {
       var id = ctx.joint.util.uuid();
       var outputData = {
         name: port.name,
-        pins: buildSubmodulePins(port.range),
+        pins: buildSubmodulePins(port.rangestr),
         virtual: true,
       };
-      if (port.range) {
-        outputData.range = port.range;
+      if (port.rangestr) {
+        outputData.range = port.rangestr;
       }
       allBlocks.push({
         id: id,
         type: 'basic.output',
         data: outputData,
-        position: { x: 750, y: 80 + idx * yStep },
+        position: { x: ioRightX, y: ioY(idx, totalRightPorts) },
       });
       if (includeCode) {
         var outWire = {
           source: { block: codeBlockId, port: port.name },
           target: { block: id, port: 'in' },
         };
-        var outSize = rangeToSize(port.range);
+        var outSize = rangeToSize(port.rangestr);
         if (outSize) {
           outWire.size = outSize;
         }
@@ -192,18 +221,21 @@ window._icegraph.cellManager = function (ctx) {
       var id = ctx.joint.util.uuid();
       var outputData = {
         name: port.name,
-        pins: buildSubmodulePins(port.range),
+        pins: buildSubmodulePins(port.rangestr),
         virtual: true,
         inout: true,
       };
-      if (port.range) {
-        outputData.range = port.range;
+      if (port.rangestr) {
+        outputData.range = port.rangestr;
       }
       allBlocks.push({
         id: id,
         type: 'basic.output',
         data: outputData,
-        position: { x: 750, y: 80 + (portsOut.length + idx) * yStep },
+        position: {
+          x: ioRightX,
+          y: ioY(portsOut.length + idx, totalRightPorts),
+        },
       });
     });
 
@@ -213,7 +245,7 @@ window._icegraph.cellManager = function (ctx) {
         id: id,
         type: 'basic.constant',
         data: { name: param.name, value: '', local: false },
-        position: { x: 300 + idx * 150, y: 20 },
+        position: { x: CODE_X + idx * 150, y: 20 },
       });
       if (includeCode) {
         allWires.push({
@@ -224,20 +256,11 @@ window._icegraph.cellManager = function (ctx) {
     });
 
     if (includeCode) {
-      var leftCount = Math.max(
-        portsIn.length + inoutLeft.length,
-        params.length
-      );
-      var rightCount = portsOut.length + inoutRight.length;
-      var codeHeight = Math.max(
-        300,
-        Math.max(leftCount, rightCount) * 80 + 160
-      );
-
       var mapPort = function (p) {
         var o = { name: p.name };
-        if (p.range) {
-          o.range = p.range;
+        if (p.rangestr) {
+          o.range = p.rangestr;
+          o.size = p.size;
         }
         return o;
       };
@@ -258,8 +281,8 @@ window._icegraph.cellManager = function (ctx) {
             inoutRight: inoutRight.map(mapPort),
           },
         },
-        position: { x: 300, y: 150 },
-        size: { width: 800, height: codeHeight },
+        position: { x: CODE_X, y: CODE_Y },
+        size: { width: CODE_WIDTH, height: codeHeight },
       });
     }
 
