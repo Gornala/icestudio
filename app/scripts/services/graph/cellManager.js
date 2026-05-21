@@ -260,7 +260,7 @@ window._icegraph.cellManager = function (ctx) {
         var o = { name: p.name };
         if (p.rangestr) {
           o.range = p.rangestr;
-          o.size = p.size;
+          o.size = p.size || rangeToSize(p.rangestr);
         }
         return o;
       };
@@ -1353,22 +1353,22 @@ window._icegraph.cellManager = function (ctx) {
     }
     var data = cell.attributes.data || {};
     var portsIn = ((data.ports && data.ports.in) || []).map(function (p) {
-      return { name: p.name, range: p.range || '' };
+      return { name: p.name, rangestr: p.range || '', size: p.size };
     });
     var portsOut = ((data.ports && data.ports.out) || []).map(function (p) {
-      return { name: p.name, range: p.range || '' };
+      return { name: p.name, rangestr: p.range || '', size: p.size };
     });
     var params = (data.params || []).map(function (p) {
       return { name: p.name };
     });
     var inoutLeft = ((data.ports && data.ports.inoutLeft) || []).map(
       function (p) {
-        return { name: p.name, range: p.range || '' };
+        return { name: p.name, rangestr: p.range || '', size: p.size };
       }
     );
     var inoutRight = ((data.ports && data.ports.inoutRight) || []).map(
       function (p) {
-        return { name: p.name, range: p.range || '' };
+        return { name: p.name, rangestr: p.range || '', size: p.size };
       }
     );
     var code = data.code || '';
