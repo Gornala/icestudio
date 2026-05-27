@@ -745,6 +745,10 @@ window._icecompiler.verilog = function (ctx) {
         );
       }
 
+      // Pre-mark contained blocks so the code-module loop below correctly
+      // skips blocks that belong to a generate frame sub-module.
+      preMarkGenerateContainment(project.design.graph);
+
       // Code modules
 
       for (i in blockArray) {

@@ -1,0 +1,12 @@
+{
+  "name": "icestudio-unit-tests",
+  "private": true,
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:unit": "jest unit/"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
