@@ -11,6 +11,7 @@ window.iceGitManager = (function () {
   var _dir = ''; // dirname of _filepath (work tree)
   var _filename = ''; // basename of _filepath (e.g. "A.ice")
   var _gitDir = ''; // per-file git metadata dir
+  var _mainBranch = ''; // branch name at repo creation (the "trunk")
   var _timer = null;
   var _pendingMsg = 'Save';
   var DEBOUNCE = 1500;
@@ -87,9 +88,21 @@ window.iceGitManager = (function () {
         exec('config user.name "Icestudio"', function () {
           exec(['add', _filename], function () {
             exec('commit -m "Initial project"', function () {
-              if (cb) {
-                cb(null);
-              }
+              // Persist the trunk branch name so we can recognise it later
+              // even when the repo is re-opened on a different branch.
+              exec('rev-parse --abbrev-ref HEAD', function (bErr, bName) {
+                if (!bErr && bName) {
+                  try {
+                    nodeFs.writeFileSync(
+                      nodePath.join(_gitDir, 'ice_main_branch.json'),
+                      JSON.stringify({ main: bName })
+                    );
+                  } catch (e) {}
+                }
+                if (cb) {
+                  cb(null);
+                }
+              });
             });
           });
         });
@@ -114,7 +127,7 @@ window.iceGitManager = (function () {
           exec('commit -m "' + msg.replace(/"/g, "'") + '"', function () {
             // If HEAD is detached (time-travelled), auto-create a branch so
             // these commits survive when the user switches back to master.
-            exec('symbolic-ref HEAD', function (symErr) {
+            exec('symbolic-ref HEAD', function (symErr, symRef) {
               if (symErr) {
                 var d = new Date();
                 var stamp =
@@ -131,7 +144,17 @@ window.iceGitManager = (function () {
                   }
                 });
               } else {
-                if (window.iceTimeline) {
+                var branchName = symRef.replace('refs/heads/', '');
+                if (
+                  branchName &&
+                  _mainBranch &&
+                  branchName !== _mainBranch &&
+                  window.iceTimeline &&
+                  window.iceTimeline.onBranchSave
+                ) {
+                  // Saved on a feature branch — let the timeline ask the user
+                  window.iceTimeline.onBranchSave(branchName);
+                } else if (window.iceTimeline) {
                   window.iceTimeline.refresh();
                 }
               }
@@ -179,6 +202,7 @@ window.iceGitManager = (function () {
       _dir = '';
       _filename = '';
       _gitDir = '';
+      _mainBranch = '';
       if (window.iceTimeline) {
         window.iceTimeline.refresh();
       }
@@ -192,6 +216,14 @@ window.iceGitManager = (function () {
     _filename = nodePath.basename(filepath);
     _gitDir = nodePath.join(_dir, '.ice_history', _filename);
     ensureRepo(function () {
+      // Read the stored trunk branch name (written at repo creation)
+      var mbFile = nodePath.join(_gitDir, 'ice_main_branch.json');
+      try {
+        var mbData = JSON.parse(nodeFs.readFileSync(mbFile, 'utf8'));
+        _mainBranch = mbData.main || 'master';
+      } catch (e) {
+        _mainBranch = 'master';
+      }
       if (window.iceTimeline) {
         window.iceTimeline.refresh();
       }
@@ -573,6 +605,272 @@ window.iceGitManager = (function () {
     );
   }
 
+  // ── Semantic canvas merge: union blocks + wires from both branches ───────────
+  // IDs are stable: blocks that exist in both branches (same ID = same origin)
+  // appear once; blocks unique to either branch are all included. Wires are
+  // deduplicated by source-port → target-port key.
+  function _mergeCanvasJson(mainJ, exploreJ) {
+    var result = JSON.parse(JSON.stringify(mainJ));
+
+    if (!result.design) {
+      result.design = {};
+    }
+    if (!result.design.graph) {
+      result.design.graph = {};
+    }
+    if (!result.design.graph.blocks) {
+      result.design.graph.blocks = [];
+    }
+    if (!result.design.graph.wires) {
+      result.design.graph.wires = [];
+    }
+    if (!result.dependencies) {
+      result.dependencies = {};
+    }
+
+    var rBlocks = result.design.graph.blocks;
+    var rWires = result.design.graph.wires;
+
+    var exploreBlocks =
+      (exploreJ.design &&
+        exploreJ.design.graph &&
+        exploreJ.design.graph.blocks) ||
+      [];
+    var exploreWires =
+      (exploreJ.design &&
+        exploreJ.design.graph &&
+        exploreJ.design.graph.wires) ||
+      [];
+    var exploreDeps = exploreJ.dependencies || {};
+
+    // Union blocks by id — main's version wins on collision
+    var seenIds = {};
+    for (var i = 0; i < rBlocks.length; i++) {
+      seenIds[rBlocks[i].id] = true;
+    }
+    for (var j = 0; j < exploreBlocks.length; j++) {
+      if (!seenIds[exploreBlocks[j].id]) {
+        rBlocks.push(exploreBlocks[j]);
+        seenIds[exploreBlocks[j].id] = true;
+      }
+    }
+
+    // Union wires by source:port → target:port key
+    function wireKey(w) {
+      return (
+        (w.source ? w.source.block + ':' + w.source.port : '') +
+        '->' +
+        (w.target ? w.target.block + ':' + w.target.port : '')
+      );
+    }
+    var seenWires = {};
+    for (var k = 0; k < rWires.length; k++) {
+      seenWires[wireKey(rWires[k])] = true;
+    }
+    for (var l = 0; l < exploreWires.length; l++) {
+      var wk = wireKey(exploreWires[l]);
+      if (!seenWires[wk]) {
+        rWires.push(exploreWires[l]);
+        seenWires[wk] = true;
+      }
+    }
+
+    // Union dependencies
+    for (var dep in exploreDeps) {
+      if (!result.dependencies.hasOwnProperty(dep)) {
+        result.dependencies[dep] = exploreDeps[dep];
+      }
+    }
+
+    return result;
+  }
+
+  // ── Merge a feature branch by combining both canvases ─────────────────────
+  // Reads both versions from git, semantically merges blocks+wires, then
+  // commits the result as a proper 2-parent merge commit. Never leaves the
+  // repo in a conflicted state.
+  function mergeCanvas(branchName, cb) {
+    if (!_gitDir || !_mainBranch) {
+      if (cb) {
+        cb('No project or main branch unknown');
+      }
+      return;
+    }
+    flushCommit();
+
+    // Read explore branch content from git before switching branches
+    exec(
+      ['show', branchName + ':' + _filename],
+      function (showErr, exploreContent) {
+        if (showErr) {
+          if (cb) {
+            cb(showErr);
+          }
+          return;
+        }
+
+        exec('checkout ' + _mainBranch, function (checkErr) {
+          if (checkErr) {
+            if (cb) {
+              cb(checkErr);
+            }
+            return;
+          }
+
+          // Read main's current content from disk
+          var mainContent;
+          try {
+            mainContent = nodeFs.readFileSync(
+              nodePath.join(_dir, _filename),
+              'utf8'
+            );
+          } catch (e) {
+            if (cb) {
+              cb(String(e));
+            }
+            return;
+          }
+
+          // Parse and semantically merge
+          var mainJson, exploreJson;
+          try {
+            mainJson = JSON.parse(mainContent);
+            exploreJson = JSON.parse(exploreContent);
+          } catch (e) {
+            if (cb) {
+              cb('Canvas JSON parse error: ' + e.message);
+            }
+            return;
+          }
+
+          var mergedStr = JSON.stringify(
+            _mergeCanvasJson(mainJson, exploreJson),
+            null,
+            2
+          );
+
+          // Start the merge without committing — sets MERGE_HEAD so the next
+          // git-commit creates a 2-parent merge commit. Ignore the exit code
+          // because conflicts are expected and we resolve them ourselves.
+          exec(['merge', '--no-ff', '--no-commit', branchName], function () {
+            // Write our semantically merged content (overwriting any conflict markers)
+            try {
+              nodeFs.writeFileSync(nodePath.join(_dir, _filename), mergedStr);
+            } catch (e) {
+              exec('merge --abort', function () {
+                if (cb) {
+                  cb(String(e));
+                }
+              });
+              return;
+            }
+
+            exec(['add', _filename], function (addErr) {
+              if (addErr) {
+                exec('merge --abort', function () {
+                  if (cb) {
+                    cb(addErr);
+                  }
+                });
+                return;
+              }
+              var mergeMsg = 'Merge ' + branchName + ' into ' + _mainBranch;
+              exec(['commit', '-m', mergeMsg], function (commitErr) {
+                if (cb) {
+                  cb(commitErr || null);
+                }
+                if (!commitErr && window.iceTimeline) {
+                  window.iceTimeline.refresh();
+                }
+              });
+            });
+          });
+        });
+      }
+    );
+  }
+
+  // ── Merge a feature branch into the trunk (clean merge only) ────────────────
+  // On conflict the merge is automatically aborted so the repo stays clean.
+  // cb receives null on success, 'MERGE_CONFLICT:<branchName>' on conflict,
+  // or another error string for genuine failures.
+  function mergeIntoMain(branchName, cb) {
+    if (!_gitDir || !_mainBranch) {
+      if (cb) {
+        cb('No project or main branch unknown');
+      }
+      return;
+    }
+    flushCommit();
+    exec('checkout ' + _mainBranch, function (err) {
+      if (err) {
+        if (cb) {
+          cb(err);
+        }
+        return;
+      }
+      var mergeMsg = 'Merge ' + branchName + ' into ' + _mainBranch;
+      exec(['merge', '--no-ff', branchName, '-m', mergeMsg], function (err2) {
+        if (!err2) {
+          if (cb) {
+            cb(null);
+          }
+          if (window.iceTimeline) {
+            window.iceTimeline.refresh();
+          }
+          return;
+        }
+        // Check whether we are in a MERGE conflict state via MERGE_HEAD file.
+        // If so abort cleanly so the repo is usable again, then report it.
+        var mergeHead = nodePath.join(_gitDir, 'MERGE_HEAD');
+        if (nodeFs.existsSync(mergeHead)) {
+          exec('merge --abort', function () {
+            if (cb) {
+              cb('MERGE_CONFLICT:' + branchName);
+            }
+          });
+        } else {
+          if (cb) {
+            cb(err2);
+          }
+        }
+      });
+    });
+  }
+
+  // ── Merge a feature branch and resolve conflicts by keeping its content ──────
+  // Uses -X theirs so the explore branch wins every conflict, producing a
+  // proper merge commit that records the history without stuck conflict state.
+  function mergeKeepExplore(branchName, cb) {
+    if (!_gitDir || !_mainBranch) {
+      if (cb) {
+        cb('No project or main branch unknown');
+      }
+      return;
+    }
+    flushCommit();
+    exec('checkout ' + _mainBranch, function (err) {
+      if (err) {
+        if (cb) {
+          cb(err);
+        }
+        return;
+      }
+      var mergeMsg = 'Merge ' + branchName + ' into ' + _mainBranch;
+      exec(
+        ['merge', '--no-ff', '-X', 'theirs', branchName, '-m', mergeMsg],
+        function (err2) {
+          if (cb) {
+            cb(err2);
+          }
+          if (!err2 && window.iceTimeline) {
+            window.iceTimeline.refresh();
+          }
+        }
+      );
+    });
+  }
+
   return {
     setDir: setDir,
     scheduleCommit: scheduleCommit,
@@ -591,6 +889,12 @@ window.iceGitManager = (function () {
     getHiddenBranches: getHiddenBranches,
     hideBranch: hideBranch,
     unhideBranch: unhideBranch,
+    mergeCanvas: mergeCanvas,
+    mergeIntoMain: mergeIntoMain,
+    mergeKeepExplore: mergeKeepExplore,
+    getMainBranch: function () {
+      return _mainBranch;
+    },
     getDir: function () {
       return _dir;
     },

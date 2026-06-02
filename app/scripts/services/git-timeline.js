@@ -752,6 +752,46 @@ window.iceTimeline = (function () {
     });
   }
 
+  // ── Branch-save hook: called by git-manager after a save on a non-main branch
+  // Shows a dialog asking whether to stay on the branch or merge into main.
+  function onBranchSave(branchName) {
+    var gm = window.iceGitManager;
+    if (!gm) {
+      return;
+    }
+    var mainBranch = gm.getMainBranch() || 'master';
+    var stay = !confirm(
+      'Saved on branch "' +
+        branchName +
+        '".\n\n' +
+        'Click OK to merge into "' +
+        mainBranch +
+        '" and switch back.\n' +
+        'Click Cancel to keep working on "' +
+        branchName +
+        '".'
+    );
+    if (stay) {
+      refresh();
+      return;
+    }
+    _beginTask();
+    gm.mergeCanvas(branchName, function (err) {
+      if (err) {
+        _endTask();
+        alert('Merge failed:\n' + err);
+        refresh();
+        return;
+      }
+      if (window.icestudioTimeTravel) {
+        window.icestudioTimeTravel();
+      } else {
+        _endTask();
+        refresh();
+      }
+    });
+  }
+
   // ── Resize: drag top border to change panel height ────────────────────────
   function _initResize() {
     var handle = document.getElementById('tl-resize-handle');
@@ -996,5 +1036,10 @@ window.iceTimeline = (function () {
     _initResize();
   }
 
-  return { toggle: toggle, refresh: refresh, init: init };
+  return {
+    toggle: toggle,
+    refresh: refresh,
+    init: init,
+    onBranchSave: onBranchSave,
+  };
 })();
