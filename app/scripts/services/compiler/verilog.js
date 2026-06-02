@@ -219,6 +219,11 @@ window._icecompiler.verilog = function (ctx) {
     //  original — but the loops below operate on the local clone.)
     preMarkGenerateContainment(graph);
 
+    // Map wireIndex → digestId for wires sourced from inout basic.input ports.
+    // These wires need no intermediate wire declaration or assign — the port
+    // name is used directly in instance connections.
+    var inoutPortMap = {};
+
     for (w in graph.wires) {
       var wire = graph.wires[w];
       if (wire._genInternal) {
@@ -248,8 +253,9 @@ window._icecompiler.verilog = function (ctx) {
         } else {
           // Regular wires
           var wireSize = wire.size;
+          var srcBlk = ctx.findBlock(wire.source.block, graph);
+          var tgtBlk = ctx.findBlock(wire.target.block, graph);
           if (!wireSize) {
-            var srcBlk = ctx.findBlock(wire.source.block, graph);
             if (
               srcBlk &&
               srcBlk.type === ctx.blocks.BASIC_INPUT &&
@@ -262,7 +268,6 @@ window._icecompiler.verilog = function (ctx) {
               }
             }
             if (!wireSize) {
-              var tgtBlk = ctx.findBlock(wire.target.block, graph);
               if (
                 tgtBlk &&
                 tgtBlk.type === ctx.blocks.BASIC_OUTPUT &&
@@ -277,20 +282,57 @@ window._icecompiler.verilog = function (ctx) {
             }
           }
           var range = wireSize ? ' [' + (wireSize - 1) + ':0] ' : ' ';
-          connections.wire.push('wire' + range + 'w' + w + ';');
+          if (
+            srcBlk &&
+            srcBlk.type === ctx.blocks.BASIC_INPUT &&
+            srcBlk.data &&
+            srcBlk.data.inout
+          ) {
+            // Source-side inout: skip intermediate wire and assign; record the
+            // port's digestId so instance connections reference it directly.
+            inoutPortMap[w] = ctx.utils.digestId(srcBlk.id);
+          } else if (
+            tgtBlk &&
+            tgtBlk.type === ctx.blocks.BASIC_OUTPUT &&
+            tgtBlk.data &&
+            tgtBlk.data.inout
+          ) {
+            // Target-side inout: skip intermediate wire and assign; use the
+            // port's digestId directly so the code block connects to the inout
+            // port without an intermediate driver (required for tri-state).
+            inoutPortMap[w] = ctx.utils.digestId(tgtBlk.id);
+          } else {
+            // Wires from basic.code blocks into non-basic submodules (e.g. SB_IO
+            // wrappers like Tri-state) must be preserved so yosys does not remove
+            // the FSM that drives them via opt_clean dead-code elimination.
+            var needsKeep =
+              srcBlk &&
+              srcBlk.type === ctx.blocks.BASIC_CODE &&
+              tgtBlk &&
+              !tgtBlk.type.startsWith('basic.');
+            connections.wire.push(
+              (needsKeep ? '(* keep *) ' : '') + 'wire' + range + 'w' + w + ';'
+            );
+          }
         }
       }
       // Assign Statements
       for (i in graph.blocks) {
         var block = graph.blocks[i];
         if (block.type === ctx.blocks.BASIC_INPUT) {
-          if (wire.source.block === block.id) {
+          if (
+            wire.source.block === block.id &&
+            !(block.data && block.data.inout)
+          ) {
             connections.assign.push(
               'assign w' + w + ' = ' + ctx.utils.digestId(block.id) + ';'
             );
           }
         } else if (block.type === ctx.blocks.BASIC_OUTPUT) {
-          if (wire.target.block === block.id) {
+          if (
+            wire.target.block === block.id &&
+            !(block.data && block.data.inout)
+          ) {
             var outSrcBlock = ctx.findBlock(wire.source.block, graph);
             if (
               wire.source.port === 'constant-out' ||
@@ -336,14 +378,18 @@ window._icecompiler.verilog = function (ctx) {
           gwi.source.port === gwj.source.port &&
           !isParamSrc
         ) {
-          content.push('assign w' + i + ' = w' + j + ';');
+          var ri = inoutPortMap.hasOwnProperty(i) ? inoutPortMap[i] : 'w' + i;
+          var rj = inoutPortMap.hasOwnProperty(j) ? inoutPortMap[j] : 'w' + j;
+          if (ri !== rj) {
+            content.push('assign ' + ri + ' = ' + rj + ';');
+          }
         }
       }
     }
 
     // Block instances
 
-    content = content.concat(getInstances(name, graph));
+    content = content.concat(getInstances(name, graph, inoutPortMap));
 
     // Generate-for instantiations
     content = content.concat(getGenerateInstances(name, graph, graph.wires));
@@ -384,7 +430,8 @@ window._icecompiler.verilog = function (ctx) {
     return content.join('\n');
   }
 
-  function getInstances(name, graph) {
+  function getInstances(name, graph, inoutPortMap) {
+    inoutPortMap = inoutPortMap || {};
     var w, wire;
     var instances = [];
     var blockArray = graph.blocks;
@@ -489,9 +536,12 @@ window._icecompiler.verilog = function (ctx) {
         if (portsNames.indexOf(portName) === -1) {
           portsNames.push(portName);
           portName = portName.charAt(0) === '@' ? portName.substr(1) : portName;
+          var wireRef = inoutPortMap.hasOwnProperty(w)
+            ? inoutPortMap[w]
+            : 'w' + w;
           var port = '';
           port += ' .' + portName;
-          port += '(w' + w + ')';
+          port += '(' + wireRef + ')';
           ports.push(port);
         }
       }
@@ -761,7 +811,14 @@ window._icecompiler.verilog = function (ctx) {
               ports: block.data.ports,
               content: block.data.code,
             };
-            code += ctx.module(data);
+            var moduleStr = ctx.module(data);
+            if (block.data.blackbox) {
+              moduleStr = moduleStr.replace(
+                /\nmodule /,
+                '\n(* blackbox *)\nmodule '
+              );
+            }
+            code += moduleStr;
           }
         }
       }

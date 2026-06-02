@@ -472,6 +472,53 @@ describe('inout port direction', function () {
     expect(output).toMatch(/\binout\b.*\bvinp001\b/);
     expect(output).not.toMatch(/\binput\b.*\bvinp001\b/);
   });
+
+  test('inout port connected to code block: no intermediate wire, no assign', function () {
+    // SB_IO tri-state pattern: inout basic.input (pin) feeds a code block
+    var blocks = [
+      {
+        id: 'inp001',
+        type: 'basic.input',
+        data: {
+          name: 'pin',
+          virtual: false,
+          range: '',
+          pins: [{ index: '0', value: 'D0' }],
+          inout: true,
+        },
+      },
+      codeBlock('code01', {
+        portsIn: [{ name: 'oe' }, { name: 'dout' }],
+        portsOut: [{ name: 'din' }],
+        ports: {
+          in: [{ name: 'oe' }, { name: 'dout' }],
+          inout: [{ name: 'pin' }],
+          out: [{ name: 'din' }],
+        },
+        code: "SB_IO #(.PIN_TYPE(6'b101001)) t (.PACKAGE_PIN(pin),.OUTPUT_ENABLE(oe),.D_OUT_0(dout),.D_IN_0(din));",
+      }),
+    ];
+    // Override the ports to include inout for the code block
+    blocks[1].data.ports = {
+      in: [{ name: 'oe' }, { name: 'dout' }],
+      inout: [{ name: 'pin' }],
+      out: [{ name: 'din' }],
+    };
+    var wires = [
+      {
+        source: { block: 'inp001', port: 'out' },
+        target: { block: 'code01', port: 'pin' },
+      },
+    ];
+    var output = compile('main', makeProject(blocks, wires));
+    // The inout port should be connected directly in the instance, not via wN
+    // digestId('inp001') = 'vinp001'
+    expect(output).toContain('.pin(vinp001)');
+    // No intermediate wire for the inout connection
+    expect(output).not.toMatch(/wire\s+w0\s*;/);
+    // No assign from the inout port
+    expect(output).not.toContain('assign w0 = vinp001');
+  });
 });
 
 describe('info and info-frame blocks are ignored', function () {
@@ -507,5 +554,105 @@ describe('info and info-frame blocks are ignored', function () {
     var output = compile('main', makeProject(blocks));
     expect(output).toContain('vinp001');
     expect(output).not.toMatch(/\binput\b.*\binfo01\b/);
+  });
+});
+
+describe('output block with inout:true (behavioral tri-state)', function () {
+  test('output block with inout:true emits inout (not output) in module', function () {
+    var block = {
+      id: 'out001',
+      type: 'basic.output',
+      data: {
+        name: 'pin',
+        virtual: false,
+        range: '',
+        pins: [{ index: '0', value: 'D0' }],
+        inout: true,
+      },
+    };
+    var output = compile('main', makeProject([block]));
+    expect(output).toMatch(/\binout\b.*\bvout001\b/);
+    expect(output).not.toMatch(/\boutput\b.*\bvout001\b/);
+  });
+
+  test('code block connected to inout output: no intermediate wire, no assign, direct port connection', function () {
+    // Behavioral tri-state pattern: code block drives an inout basic.output
+    var blocks = [
+      codeBlock('code01', {
+        portsIn: [{ name: 'oe' }, { name: 'dout' }],
+        portsOut: [],
+        code: "assign pin = oe ? dout : 1'bz;",
+      }),
+      {
+        id: 'out001',
+        type: 'basic.output',
+        data: {
+          name: 'pin',
+          virtual: false,
+          range: '',
+          pins: [{ index: '0', value: 'D0' }],
+          inout: true,
+        },
+      },
+    ];
+    blocks[0].data.ports = {
+      in: [{ name: 'oe' }, { name: 'dout' }],
+      inout: [{ name: 'pin' }],
+      out: [],
+    };
+    var wires = [
+      {
+        source: { block: 'code01', port: 'pin' },
+        target: { block: 'out001', port: 'in' },
+      },
+    ];
+    var output = compile('main', makeProject(blocks, wires));
+    // digestId('out001') = 'vout001'; code block connects its pin port directly to the inout port
+    expect(output).toContain('.pin(vout001)');
+    // No intermediate wire
+    expect(output).not.toMatch(/wire\s+w0\s*;/);
+    // No assign to/from intermediate wire
+    expect(output).not.toContain('assign vout001 = w0');
+  });
+});
+
+describe('blackbox code block', function () {
+  test('blackbox:true adds (* blackbox *) before the submodule', function () {
+    var blocks = [
+      codeBlock('code01', {
+        label: 'Tristate',
+        portsIn: [{ name: 'pin' }, { name: 'oe' }, { name: 'dout' }],
+        portsOut: [{ name: 'din' }],
+        code: "SB_IO #(.PIN_TYPE(6'b101001)) t (.PACKAGE_PIN(pin));",
+      }),
+    ];
+    blocks[0].data.blackbox = true;
+    var output = compile('main', makeProject(blocks));
+    expect(output).toMatch(/\(\* blackbox \*\)\s*\nmodule main_vcode01/);
+  });
+
+  test('blackbox:false does not add (* blackbox *)', function () {
+    var blocks = [
+      codeBlock('code01', {
+        portsIn: [{ name: 'a' }],
+        portsOut: [{ name: 'y' }],
+        code: 'assign y = a;',
+      }),
+    ];
+    blocks[0].data.blackbox = false;
+    var output = compile('main', makeProject(blocks));
+    expect(output).not.toContain('blackbox');
+  });
+
+  test('blackbox:undefined (legacy block) does not add (* blackbox *)', function () {
+    var blocks = [
+      codeBlock('code01', {
+        portsIn: [{ name: 'a' }],
+        portsOut: [{ name: 'y' }],
+        code: 'assign y = a;',
+      }),
+    ];
+    var output = compile('main', makeProject(blocks));
+    expect(output).not.toContain('blackbox');
   });
 });

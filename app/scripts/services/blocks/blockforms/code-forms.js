@@ -38,6 +38,7 @@ window._iceblockforms.codeForms = function (ctx) {
         blockInstance.data.code = form.code;
       }
       blockInstance.data.label = form.label;
+      blockInstance.data.blackbox = form.blackbox || false;
 
       //-- Build the cell
       let cell = loadBasicCode(blockInstance);
@@ -170,7 +171,8 @@ window._iceblockforms.codeForms = function (ctx) {
       inParamNames,
       inoutLeftPortNames,
       inoutRightPortNames,
-      block.data.label || ''
+      block.data.label || '',
+      block.data.blackbox || false
     );
 
     //-- Display the form
@@ -215,6 +217,7 @@ window._iceblockforms.codeForms = function (ctx) {
         blockInstance.data.code = block.data.code;
       }
       blockInstance.data.label = form.label;
+      blockInstance.data.blackbox = form.blackbox || false;
 
       //-- Build the cell
       let cell = loadBasicCode(blockInstance);

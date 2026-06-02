@@ -32,7 +32,8 @@ window._iceforms.blockForms = function (deps) {
       paramsIn,
       portsInOutLeft,
       portsInOutRight,
-      label
+      label,
+      blackbox
     ) {
       super();
 
@@ -44,6 +45,7 @@ window._iceforms.blockForms = function (deps) {
       let portsInOutRightVal =
         portsInOutRight !== undefined ? portsInOutRight : '';
       let labelVal = label !== undefined ? label : '';
+      let blackboxVal = blackbox ? true : false;
 
       this._updatingFromText = false;
       this._updatingFromGrid = false;
@@ -239,6 +241,16 @@ window._iceforms.blockForms = function (deps) {
 
       this.addField(field8, modulePortsLabel);
 
+      const advancedLabel = gettextCatalog.getString('Advanced');
+      let fieldBlackbox = new CheckboxField(
+        gettextCatalog.getString('Blackbox module'),
+        blackboxVal,
+        10
+      );
+      this.addField(fieldBlackbox, advancedLabel);
+      this._blackboxField = fieldBlackbox;
+      this.iniBlackbox = blackboxVal;
+
       this.resultAlert = null;
 
       this.iniPortsIn = portsInVal;
@@ -302,6 +314,8 @@ window._iceforms.blockForms = function (deps) {
           this.values[5].replace(/\s+/g, '')
         );
       }
+
+      this.blackbox = this._blackboxField ? this._blackboxField.read() : false;
     }
 
     process(evt) {
@@ -371,7 +385,8 @@ window._iceforms.blockForms = function (deps) {
           this.iniPortsInOutLeft !== inoutLeftPortNames) ||
         (this.hasOwnProperty('iniPortsInOutRight') &&
           this.iniPortsInOutRight !== inoutRightPortNames) ||
-        this.iniLabel !== this.label;
+        this.iniLabel !== this.label ||
+        this.iniBlackbox !== this.blackbox;
 
       return changedResult;
     }
