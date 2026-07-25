@@ -849,6 +849,46 @@ window._icecompiler.verilog = function (ctx) {
   }
 
   //-------------------------------------------------------------------
+  //-- Build the data of a virtual boundary port block for the inner
+  //-- iteration module. The bus width of the boundary wire must be
+  //-- carried over as a range, otherwise getPorts() declares the port
+  //-- as a single bit and buses get truncated on the instantiation.
+  //-------------------------------------------------------------------
+  function virtualPortData(name, size) {
+    var width = size && size > 1 ? size : 1;
+    var pins = [];
+    for (var p = 0; p < width; p++) {
+      pins.push({ index: String(p), value: '0' });
+    }
+    var data = {
+      name: name,
+      virtual: true,
+      pins: pins,
+    };
+    if (width > 1) {
+      data.range = '[' + (width - 1) + ':0]';
+      data.size = width;
+    }
+    return data;
+  }
+
+  //-------------------------------------------------------------------
+  //-- A wire is a parameter connection when its source is a constant,
+  //-- a memory or a JSON input block: it becomes a localparam instead
+  //-- of a wire.
+  //-------------------------------------------------------------------
+  function isParamWire(wire, graph) {
+    if (
+      wire.source.port === 'constant-out' ||
+      wire.source.port === 'memory-out'
+    ) {
+      return true;
+    }
+    var srcBlock = ctx.findBlock(wire.source.block, graph);
+    return !!(srcBlock && srcBlock.type === ctx.blocks.BASIC_JSON_INPUT);
+  }
+
+  //-------------------------------------------------------------------
   //-- Compile a generate frame block into:
   //-- 1. A wrapper module with generate-for loop
   //-- 2. An inner iteration module (from contained blocks)
@@ -894,6 +934,7 @@ window._icecompiler.verilog = function (ctx) {
     var boundaryInWires = []; // frame port → contained block
     var boundaryOutWires = []; // contained block → frame port
     var frameToFrameWires = []; // direct inner port → inner port
+    var paramWires = []; // outside constant/memory/JSON → contained block
     for (var w in graph.wires) {
       var wire = graph.wires[w];
       var srcIsFrame = wire.source.block === genBlock.id;
@@ -915,6 +956,18 @@ window._icecompiler.verilog = function (ctx) {
       ) {
         internalWires.push(wire);
         wire._genInternal = true;
+      } else if (
+        containedIds[wire.target.block] &&
+        !containedIds[wire.source.block] &&
+        !srcIsFrame &&
+        isParamWire(wire, graph)
+      ) {
+        // Parameter feeding a block inside the frame from a constant
+        // placed outside it. Parameters are not signals, so they do not
+        // go through a frame port: the constant block is replicated
+        // inside the iteration module instead.
+        paramWires.push(wire);
+        wire._genInternal = true;
       }
     }
 
@@ -928,6 +981,25 @@ window._icecompiler.verilog = function (ctx) {
     var subWires = JSON.parse(JSON.stringify(internalWires));
     for (var sw in subWires) {
       delete subWires[sw]._genInternal;
+    }
+
+    // Replicate the constant/memory/JSON blocks that feed parameters of
+    // contained blocks from outside the frame, together with their wires.
+    var addedParamBlocks = {};
+    for (var pw in paramWires) {
+      var paramWire = paramWires[pw];
+      if (!addedParamBlocks[paramWire.source.block]) {
+        var paramBlock = ctx.findBlock(paramWire.source.block, graph);
+        if (paramBlock) {
+          var subParamBlock = JSON.parse(JSON.stringify(paramBlock));
+          delete subParamBlock._genContained;
+          subBlocks.push(subParamBlock);
+          addedParamBlocks[paramWire.source.block] = true;
+        }
+      }
+      var subParamWire = JSON.parse(JSON.stringify(paramWire));
+      delete subParamWire._genInternal;
+      subWires.push(subParamWire);
     }
 
     var portIdx = 0;
@@ -944,11 +1016,7 @@ window._icecompiler.verilog = function (ctx) {
       subBlocks.push({
         id: inputBlockId,
         type: ctx.blocks.BASIC_INPUT,
-        data: {
-          name: inPName,
-          virtual: true,
-          pins: [{ index: '0', value: '0' }],
-        },
+        data: virtualPortData(inPName, bwIn.size),
         position: { x: genRect.x, y: genRect.y + portIdx * 50 },
       });
       subWires.push({
@@ -974,11 +1042,7 @@ window._icecompiler.verilog = function (ctx) {
       subBlocks.push({
         id: outputBlockId,
         type: ctx.blocks.BASIC_OUTPUT,
-        data: {
-          name: outPName,
-          virtual: true,
-          pins: [{ index: '0', value: '0' }],
-        },
+        data: virtualPortData(outPName, bwOut.size),
         position: {
           x: genRect.x + genRect.width,
           y: genRect.y + portIdx * 50,
@@ -1012,11 +1076,7 @@ window._icecompiler.verilog = function (ctx) {
       subBlocks.push({
         id: ffInputBlockId,
         type: ctx.blocks.BASIC_INPUT,
-        data: {
-          name: ffInName,
-          virtual: true,
-          pins: [{ index: '0', value: '0' }],
-        },
+        data: virtualPortData(ffInName, ffWire.size),
         position: { x: genRect.x, y: genRect.y + portIdx * 50 },
       });
       if (!iterInMap[ffInName]) {
@@ -1031,11 +1091,7 @@ window._icecompiler.verilog = function (ctx) {
       subBlocks.push({
         id: ffOutputBlockId,
         type: ctx.blocks.BASIC_OUTPUT,
-        data: {
-          name: ffOutName,
-          virtual: true,
-          pins: [{ index: '0', value: '0' }],
-        },
+        data: virtualPortData(ffOutName, ffWire.size),
         position: {
           x: genRect.x + genRect.width,
           y: genRect.y + portIdx * 50,
@@ -1337,6 +1393,15 @@ window._icecompiler.verilog = function (ctx) {
           (srcContained && tgtIsFrame) ||
           (srcContained && tgtContained)
         ) {
+          wire._genInternal = true;
+        } else if (
+          tgtContained &&
+          !srcContained &&
+          !srcIsFrame &&
+          isParamWire(wire, graph)
+        ) {
+          // Parameter fed from a constant outside the frame: consumed by
+          // the iteration module, so the parent must not declare it.
           wire._genInternal = true;
         }
       }

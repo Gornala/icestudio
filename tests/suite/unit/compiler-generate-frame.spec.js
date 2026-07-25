@@ -160,6 +160,30 @@ function containedCode(id, opts) {
   };
 }
 
+// Constant block (parameter source). Constants carry no size in the saved
+// project, so they are never seen as "contained" by the frame rect check.
+function constantBlock(id, opts) {
+  opts = opts || {};
+  return {
+    id: id,
+    type: 'basic.constant',
+    data: {
+      name: opts.name || id,
+      value: opts.value !== undefined ? opts.value : 0,
+      local: false,
+    },
+    position: opts.position || { x: 10, y: 10 },
+  };
+}
+
+// Parameter wire: constant block → target block parameter port
+function paramWire(constId, tgtId, tgtPort) {
+  return {
+    source: { block: constId, port: 'constant-out' },
+    target: { block: tgtId, port: tgtPort },
+  };
+}
+
 // Boundary-in wire: frame internal port → contained block port
 function bndIn(frameId, portName, containedId, containedPort, size) {
   var w = {
@@ -645,6 +669,140 @@ describe('frame with external wiring in parent', function () {
 
   test('iter sub-module instantiates the contained code block', function () {
     expect(output).toContain('main_gen_vgen001_iter_vcode01');
+  });
+});
+
+describe('iteration module port widths', function () {
+  // The inner iteration module ports are built from artificial input/output
+  // blocks named 'gen-input-N' / 'gen-output-N'.  Their width must come from
+  // the boundary wire, otherwise a bus collapses to a single bit and the
+  // frame instantiation truncates it.
+  var inPort = digestId('gen-input-0');
+
+  test('bus boundary input declares the full range in the iter module', function () {
+    var output = compile(
+      'main',
+      makeProject(
+        [
+          generateFrame('gen001', {
+            instanceCount: 4,
+            ports: {
+              in: [
+                {
+                  name: 'phase',
+                  genMode: 'direct',
+                  size: 32,
+                  range: '[31:0]',
+                },
+              ],
+              out: [],
+            },
+          }),
+          containedCode('code01', {
+            portsIn: [{ name: 'PHASE_ACC', range: '[31:0]', size: 32 }],
+            code: '',
+          }),
+        ],
+        [bndIn('gen001', 'phase', 'code01', 'PHASE_ACC', 32)]
+      )
+    );
+    expect(output).toMatch(
+      new RegExp('input\\s+\\[31:0\\]\\s+' + inPort + '\\b')
+    );
+  });
+
+  test('single-bit boundary input has no range in the iter module', function () {
+    var output = compile(
+      'main',
+      makeProject(
+        [
+          generateFrame('gen001', {
+            instanceCount: 4,
+            ports: {
+              in: [{ name: 'clk', genMode: 'direct', size: 1 }],
+              out: [],
+            },
+          }),
+          containedCode('code01', { portsIn: [{ name: 'CLK' }], code: '' }),
+        ],
+        [bndIn('gen001', 'clk', 'code01', 'CLK')]
+      )
+    );
+    expect(output).toMatch(new RegExp('input\\s+' + inPort + '\\b'));
+    expect(output).not.toMatch(
+      new RegExp('input\\s+\\[\\d+:\\d+\\]\\s+' + inPort + '\\b')
+    );
+  });
+
+  test('bus boundary output declares the full range in the iter module', function () {
+    var outPort = digestId('gen-output-0');
+    var output = compile(
+      'main',
+      makeProject(
+        [
+          generateFrame('gen001', {
+            instanceCount: 2,
+            ports: {
+              in: [],
+              out: [{ name: 'sum', genMode: 'iterative', size: 8 }],
+            },
+          }),
+          containedCode('code01', {
+            portsOut: [{ name: 'Y', range: '[7:0]', size: 8 }],
+            code: '',
+          }),
+        ],
+        [bndOut('code01', 'Y', 'gen001', 'sum', 8)]
+      )
+    );
+    expect(output).toMatch(
+      new RegExp('output\\s+\\[7:0\\]\\s+' + outPort + '\\b')
+    );
+  });
+});
+
+describe('parameters crossing the frame boundary', function () {
+  // A constant placed outside the frame that feeds a parameter of a block
+  // inside it.  Parameters are not signals, so they never travel through a
+  // frame port: the constant must be replicated inside the iter module.
+  var output;
+  beforeAll(function () {
+    output = compile(
+      'main',
+      makeProject(
+        [
+          constantBlock('cst001', { name: 'N', value: 32 }),
+          generateFrame('gen001', {
+            instanceCount: 4,
+            ports: { in: [], out: [] },
+          }),
+          containedCode('code01', {
+            params: [{ name: 'N' }],
+            code: 'reg [N-1:0] acc;',
+          }),
+        ],
+        [paramWire('cst001', 'code01', 'N')]
+      )
+    );
+  });
+
+  test('iter module declares the replicated constant as a parameter', function () {
+    expect(output).toMatch(
+      new RegExp(
+        'module main_gen_vgen001_iter[\\s\\S]*?parameter ' +
+          digestId('cst001') +
+          ' = 32'
+      )
+    );
+  });
+
+  test('contained code block is instantiated with the parameter override', function () {
+    expect(output).toMatch(/main_gen_vgen001_iter_vcode01 #\(\s*\.N\(p\d+\)/);
+  });
+
+  test('parent module does not keep a dangling localparam for it', function () {
+    var parent = output.split('module main_gen_vgen001')[0];
+    expect(parent).not.toContain('localparam');
   });
 });
 
