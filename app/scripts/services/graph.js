@@ -203,6 +203,7 @@ angular.module('icestudio').service(
     this.redo = _cellManager.redo;
     this.clearAll = _cellManager.clearAll;
     this.appEnable = _cellManager.appEnable;
+    this.updateSubmoduleBanners = _cellManager.updateSubmoduleBanners;
     this.isEnabled = _cellManager.isEnabled;
     this.createBlock = _cellManager.createBlock;
     this.createBasicBlock = _cellManager.createBasicBlock;

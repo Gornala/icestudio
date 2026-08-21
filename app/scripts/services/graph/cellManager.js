@@ -1062,90 +1062,42 @@ window._icegraph.cellManager = function (ctx) {
     ctx.selectionView.cancelSelection();
   }
 
+  //-- Show/hide the footer submodule strip (back button + propagation
+  //-- warning). Visibility follows the navigation depth only — it used to be
+  //-- tied to appEnable(false), which no longer happens now that submodules
+  //-- are always editable.
+  function updateSubmoduleBanners() {
+    var hide = !ctx.common.isEditingSubmodule;
+    ['banner', 'banner-submodule'].forEach(function (klass) {
+      angular.element('.' + klass).toggleClass('hidden', hide);
+      var ael = document.getElementsByClassName(klass);
+      for (var i = 0; i < ael.length; i++) {
+        ael[i].classList.toggle('hidden', hide);
+      }
+    });
+  }
+
   function appEnable(value) {
     ctx.paper.options.enabled = value;
-    var ael, i;
-    if (value) {
-      angular.element('#menu').removeClass('is-disabled');
-      angular.element('.paper').removeClass('looks-disabled');
-      angular.element('.board-container').removeClass('looks-disabled');
-      angular.element('.banner').addClass('hidden');
+    var ael;
+    var toggle = value ? 'remove' : 'add';
 
-      ael = document.getElementById('menu');
-      if (typeof ael !== 'undefined') {
-        ael.classList.remove('is-disabled');
-      }
-      ael = document.getElementsByClassName('paper');
-      if (typeof ael !== 'undefined' && ael.length > 0) {
-        for (i = 0; i < ael.length; i++) {
-          ael[i].classList.remove('looks-disabled');
-        }
-      }
-      ael = document.getElementsByClassName('board-container');
-      if (typeof ael !== 'undefined' && ael.length > 0) {
-        for (i = 0; i < ael.length; i++) {
-          ael[i].classList.remove('looks-disabled');
-        }
-      }
-      ael = document.getElementsByClassName('banner');
-      if (typeof ael !== 'undefined' && ael.length > 0) {
-        for (i = 0; i < ael.length; i++) {
-          ael[i].classList.add('hidden');
-        }
-      }
-      if (!ctx.common.isEditingSubmodule) {
-        angular.element('.banner-submodule').addClass('hidden');
-        ael = document.getElementsByClassName('banner-submodule');
-        if (typeof ael !== 'undefined' && ael.length > 0) {
-          for (i = 0; i < ael.length; i++) {
-            ael[i].classList.add('hidden');
-          }
-        }
-      } else {
-        angular.element('.banner-submodule').removeClass('hidden');
-        ael = document.getElementsByClassName('banner-submodule');
-        if (typeof ael !== 'undefined' && ael.length > 0) {
-          for (i = 0; i < ael.length; i++) {
-            ael[i].classList.remove('hidden');
-          }
-        }
-      }
-    } else {
-      angular.element('#menu').addClass('is-disabled');
-      angular.element('.paper').addClass('looks-disabled');
-      angular.element('.board-container').addClass('looks-disabled');
-      angular.element('.banner').removeClass('hidden');
-      angular.element('.banner-submodule').removeClass('hidden');
+    angular.element('#menu').toggleClass('is-disabled', !value);
+    angular.element('.paper').toggleClass('looks-disabled', !value);
+    angular.element('.board-container').toggleClass('looks-disabled', !value);
 
-      ael = document.getElementById('menu');
-      if (typeof ael !== 'undefined') {
-        ael.classList.add('is-disabled');
-      }
-      ael = document.getElementsByClassName('paper');
-      if (typeof ael !== 'undefined' && ael.length > 0) {
-        for (i = 0; i < ael.length; i++) {
-          ael[i].classList.add('looks-disabled');
-        }
-      }
-      ael = document.getElementsByClassName('board-container');
-      if (typeof ael !== 'undefined' && ael.length > 0) {
-        for (i = 0; i < ael.length; i++) {
-          ael[i].classList.add('looks-disabled');
-        }
-      }
-      ael = document.getElementsByClassName('banner');
-      if (typeof ael !== 'undefined' && ael.length > 0) {
-        for (i = 0; i < ael.length; i++) {
-          ael[i].classList.remove('hidden');
-        }
-      }
-      ael = document.getElementsByClassName('banner-submodule');
-      if (typeof ael !== 'undefined' && ael.length > 0) {
-        for (i = 0; i < ael.length; i++) {
-          ael[i].classList.remove('hidden');
-        }
-      }
+    ael = document.getElementById('menu');
+    if (ael) {
+      ael.classList[toggle]('is-disabled');
     }
+    ['paper', 'board-container'].forEach(function (klass) {
+      var els = document.getElementsByClassName(klass);
+      for (var k = 0; k < els.length; k++) {
+        els[k].classList[toggle]('looks-disabled');
+      }
+    });
+
+    updateSubmoduleBanners();
 
     var cells = ctx.graph.getCells();
     _.each(cells, function (cell) {
@@ -1605,6 +1557,7 @@ window._icegraph.cellManager = function (ctx) {
     resetCommandStack: resetCommandStack,
     clearAll: clearAll,
     appEnable: appEnable,
+    updateSubmoduleBanners: updateSubmoduleBanners,
     isEnabled: isEnabled,
     cutSelected: cutSelected,
     copySelected: copySelected,

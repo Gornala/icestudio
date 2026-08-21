@@ -41,50 +41,102 @@ angular
 
       // Breadcrumbs
 
+      //-- Submodules are always editable. Whatever is on the paper right now
+      //-- is written back into common.allDependencies before we navigate away,
+      //-- so edits survive without the user having to "close edit mode".
+      //-- Only the currently displayed graph can hold uncommitted changes, so
+      //-- committing the deepest level is enough even for multi-level jumps.
+      var commitSubmoduleEdits = function () {
+        if (graph.breadcrumbs.length < 2) {
+          return;
+        }
+        var block = graph.breadcrumbs[graph.breadcrumbs.length - 1];
+        var dependency = common.allDependencies[block.type];
+        if (!dependency) {
+          return;
+        }
+
+        var cells = $scope.graph.getCells();
+        cells.sort((a, b) => {
+          const isSortableAxy = isSortable(a, 'xy');
+          const isSortableBy = isSortable(b, 'y');
+          const isSortableA = isSortableAxy || isSortable(a, 'y');
+          const isSortableB = isSortable(b, 'xy') || isSortableBy;
+
+          if (!isSortableA && !isSortableB) {
+            return 0;
+          }
+          if (isSortableA !== isSortableB) {
+            return isSortableA ? -1 : 1;
+          }
+          if (isSortableAxy && isSortableBy) {
+            return -1;
+          } else if (isSortableBy && isSortableAxy) {
+            return 1;
+          } else if (isSortableAxy) {
+            return getSortValue(a, 'xy') - getSortValue(b, 'xy');
+          }
+          return getSortValue(a, 'y') - getSortValue(b, 'y');
+        });
+        $scope.graph.setCells(cells);
+
+        var graphData = $scope.graph.toJSON();
+        var p = utils.cellsToProject(graphData.cells);
+        var updated = utils.clone(dependency);
+        updated.design.graph = p.design.graph;
+        common.allDependencies[block.type] = updated;
+        project.changed = true;
+      };
+
+      //-- Exposed so other services (project save, tree panel) can flush the
+      //-- open submodule before reading the design.
+      $scope.commitSubmoduleEdits = commitSubmoduleEdits;
+      common.commitSubmoduleEdits = commitSubmoduleEdits;
+
+      //-- Single source of truth for "is the paper showing a submodule?".
+      //-- Nothing is write-protected any more, so this only drives virtual-port
+      //-- defaults, the footer banners and project.update()'s graph guard.
+      var syncSubmoduleDepth = function () {
+        subModuleActive = graph.breadcrumbs.length > 1;
+        common.isEditingSubmodule = subModuleActive;
+        graph.updateSubmoduleBanners();
+        iceStudio.bus.events.publish('Navigation::ReadWrite');
+      };
+
       $scope.breadcrumbsNavigate = function (selectedItem) {
         var item;
-        if (common.isEditingSubmodule) {
-          alertify.warning(
-            gettextCatalog.getString(
-              'To navigate through the design, you need to close \"edit mode\".'
-            )
-          );
-        } else {
-          if (!$scope.isNavigating) {
-            $scope.isNavigating = true;
+        if (!$scope.isNavigating) {
+          $scope.isNavigating = true;
+          commitSubmoduleEdits();
 
-            do {
-              graph.breadcrumbs.pop();
-              common.submoduleHeap.pop();
-              item = graph.breadcrumbs.slice(-1)[0];
-            } while (selectedItem !== item);
-            if (common.submoduleHeap.length > 0) {
-              const last = common.submoduleHeap.length - 1;
-              common.submoduleId = common.submoduleHeap[last].id;
-              common.submoduleUID = common.submoduleHeap[last].uid;
-              iceStudio.bus.events.publish('Navigation::ReadOnly');
-            } else {
-              iceStudio.bus.events.publish('Navigation::ReadWrite');
-            }
-
-            loadSelectedGraph();
+          do {
+            graph.breadcrumbs.pop();
+            common.submoduleHeap.pop();
+            item = graph.breadcrumbs.slice(-1)[0];
+          } while (selectedItem !== item);
+          if (common.submoduleHeap.length > 0) {
+            const last = common.submoduleHeap.length - 1;
+            common.submoduleId = common.submoduleHeap[last].id;
+            common.submoduleUID = common.submoduleHeap[last].uid;
           }
+          syncSubmoduleDepth();
+
+          loadSelectedGraph();
         }
       };
 
       $scope.breadcrumbsBack = function () {
         if (!$scope.isNavigating) {
           $scope.isNavigating = true;
+          commitSubmoduleEdits();
           graph.breadcrumbs.pop();
           common.submoduleHeap.pop();
           if (common.submoduleHeap.length > 0) {
             const last = common.submoduleHeap.length - 1;
             common.submoduleId = common.submoduleHeap[last].id;
             common.submoduleUID = common.submoduleHeap[last].uid;
-            iceStudio.bus.events.publish('Navigation::ReadOnly');
-          } else {
-            iceStudio.bus.events.publish('Navigation::ReadWrite');
           }
+          syncSubmoduleDepth();
           loadSelectedGraph();
         }
       };
@@ -107,148 +159,6 @@ angular
         return 0; // Si no es sortable por ninguna de las condiciones, retornamos un valor neutral
       }
 
-      $scope.editModeToggle = function ($event) {
-        var btn = $event.currentTarget;
-        if (!$scope.isNavigating) {
-          utils.beginBlockingTask();
-          var block = graph.breadcrumbs[graph.breadcrumbs.length - 1];
-          var tmp = false;
-          var rw = true;
-          var lockImg = false;
-          var lockImgSrc = false;
-          if (common.isEditingSubmodule) {
-            lockImg = $('img', btn);
-            lockImgSrc = lockImg.attr('data-lock');
-            lockImg[0].src = lockImgSrc;
-            common.isEditingSubmodule = false;
-            subModuleActive = false;
-            var cells = $scope.graph.getCells();
-
-            cells.sort((a, b) => {
-              const isSortableAxy = isSortable(a, 'xy');
-              const isSortableBy = isSortable(b, 'y');
-              const isSortableA = isSortableAxy || isSortable(a, 'y');
-              const isSortableB = isSortable(b, 'xy') || isSortableBy;
-
-              if (!isSortableA && !isSortableB) {
-                return 0; // Ninguno es sortable
-              }
-
-              if (isSortableA !== isSortableB) {
-                // Si uno es sortable y el otro no, el sortable va primero
-                // Aquí puedes decidir el orden de precedencia entre xy y y
-                return isSortableA ? -1 : 1;
-              }
-
-              // Ambos son sortables, ahora comparamos basados en sus tipos y coordenadas
-              if (isSortableAxy && isSortableBy) {
-                // Si uno es de xy y el otro de y, priorizamos xy
-                return -1;
-              } else if (isSortableBy && isSortableAxy) {
-                return 1;
-              } else if (isSortableAxy) {
-                return getSortValue(a, 'xy') - getSortValue(b, 'xy');
-              } else {
-                return getSortValue(a, 'y') - getSortValue(b, 'y');
-              }
-            });
-
-            /*
-         function isSortableConstMem(cell) {
-  const type = cell.get('type');
-  return type === 'ice.Constant' || type === 'ice.Memory';
-}
-
-cells.sort((a, b) => {
-  const isSortableA = isSortableConstMem(a);
-  const isSortableB = isSortableConstMem(b);
-
-  if (isSortableA !== isSortableB) {
-    return isSortableA ? -1 : 1;
-  } else if (isSortableA) {
-    return a.get('position').x - b.get('position').x;
-  }
-  return 0;
-});
-
-function isSortable(cell) {
-  const type = cell.get('type');
-  return type === 'ice.Input' || type === 'ice.Output';
-}
-
-cells.sort((a, b) => {
-  const isSortableA = isSortable(a);
-  const isSortableB = isSortable(b);
-
-  if (isSortableA !== isSortableB) {
-    return isSortableA ? -1 : 1;
-  } else if (isSortableA) {
-    return a.get('position').y - b.get('position').y;
-  }
-  return 0;
-});
-        */
-
-            // Sort Constant/Memory cells by x-coordinate
-            /* OPT1-- cells = _.sortBy(cells, function (cell) {
-              if (
-                cell.get('type') === 'ice.Constant' ||
-                cell.get('type') === 'ice.Memory'
-              ) {
-                return cell.get('position').x;
-              }
-            });*/
-
-            // Sort I/O cells by y-coordinate
-            /*   OPT1-- cells = _.sortBy(cells, function (cell) {
-              if (
-              cell.get('type') === 'ice.Input' ||
-              cell.get('type') === 'ice.Output'
-              ) {
-                return cell.get('position').y;
-              }
-            });*/
-
-            $scope.graph.setCells(cells);
-
-            var graphData = $scope.graph.toJSON();
-            var p = utils.cellsToProject(graphData.cells);
-            tmp = utils.clone(common.allDependencies[block.type]);
-            tmp.design.graph = p.design.graph;
-            var hId = block.type;
-            common.allDependencies[hId] = tmp;
-
-            /* ---------------------------------------- */
-            /* Avoid automatically back on toggle edit  */
-            //$scope.toRestore = hId;
-            //common.forceBack = true;
-            /* ---------------------------------------- */
-
-            common.forceBack = false;
-          } else {
-            lockImg = $('img', btn);
-            lockImgSrc = lockImg.attr('data-unlock');
-            lockImg[0].src = lockImgSrc;
-            tmp = common.allDependencies[block.type];
-            $scope.toRestore = false;
-            rw = false;
-            common.isEditingSubmodule = true;
-            subModuleActive = true;
-          }
-          setTimeout(() => {
-            $rootScope.$broadcast('navigateProject', {
-              update: false,
-              project: tmp,
-              editMode: rw,
-              fromDoubleClick: false,
-            });
-            utils.rootScopeSafeApply();
-
-            utils.endBlockingTask();
-          }, 0);
-        }
-      };
-
       function loadSelectedGraph() {
         utils.beginBlockingTask();
         setTimeout(function () {
@@ -258,12 +168,11 @@ cells.sort((a, b) => {
 
       function _decoupledLoadSelectedGraph() {
         var n = graph.breadcrumbs.length;
-        var opt = { disabled: true };
+        var opt = { disabled: false };
         var design = false;
         var i = 0;
         if (n === 1) {
           design = project.get('design');
-          opt.disabled = false;
           if (
             $scope.toRestore !== false &&
             common.submoduleId !== false &&
@@ -319,9 +228,9 @@ cells.sort((a, b) => {
             poppedToSub = graph.popPaper();
           }
           if (poppedToSub) {
-            // popPaper() called appEnable(true); re-apply read-only so the
-            // back button and write-protection banner stay visible.
-            graph.appEnable(false);
+            // popPaper() called appEnable(true), which recomputes the footer
+            // banners from the depth flag — refresh them for the new depth.
+            graph.updateSubmoduleBanners();
             graph.fitContent();
             $scope.isNavigating = false;
             utils.endBlockingTask();
@@ -337,7 +246,8 @@ cells.sort((a, b) => {
       }
 
       $rootScope.$on('navigateProject', function (event, args) {
-        var opt = { disabled: true };
+        //-- Submodules are always editable — never load their cells disabled.
+        var opt = { disabled: false };
         if (typeof common.submoduleHeap === 'undefined') {
           common.submoduleHeap = [];
         }
@@ -354,10 +264,6 @@ cells.sort((a, b) => {
 
         if (heap.id !== false || heap.uid !== false) {
           common.submoduleHeap.push(heap);
-        }
-
-        if (typeof args.editMode !== 'undefined') {
-          opt.disabled = args.editMode;
         }
 
         // When leaving the top level to enter a submodule, hide the current
@@ -391,39 +297,21 @@ cells.sort((a, b) => {
           $scope.breadcrumbsBack();
         }
 
-        if (common.isEditingSubmodule || common.submoduleHeap.length === 0) {
-          iceStudio.bus.events.publish('Navigation::ReadWrite');
-        } else {
-          iceStudio.bus.events.publish('Navigation::ReadOnly');
-        }
-
-        // Keep the lock icon in sync with the actual write-protection state.
-        // editModeToggle only updates it on manual clicks; programmatic
-        // navigation (new submodule, double-click enter) never did.
-        var _lockImg = document.querySelector('.footer-edit-button img');
-        if (_lockImg) {
-          _lockImg.src = _lockImg.getAttribute(
-            common.isEditingSubmodule ? 'data-unlock' : 'data-lock'
-          );
-        }
-
         let flowInfo = {
           fromDoubleClick: args.fromDoubleClick ?? false,
           fromNewSubmodule: args.fromNewSubmodule ?? false,
           submodule: args.submodule,
         };
         $rootScope.$broadcast('navigateProjectEnded', flowInfo);
+
+        //-- Must run after navigateProjectEnded: that is where the breadcrumb
+        //-- for the submodule we just entered gets pushed.
+        syncSubmoduleDepth();
       });
 
       $rootScope.$on('breadcrumbsBack', function (/*event*/) {
         $scope.breadcrumbsBack();
         utils.rootScopeSafeApply();
-      });
-
-      $rootScope.$on('editModeToggle', function (event) {
-        $scope.editModeToggle(event);
-        utils.rootScopeSafeApply();
-        //utils.endBlockingTask();
       });
 
       //----------------------------------------------------------------

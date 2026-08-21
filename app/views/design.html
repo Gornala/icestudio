@@ -778,6 +778,63 @@
   <div class="paper"></div>
 
   <!------------------------------------------------------------------------>
+  <!-- Tree Panel: the textual projection of the design                   -->
+  <!--  Left: hierarchy + test/formal coverage. Right: the code editor.   -->
+  <!------------------------------------------------------------------------>
+  <div id="tree-panel">
+    <div id="tree-panel-header">
+      <span id="tree-panel-title" translate>Design Tree</span>
+      <span id="tree-progress"></span>
+      <div id="tree-legend">
+        <span class="tree-badge tree-badge--ok">T</span> testbench
+        <span class="tree-badge tree-badge--ok">S</span> simulated
+        <span class="tree-badge tree-badge--ok">F</span> analysed
+        <span class="tree-badge tree-badge--ok">I</span> integrated
+        <span class="tree-legend-sep"></span>
+        <span class="tree-badge tree-badge--none">&nbsp;</span> never run
+        <span class="tree-badge tree-badge--stale">&nbsp;</span> not current
+        <span class="tree-badge tree-badge--bad">&nbsp;</span> problems
+      </div>
+      <div id="tree-panel-actions">
+        <button id="tree-btn-add-tb" class="tree-action" translate>
+          + Testbench
+        </button>
+        <button id="tree-btn-analyse" class="tree-action" translate>
+          Analyse all
+        </button>
+        <button id="tree-btn-refresh" class="tree-action" title="Refresh">
+          &#8635;
+        </button>
+        <button id="tree-btn-close" class="tree-action" title="Close">
+          &times;
+        </button>
+      </div>
+    </div>
+
+    <div id="tree-banner"></div>
+
+    <div id="tree-panel-body">
+      <div id="tree-pane">
+        <div id="tree-rows"></div>
+      </div>
+      <div id="tree-split"></div>
+      <div id="tree-editor-pane">
+        <div id="tree-editor-tabs">
+          <button class="tree-tab tree-tab--active" data-mode="full">
+            Code
+          </button>
+          <button class="tree-tab" data-mode="testbench">Testbench</button>
+          <button class="tree-tab" data-mode="formal">Formal</button>
+        </div>
+        <div id="tree-editor-host">
+          <div id="tree-editor-empty">Select a code module on the left.</div>
+          <iframe id="tree-editor-frame" style="display: none"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!------------------------------------------------------------------------>
   <!-- Git Timeline Panel                                                 -->
   <!------------------------------------------------------------------------>
   <div id="tl-panel">
@@ -833,14 +890,9 @@
       </a>
     </div>
 
-    <!-- Submodule: lock/edit button (toggled by appEnable via banner-submodule class) -->
+    <!-- Submodule: propagation warning (toggled by appEnable via banner-submodule class) -->
     <div class="banner-submodule hidden footer-submodule-controls">
-      <a class="footer-edit-button" ng-click="editModeToggle($event)">
-        <img
-          src="resources/images/lock.png"
-          data-lock="resources/images/lock.png"
-          data-unlock="resources/images/unlock.png"
-        />
+      <span class="footer-propagation-warning">
         <!-- prettier-ignore -->
         <span class="tooltiptext" translate>
           <b>WARNING!</b><br>
@@ -850,18 +902,7 @@
           to propagate, create a cloned block instead using<br>
           <b>Edit → Clone</b>.
         </span>
-      </a>
-    </div>
-
-    <!-- Submodule: read-only warning (toggled by appEnable via banner class) -->
-    <div class="banner hidden footer-submodule-controls">
-      <div class="footer-read-only">
-        <img src="resources/images/lock.png" class="footer-lock-icon" />
-        <!-- prettier-ignore -->
-        <span translate>
-          <b>Read only</b> — Unlock to edit!
-        </span>
-      </div>
+      </span>
     </div>
 
     <div class="breadcrumbs-container">
@@ -1030,6 +1071,17 @@
           data-item="fitContent"
         >
           <i class="fas fa-compress-arrows-alt shortcut-toolbox--fa"></i>
+        </a>
+
+        <!-- Design tree panel button -->
+        <a
+          href=""
+          class="shortcut-toolbox--item"
+          onclick="if(window.iceTreePanel){window.iceTreePanel.toggle();return false;}"
+          uib-tooltip="{{ 'Design tree & test coverage' | translate }}"
+          tooltip-append-to-body="true"
+        >
+          <i class="fas fa-sitemap shortcut-toolbox--fa"></i>
         </a>
 
         <!-- Git timeline button -->

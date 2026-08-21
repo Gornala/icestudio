@@ -125,22 +125,14 @@ window._icemenu.file = {
     };
 
     $scope.saveProject = function (afterSaveProjectAction) {
-      if (
-        (typeof common.isEditingSubmodule !== 'undefined' &&
-          common.isEditingSubmodule === true) ||
-        graph.breadcrumbs.length > 1
-      ) {
-        alertify.alert(
-          gettextCatalog.getString('Save submodule'),
-          gettextCatalog.getString(
-            'To save your design you need to lock the padlock and \
-              go to the top-level design.<br><br>If you want to export \
-              this submodule to a file, use the \"Save as\" command.'
-          ),
-          function () {}
-        );
-
-        return;
+      //-- Saving from inside a submodule saves the whole project: flush the
+      //-- open submodule into common.allDependencies first, then recollect
+      //-- the dependency set from the retained top-level graph.
+      if (graph.breadcrumbs.length > 1) {
+        if (typeof common.commitSubmoduleEdits === 'function') {
+          common.commitSubmoduleEdits();
+        }
+        project.refreshDependencies();
       }
 
       var filepath = project.path;
@@ -193,58 +185,67 @@ window._icemenu.file = {
       }, 2000);
     });
 
-    $scope.doSaveProjectAs = function (localCallback) {
+    //-- asSubmoduleExport: write only the submodule currently on the paper.
+    $scope.doSaveProjectAs = function (localCallback, asSubmoduleExport) {
       utils.saveDialog('#input-save-project', '.ice', function (filepath) {
         updateWorkingdir(filepath);
 
         iceStudio.bus.events.publish('graph:loadJsonInputs');
         iceStudio.bus.events.publish('graph:writeJsonOutputs');
-        project.save(filepath, function () {
-          reloadCollectionsIfRequired(filepath);
-          resetChangedStack();
-          addRecentProject(filepath);
-          if (localCallback) {
-            localCallback();
-          }
-        });
+        project.save(
+          filepath,
+          function () {
+            reloadCollectionsIfRequired(filepath);
+            resetChangedStack();
+            addRecentProject(filepath);
+            if (localCallback) {
+              localCallback();
+            }
+          },
+          asSubmoduleExport
+        );
       });
     };
 
     $scope.saveProjectAs = function (localCallback) {
-      if (
-        (typeof common.isEditingSubmodule === 'undefined' ||
-          (typeof common.isEditingSubmodule !== 'undefined' &&
-            common.isEditingSubmodule === false)) &&
-        graph.breadcrumbs.length > 1
-      ) {
-        alertify.alert(
-          gettextCatalog.getString('Export submodule'),
-          gettextCatalog.getString(
-            'You are navigating into the design: If you want to save the entire design, you need to go back \
-                     to the top-level. If you want to export this module as new file, unlock the module and use \"Save as\".'
-          ),
-          function () {}
-        );
-      } else {
-        if (
-          typeof common.isEditingSubmodule !== 'undefined' &&
-          common.isEditingSubmodule === true
-        ) {
-          alertify.confirm(
-            gettextCatalog.getString('Export submodule'),
-            gettextCatalog.getString(
-              'You are editing a submodule, so you will save just this submodule (\"Save as\" works like \"Export \
-                module\"). Do you want to continue?'
-            ),
-            function () {
-              $scope.doSaveProjectAs(localCallback);
-            },
-            function () {}
-          );
-        } else {
-          $scope.doSaveProjectAs(localCallback);
-        }
+      //-- At the top level there is nothing to disambiguate.
+      if (graph.breadcrumbs.length < 2) {
+        $scope.doSaveProjectAs(localCallback, false);
+        return;
       }
+
+      //-- Inside a submodule "Save as" is ambiguous, so ask outright rather
+      //-- than inferring it from a lock state that no longer exists.
+      var current = graph.breadcrumbs[graph.breadcrumbs.length - 1];
+      alertify.set('confirm', 'labels', {
+        ok: gettextCatalog.getString('Export submodule'),
+        cancel: gettextCatalog.getString('Save whole design'),
+      });
+      alertify.confirm(
+        gettextCatalog.getString('Save as'),
+        gettextCatalog.getString(
+          'You are inside the submodule {{name}}. Export just this submodule to a new file, or save the whole design?',
+          { name: utils.bold(current.name || '') }
+        ),
+        function () {
+          alertify.set('confirm', 'labels', {
+            ok: gettextCatalog.getString('OK'),
+            cancel: gettextCatalog.getString('Cancel'),
+          });
+          $scope.doSaveProjectAs(localCallback, true);
+        },
+        function () {
+          alertify.set('confirm', 'labels', {
+            ok: gettextCatalog.getString('OK'),
+            cancel: gettextCatalog.getString('Cancel'),
+          });
+          if (typeof common.commitSubmoduleEdits === 'function') {
+            common.commitSubmoduleEdits();
+          }
+          project.refreshDependencies();
+          $scope.doSaveProjectAs(localCallback, false);
+        }
+      );
     };
 
     function reloadCollectionsIfRequired(filepath) {

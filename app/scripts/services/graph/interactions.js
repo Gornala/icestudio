@@ -375,17 +375,8 @@ window._icegraph.interactions = function (ctx) {
             );
           }
         } else if (ctx.common.allDependencies[pointerdblclickCellType]) {
-          if (
-            typeof ctx.common.isEditingSubmodule !== 'undefined' &&
-            ctx.common.isEditingSubmodule === true
-          ) {
-            alertify.warning(
-              ctx.gettextCatalog.getString(
-                'To enter "edit mode" in a deeper block, you need to finish the current level by locking the padlock.'
-              )
-            );
-            return;
-          }
+          //-- Descending another level is always allowed; the level we are
+          //-- leaving is flushed to common.allDependencies on the way out.
           ctx.z.index = 1;
           isDblClick = true;
 
@@ -515,7 +506,6 @@ window._icegraph.interactions = function (ctx) {
 
       //-- Advanced code-editor buttons
       document.addEventListener('click', function (event) {
-        var nodePath = require('path');
         var target = event.target;
         while (target && target !== document) {
           var mode = null;
@@ -683,57 +673,11 @@ window._icegraph.interactions = function (ctx) {
             if (!cell) {
               break;
             }
-            var data = cell.attributes.data || {};
-            var rawName = (data.label || data.name || blockId).replace(
-              /[^a-zA-Z0-9_]/g,
-              '_'
+            var configObj = nw.Window.get().window.icestudioCodeEditorConfig(
+              blockId,
+              mode,
+              cell.attributes.data
             );
-            var moduleName = rawName || 'ice_code_module';
-
-            if (
-              ctx.service.breadcrumbs.length > 1 &&
-              ctx.common.isEditingSubmodule !== true
-            ) {
-              alertify.warning(
-                'Cannot open code editor inside a write-protected submodule. Unlock it for editing first.'
-              );
-              break;
-            }
-
-            var configObj = {
-              mode: mode,
-              blockId: blockId,
-              code: data.code || '',
-              ports: data.ports || { in: [], out: [] },
-              params: data.params || [],
-              testbench: data.testbench || '',
-              moduleName: moduleName,
-              theme: ctx.profile.data.uiTheme || 'light',
-              customTheme: ctx.profile.data.customTheme || null,
-              buildDir: ctx.common.BUILD_DIR,
-              blockDir: nodePath.join(ctx.common.BUILD_DIR, 'blocks', blockId),
-              toolchainBinDir: nodePath.join(
-                ctx.common.APIO_HOME_DIR,
-                'packages',
-                'tools-oss-cad-suite',
-                'bin'
-              ),
-              isWin32: process.platform === 'win32',
-              formalVerifyPyPath: nodePath.resolve(
-                nodePath.join('..', 'formal_verify', 'formal_verify.py')
-              ),
-              pythonCmd: ctx.common.PYTHON_ENV || 'python',
-              sourcePath: data.sourcePath || '',
-              boardInfo: ctx.common.selectedBoard
-                ? {
-                    name: ctx.common.selectedBoard.name || '',
-                    info: ctx.common.selectedBoard.info || {},
-                  }
-                : null,
-              boardPinout: ctx.common.selectedBoard
-                ? ctx.common.selectedBoard.pinout || []
-                : [],
-            };
 
             var configParam = encodeURIComponent(JSON.stringify(configObj));
             var editorURL =
@@ -762,12 +706,41 @@ window._icegraph.interactions = function (ctx) {
     } // end if (!window._icegraph._docListenersReady)
 
     //-- Expose code-save receiver to popup windows
+    //-- Blocks reached from the tree panel can live inside a dependency, in
+    //-- which case there is no cell on the paper to write to. Fall back to
+    //-- patching common.allDependencies directly.
+    var findDepBlock = function (blockId) {
+      var deps = ctx.common.allDependencies || {};
+      for (var type in deps) {
+        if (!Object.prototype.hasOwnProperty.call(deps, type)) {
+          continue;
+        }
+        var dep = deps[type];
+        var blocks =
+          (dep && dep.design && dep.design.graph && dep.design.graph.blocks) ||
+          [];
+        for (var i = 0; i < blocks.length; i++) {
+          if (blocks[i].id === blockId) {
+            return blocks[i];
+          }
+        }
+      }
+      return null;
+    };
+
     nw.Window.get().window.icestudioReceiveCodeSave = function (
       blockId,
       newCode
     ) {
       var cell = ctx.paper.getModelById(blockId);
       if (!cell) {
+        var depBlock = findDepBlock(blockId);
+        if (depBlock) {
+          depBlock.data = depBlock.data || {};
+          depBlock.data.code = newCode;
+          ctx.utils.rootScopeSafeApply();
+          iceStudio.bus.events.publish('git:designChanged', 'Edit code');
+        }
         return;
       }
       cell.attributes.data.code = newCode;
@@ -785,9 +758,65 @@ window._icegraph.interactions = function (ctx) {
     nw.Window.get().window.icestudioGetCode = function (blockId) {
       var cell = ctx.paper.getModelById(blockId);
       if (!cell) {
-        return '';
+        var depBlock = findDepBlock(blockId);
+        return (depBlock && depBlock.data && depBlock.data.code) || '';
       }
       return (cell.attributes.data && cell.attributes.data.code) || '';
+    };
+
+    //-- Config blob for a code-editor window/iframe, for a block that may or
+    //-- may not be on the current paper. Shared by the canvas buttons and the
+    //-- tree panel.
+    nw.Window.get().window.icestudioCodeEditorConfig = function (
+      blockId,
+      mode,
+      blockData
+    ) {
+      var nodePath = require('path');
+      var data = blockData;
+      if (!data) {
+        var cell = ctx.paper.getModelById(blockId);
+        data = cell ? cell.attributes.data : (findDepBlock(blockId) || {}).data;
+      }
+      data = data || {};
+      var rawName = String(data.label || data.name || blockId).replace(
+        /[^a-zA-Z0-9_]/g,
+        '_'
+      );
+      return {
+        mode: mode || 'full',
+        blockId: blockId,
+        code: data.code || '',
+        ports: data.ports || { in: [], out: [] },
+        params: data.params || [],
+        testbench: data.testbench || '',
+        moduleName: rawName || 'ice_code_module',
+        theme: ctx.profile.data.uiTheme || 'light',
+        customTheme: ctx.profile.data.customTheme || null,
+        buildDir: ctx.common.BUILD_DIR,
+        blockDir: nodePath.join(ctx.common.BUILD_DIR, 'blocks', blockId),
+        toolchainBinDir: nodePath.join(
+          ctx.common.APIO_HOME_DIR,
+          'packages',
+          'tools-oss-cad-suite',
+          'bin'
+        ),
+        isWin32: process.platform === 'win32',
+        formalVerifyPyPath: nodePath.resolve(
+          nodePath.join('..', 'formal_verify', 'formal_verify.py')
+        ),
+        pythonCmd: ctx.common.PYTHON_ENV || 'python',
+        sourcePath: data.sourcePath || '',
+        boardInfo: ctx.common.selectedBoard
+          ? {
+              name: ctx.common.selectedBoard.name || '',
+              info: ctx.common.selectedBoard.info || {},
+            }
+          : null,
+        boardPinout: ctx.common.selectedBoard
+          ? ctx.common.selectedBoard.pinout || []
+          : [],
+      };
     };
 
     nw.Window.get().window.icestudioRequestVerify = function (

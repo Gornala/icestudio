@@ -117,11 +117,6 @@
   background: #f6f8fa;
 }
 
-.footer-read-only {
-  color: #444;
-  background: #fb959e;
-}
-
 .footer-back-button {
   color: #007aff;
 }
@@ -130,7 +125,7 @@
   color: #005ecb;
 }
 
-.footer-edit-button .tooltiptext {
+.footer-propagation-warning .tooltiptext {
   background-color: #333;
 }
 

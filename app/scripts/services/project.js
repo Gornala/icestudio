@@ -427,10 +427,33 @@ angular
         return project;
       }
 
-      this.save = function (filepath, callback) {
+      //-- Rebuild project.dependencies from the retained top-level graph and
+      //-- the (possibly just-edited) common.allDependencies. Needed when the
+      //-- user saves the whole project while navigated inside a submodule:
+      //-- update() deliberately leaves design.graph alone in that case, so the
+      //-- dependency set has to be recollected separately.
+      this.refreshDependencies = function () {
+        var deps = {};
+        var types = utils.findSubDependencies(project);
+        for (var t in types) {
+          deps[types[t]] = common.allDependencies[types[t]];
+        }
+        project.dependencies = deps;
+      };
+
+      //-- true only while "Save as" is exporting the open submodule as its own
+      //-- file. Distinct from subModuleActive, which merely says the paper is
+      //-- currently showing a submodule.
+      this.exportingSubmodule = false;
+
+      //-- asSubmoduleExport: write the open submodule as a standalone file
+      //-- instead of saving the whole project.
+      this.save = function (filepath, callback, asSubmoduleExport) {
         var backupProject = false;
         var name = utils.basename(filepath);
         let self = this;
+        var exportingSubmodule = !!asSubmoduleExport && subModuleActive;
+        this.exportingSubmodule = exportingSubmodule;
         const doSaveProject = () => {
           utils
             .saveFile(filepath, pruneProject(project))
@@ -455,7 +478,7 @@ angular
             });
         }; //doSaveProject
 
-        if (subModuleActive) {
+        if (exportingSubmodule) {
           backupProject = utils.clone(project);
         } else {
           this.updateTitle(name);
@@ -499,7 +522,7 @@ angular
           // 4. Save project
           doSaveProject();
         }
-        if (subModuleActive) {
+        if (exportingSubmodule) {
           project = utils.clone(backupProject);
           //        sortGraph();
           //        this.update();
@@ -507,6 +530,7 @@ angular
           this.path = filepath;
           this.filepath = filepath;
         }
+        this.exportingSubmodule = false;
       };
 
       this.autoSave = function (label) {
@@ -762,19 +786,21 @@ angular
         let p = utils.cellsToProject(graphData.cells, opt);
 
         if (!subModuleActive) {
-          // Only update the top-level design when we are not inside a submodule
-          // edit session. When subModuleActive is true the graph currently
-          // displayed is the submodule, not the top-level design — overwriting
-          // project.design.graph or common.allDependencies here would corrupt
-          // the parent design. editModeToggle already saves submodule changes
-          // to common.allDependencies when the user exits edit mode.
+          // Only update the top-level design when the paper is showing it.
+          // When subModuleActive is true the displayed graph is a submodule,
+          // not the top-level design — overwriting project.design.graph or
+          // common.allDependencies here would corrupt the parent design.
+          // Submodule edits reach common.allDependencies via
+          // common.commitSubmoduleEdits() on navigation instead.
           project.design.board = p.design.board;
           project.design.graph = p.design.graph;
           project.dependencies = p.dependencies;
         }
 
+        //-- Only when "Save as" is exporting the submodule itself does the
+        //-- saved package metadata become the submodule's.
         if (
-          subModuleActive &&
+          this.exportingSubmodule &&
           typeof common.submoduleId !== 'undefined' &&
           typeof common.allDependencies[common.submoduleId] !== 'undefined'
         ) {

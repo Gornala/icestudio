@@ -21,6 +21,12 @@ var formalVerifyPyPath = config.formalVerifyPyPath || '';
 var pythonCmd = config.pythonCmd || 'python';
 var sourcePath = config.sourcePath || '';
 
+// Embedded mode: this page is running in an <iframe> inside the main window
+// (the tree panel), not in its own NW window. nw.Window.get() would then
+// return the HOST window, so every geometry call has to be skipped — moving
+// or resizing here would move the whole application.
+var embedded = !!config.embedded;
+
 // Board context for Claude panel (passed in config from graph.js)
 var boardInfo = config.boardInfo || null;
 var boardPinout = config.boardPinout || [];
@@ -676,6 +682,19 @@ function assembleVerilog() {
   return lines.join('\n');
 }
 
+// Embedded in the tree panel: tell it to re-read this block's artifacts, so a
+// simulation or analysis run from here updates the coverage badges at once.
+function notifyTreePanel() {
+  if (!embedded) {
+    return;
+  }
+  try {
+    if (window.parent && window.parent.iceTreePanel) {
+      window.parent.iceTreePanel.refresh();
+    }
+  } catch (e) {}
+}
+
 // ============================================================
 // Error / status bar
 // ============================================================
@@ -719,9 +738,12 @@ function clearStatus() {
 // ============================================================
 function verifyCode() {
   var newCode = codeEditor ? codeEditor.getValue() : '';
-  var myNWWin = nw.Window.get(); // This popup's NW.js window (for callback)
+  // The main window only ever touches callerWin.window.icestudioVerifyResult,
+  // so embedded in an iframe a plain shim around our own global is enough —
+  // and it avoids clobbering that name on the host window.
+  var myNWWin = embedded ? { window: window } : nw.Window.get();
 
-  // Expose result receiver on this popup's JS window so main window can call it
+  // Expose result receiver on this page's JS window so main window can call it
   myNWWin.window.icestudioVerifyResult = function (ok, outputText) {
     // Always clear stale annotations first
     if (codeEditor) {
@@ -871,6 +893,7 @@ function runFormalVerify() {
     outputEl.innerHTML = renderMarkdown(mdContent);
     // Persist to per-block directory
     saveBlockFile('formal.md', mdContent);
+    notifyTreePanel();
     // Render any mermaid diagrams in the output
     if (typeof mermaid !== 'undefined' && outputEl.querySelector('.mermaid')) {
       try {
@@ -1197,6 +1220,7 @@ function runSimulation() {
       simOutput += footer;
       saveBlockFile('sim_output.txt', simOutput);
       writeBlockStatus('T', simCode === 0 ? true : false);
+      notifyTreePanel();
       // Find any .vcd produced in simDir (handles any $dumpfile name in the testbench)
       try {
         var vcdFiles = fs.readdirSync(simDir).filter(function (f) {
@@ -1451,18 +1475,28 @@ window.onload = function () {
   // Initialize panel resize handles
   _initResizeHandles();
 
-  // Restore last position/size, then track changes
-  var win = nw.Window.get();
-  _restoreGeometry(win);
-  win.on('move', function () {
-    _scheduleGeoSave(win);
-  });
-  win.on('resize', function () {
-    _scheduleGeoSave(win);
-    if (waveformViewer) {
-      waveformViewer.resize();
-    }
-  });
+  // Restore last position/size, then track changes.
+  // Embedded in the tree panel there is no window of our own to place; we only
+  // need to keep the waveform canvas in step with the iframe's size.
+  var win = embedded ? null : nw.Window.get();
+  if (embedded) {
+    window.addEventListener('resize', function () {
+      if (waveformViewer) {
+        waveformViewer.resize();
+      }
+    });
+  } else {
+    _restoreGeometry(win);
+    win.on('move', function () {
+      _scheduleGeoSave(win);
+    });
+    win.on('resize', function () {
+      _scheduleGeoSave(win);
+      if (waveformViewer) {
+        waveformViewer.resize();
+      }
+    });
+  }
 
   // Check whether the editor has unsent changes (code differs from last sent)
   var _hasUnsentChanges = function () {
@@ -1475,17 +1509,19 @@ window.onload = function () {
     return codeEditor.getValue() !== _lastSentCode;
   };
 
-  // Perform the actual close: persist files, optionally push to main, shut down
-  var _performClose = function (self, sendToMain) {
-    var done = false;
-    var doClose = function () {
-      if (!done) {
-        done = true;
-        self.close(true);
+  // Persist this block's files and optionally push the code back to the main
+  // window. Shared by the popup close path and by the tree panel, which flushes
+  // the iframe before pointing it at a different block.
+  var _flush = function (sendToMain, done) {
+    var fired = false;
+    var finish = function () {
+      if (!fired) {
+        fired = true;
+        if (done) {
+          done();
+        }
       }
     };
-
-    _saveGeometry(win);
 
     if (codeEditor) {
       saveBlockFile('module.v', assembleVerilog());
@@ -1496,70 +1532,92 @@ window.onload = function () {
     saveWaveformState();
 
     if (config.projectTestbench || !sendToMain) {
-      doClose();
-    } else {
-      setTimeout(doClose, 1000);
-      findMainWindow(function (mainWin) {
-        if (mainWin && codeEditor) {
-          mainWin.icestudioReceiveCodeSave(blockId, codeEditor.getValue());
-        }
-        doClose();
-      });
-    }
-  };
-
-  // Guard: prevent the close handler from stacking while dialog is open
-  var _closeDialogOpen = false;
-
-  // Close handler: warn if there are unsent changes
-  win.on('close', function () {
-    var self = this;
-
-    if (!_hasUnsentChanges()) {
-      _performClose(self, true);
+      finish();
       return;
     }
+    setTimeout(finish, 1000);
+    findMainWindow(function (mainWin) {
+      if (mainWin && codeEditor) {
+        mainWin.icestudioReceiveCodeSave(blockId, codeEditor.getValue());
+      }
+      finish();
+    });
+  };
 
-    if (_closeDialogOpen) {
-      return; // dialog already visible, ignore repeated close events
+  // Perform the actual close: persist files, optionally push to main, shut down
+  var _performClose = function (self, sendToMain) {
+    if (win) {
+      _saveGeometry(win);
     }
-    _closeDialogOpen = true;
+    _flush(sendToMain, function () {
+      self.close(true);
+    });
+  };
 
-    var dialog = document.getElementById('unsent-dialog');
-    dialog.style.display = '';
-
-    var btnCancel = document.getElementById('unsent-cancel');
-    var btnDiscard = document.getElementById('unsent-discard');
-    var btnSend = document.getElementById('unsent-send');
-
-    var cleanup = function () {
-      dialog.style.display = 'none';
-      _closeDialogOpen = false;
-      btnCancel.onclick = null;
-      btnDiscard.onclick = null;
-      btnSend.onclick = null;
+  // Embedded in the tree panel there is no window close event: the panel
+  // flushes us through this hook before it navigates the iframe elsewhere.
+  if (embedded) {
+    window.iceCodeEditorFlush = function (cb) {
+      _flush(true, cb || function () {});
     };
+    window.iceCodeEditorHasUnsentChanges = _hasUnsentChanges;
+  } else {
+    // Guard: prevent the close handler from stacking while dialog is open
+    var _closeDialogOpen = false;
 
-    btnCancel.onclick = function () {
-      cleanup();
-      // stay in editor
-    };
-    btnDiscard.onclick = function () {
-      cleanup();
-      _performClose(self, false);
-    };
-    btnSend.onclick = function () {
-      cleanup();
-      _performClose(self, true);
-    };
-  });
+    // Close handler: warn if there are unsent changes
+    win.on('close', function () {
+      var self = this;
 
-  // Close this popup when the main window closes
-  findMainNWWindow(function (mainNWWin) {
-    if (mainNWWin) {
-      mainNWWin.on('close', function () {
-        win.close(true);
-      });
-    }
-  });
+      if (!_hasUnsentChanges()) {
+        _performClose(self, true);
+        return;
+      }
+
+      if (_closeDialogOpen) {
+        return; // dialog already visible, ignore repeated close events
+      }
+      _closeDialogOpen = true;
+
+      var dialog = document.getElementById('unsent-dialog');
+      dialog.style.display = '';
+
+      var btnCancel = document.getElementById('unsent-cancel');
+      var btnDiscard = document.getElementById('unsent-discard');
+      var btnSend = document.getElementById('unsent-send');
+
+      var cleanup = function () {
+        dialog.style.display = 'none';
+        _closeDialogOpen = false;
+        btnCancel.onclick = null;
+        btnDiscard.onclick = null;
+        btnSend.onclick = null;
+      };
+
+      btnCancel.onclick = function () {
+        cleanup();
+        // stay in editor
+      };
+      btnDiscard.onclick = function () {
+        cleanup();
+        _performClose(self, false);
+      };
+      btnSend.onclick = function () {
+        cleanup();
+        _performClose(self, true);
+      };
+    });
+  }
+
+  // Close this popup when the main window closes.
+  // Embedded there is no separate window to close — the iframe goes with it.
+  if (!embedded) {
+    findMainNWWindow(function (mainNWWin) {
+      if (mainNWWin) {
+        mainNWWin.on('close', function () {
+          win.close(true);
+        });
+      }
+    });
+  }
 };

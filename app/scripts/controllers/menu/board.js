@@ -341,16 +341,6 @@ window._icemenu.board = {
     //-----------------------------------------------------------------
 
     $scope.verifyCode = function () {
-      if (graph.breadcrumbs.length > 1 && !common.isEditingSubmodule) {
-        alertify.alert(
-          gettextCatalog.getString('Verify'),
-          gettextCatalog.getString(
-            'This submodule is write-protected. Open it for editing first to verify.'
-          ),
-          function () {}
-        );
-        return;
-      }
       var startMessage = gettextCatalog.getString('Start verification');
       var endMessage = gettextCatalog.getString('Verification done');
       iceStudio.bus.events.publish('graph:loadJsonInputs');
@@ -363,16 +353,6 @@ window._icemenu.board = {
     };
 
     $scope.buildCode = function () {
-      if (graph.breadcrumbs.length > 1 && !common.isEditingSubmodule) {
-        alertify.alert(
-          gettextCatalog.getString('Build'),
-          gettextCatalog.getString(
-            'This submodule is write-protected. Open it for editing first.'
-          ),
-          function () {}
-        );
-        return;
-      }
       if (graph.breadcrumbs.length > 1) {
         alertify.alert(
           gettextCatalog.getString('Build'),
@@ -399,16 +379,6 @@ window._icemenu.board = {
     };
 
     $scope.uploadCode = function () {
-      if (graph.breadcrumbs.length > 1 && !common.isEditingSubmodule) {
-        alertify.alert(
-          gettextCatalog.getString('Upload'),
-          gettextCatalog.getString(
-            'This submodule is write-protected. Open it for editing first.'
-          ),
-          function () {}
-        );
-        return;
-      }
       if (graph.breadcrumbs.length > 1) {
         alertify.alert(
           gettextCatalog.getString('Upload'),
@@ -485,18 +455,106 @@ window._icemenu.board = {
       return { portsIn: portsIn, portsOut: portsOut, params: params };
     };
 
-    $scope.openTestbench = function () {
-      if (graph.breadcrumbs.length > 1 && !common.isEditingSubmodule) {
-        alertify.alert(
-          gettextCatalog.getString('Testbench'),
-          gettextCatalog.getString(
-            'This submodule is write-protected. Open it for editing first.'
-          ),
-          function () {}
-        );
-        return;
-      }
+    //-- Config blob for a level-testbench editor (whole design or one
+    //-- submodule). blockDir is per level so each one keeps its own
+    //-- testbench.v / sim.vcd instead of sharing a single project_tb dir.
+    var buildTestbenchConfig = function (
+      verilogCode,
+      testbenchCode,
+      extracted,
+      blockDir
+    ) {
+      var nodePath = require('path');
+      return {
+        mode: 'testbench',
+        blockId: '__project__',
+        code: verilogCode,
+        ports: { in: extracted.portsIn, out: extracted.portsOut },
+        params: extracted.params,
+        testbench: testbenchCode,
+        moduleName: 'main',
+        theme: profile.data.uiTheme || 'light',
+        customTheme: profile.data.customTheme || null,
+        buildDir: common.BUILD_DIR,
+        blockDir: blockDir,
+        toolchainBinDir: nodePath.join(
+          common.APIO_HOME_DIR,
+          'packages',
+          'tools-oss-cad-suite',
+          'bin'
+        ),
+        gtkwavePath: resolveGtkwavePath(nodePath),
+        isWin32: process.platform === 'win32',
+        pythonCmd: common.PYTHON_ENV || 'python',
+        sourcePath: '',
+        boardInfo: common.selectedBoard
+          ? {
+              name: common.selectedBoard.name || '',
+              info: common.selectedBoard.info || {},
+            }
+          : null,
+        boardPinout: common.selectedBoard
+          ? common.selectedBoard.pinout || []
+          : [],
+        projectTestbench: true,
+      };
+    };
 
+    //-- Compile one dependency on its own, as if it were the top-level design.
+    //-- Used by the tree panel so a submodule can be exercised as a whole
+    //-- without navigating into it first.
+    var compileDependency = function (depType) {
+      var dep = common.allDependencies[depType];
+      if (!dep) {
+        return null;
+      }
+      var designObj = {
+        design: dep.design,
+        package: dep.package,
+        dependencies: common.allDependencies,
+      };
+      var verilogFiles = compiler.generate('verilog', designObj, {});
+      if (!verilogFiles || !verilogFiles.length) {
+        return null;
+      }
+      var tbFiles = compiler.generate('testbench', designObj, {});
+      return {
+        designObj: designObj,
+        verilog: verilogFiles[0].content,
+        testbench: tbFiles && tbFiles.length ? tbFiles[0].content : '',
+      };
+    };
+
+    //-- Just the compiled Verilog for a dependency, so the tree panel can tell
+    //-- whether the artifacts on disk still describe it.
+    nw.Window.get().window.icestudioCompileSubmodule = function (depType) {
+      var built = compileDependency(depType);
+      return built ? built.verilog : '';
+    };
+
+    //-- Testbench-editor config for one submodule. Keyed by dependency type,
+    //-- not by instance: editing a submodule propagates to every place it is
+    //-- used, so its integration testbench belongs to the module too.
+    nw.Window.get().window.icestudioSubmoduleTestbenchConfig = function (
+      depType
+    ) {
+      var nodePath = require('path');
+      var built = compileDependency(depType);
+      if (!built) {
+        return null;
+      }
+      var extracted = extractPortsAndParams(
+        built.designObj.design.graph.blocks
+      );
+      return buildTestbenchConfig(
+        built.verilog,
+        built.testbench,
+        extracted,
+        nodePath.join(common.BUILD_DIR, 'blocks', depType)
+      );
+    };
+
+    $scope.openTestbench = function () {
       var nodePath = require('path');
 
       iceStudio.bus.events.publish('graph:loadJsonInputs');
@@ -550,39 +608,14 @@ window._icemenu.board = {
 
           var extracted = extractPortsAndParams(designObj.design.graph.blocks);
 
-          var configObj = {
-            mode: 'testbench',
-            blockId: '__project__',
-            code: verilogCode,
-            ports: { in: extracted.portsIn, out: extracted.portsOut },
-            params: extracted.params,
-            testbench: testbenchCode,
-            moduleName: 'main',
-            theme: profile.data.uiTheme || 'light',
-            customTheme: profile.data.customTheme || null,
-            buildDir: common.BUILD_DIR,
-            blockDir: nodePath.join(common.BUILD_DIR, 'project_tb'),
-            toolchainBinDir: nodePath.join(
-              common.APIO_HOME_DIR,
-              'packages',
-              'tools-oss-cad-suite',
-              'bin'
-            ),
-            gtkwavePath: resolveGtkwavePath(nodePath),
-            isWin32: process.platform === 'win32',
-            pythonCmd: common.PYTHON_ENV || 'python',
-            sourcePath: '',
-            boardInfo: common.selectedBoard
-              ? {
-                  name: common.selectedBoard.name || '',
-                  info: common.selectedBoard.info || {},
-                }
-              : null,
-            boardPinout: common.selectedBoard
-              ? common.selectedBoard.pinout || []
-              : [],
-            projectTestbench: true,
-          };
+          var configObj = buildTestbenchConfig(
+            verilogCode,
+            testbenchCode,
+            extracted,
+            capturedSubmoduleType
+              ? nodePath.join(common.BUILD_DIR, 'blocks', capturedSubmoduleType)
+              : nodePath.join(common.BUILD_DIR, 'project_tb')
+          );
 
           var configParam = encodeURIComponent(JSON.stringify(configObj));
           var editorURL =
