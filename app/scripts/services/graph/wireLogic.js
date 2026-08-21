@@ -2,44 +2,73 @@
 //-- wireLogic.js: Wire routing, validation, and vertex management
 //-- Loaded as a <script> tag before graph.js; exposes window._icegraph.wireLogic
 //---------------------------------------------------------------------------
+/* global wireRoutePolyline, wireClosestOnPolyline, wireDropRedundantVertices */
 'use strict';
 
 window._icegraph = window._icegraph || {};
 
 window._icegraph.wireLogic = function (ctx) {
   /*--
-   * The wire is divided into segments, we need to find the segment nearest at
-   * the point that the user has clicked.
+   * The polyline the user actually sees for a wire.
+   * Falls back to the straight source-center -> vertices -> target-center
+   * path only when the link has no rendered view yet.
+   --*/
+  function getWirePolyline(linkModel, vertices) {
+    var linkView = ctx.paper ? ctx.paper.findViewByModel(linkModel) : null;
+    var polyline = wireRoutePolyline(linkView);
+
+    if (polyline && polyline.length >= 2) {
+      return polyline;
+    }
+
+    var source = linkModel.get('source');
+    var target = linkModel.get('target');
+
+    return [source.id ? getElementCenter(source.id) : source]
+      .concat(vertices || [])
+      .concat([target.id ? getElementCenter(target.id) : target]);
+  }
+
+  /*--
+   * Where in the vertex list a click belongs.
+   *
+   * Both the click and every existing vertex are projected onto the drawn
+   * polyline and compared by how far along that polyline they sit, so the
+   * new vertex always lands between the two vertices it appears between on
+   * screen. (The previous version measured against element centers, which
+   * picked the wrong segment on any wire that had corners.)
    --*/
   function getInsertIndex(vertices, newPoint, linkModel) {
     if (vertices.length === 0) {
       return 0;
     }
 
-    var minDistance = Infinity;
-    var index = vertices.length; // default: at the end
+    var polyline = getWirePolyline(linkModel, vertices);
+    var clickPosition = wireClosestOnPolyline(polyline, newPoint).position;
+    var index = 0;
 
-    var source = linkModel.get('source');
-    var target = linkModel.get('target');
-
-    var sourcePoint = source.id ? getElementCenter(source.id) : source;
-    var targetPoint = target.id ? getElementCenter(target.id) : target;
-
-    // Wire full path (route)
-    var pathPoints = [sourcePoint].concat(vertices).concat([targetPoint]);
-
-    for (var i = 0; i < pathPoints.length - 1; i++) {
-      var v1 = pathPoints[i];
-      var v2 = pathPoints[i + 1];
-
-      var distance = pointToSegmentDistance(newPoint, v1, v2);
-      if (distance < minDistance) {
-        minDistance = distance;
-        index = i;
+    for (var i = 0; i < vertices.length; i++) {
+      if (
+        wireClosestOnPolyline(polyline, vertices[i]).position < clickPosition
+      ) {
+        index = i + 1;
       }
     }
 
     return index;
+  }
+
+  /*--
+   * Remove vertices that do not change the drawn shape (duplicates and
+   * collinear points), using the wire's own endpoints as outer neighbours.
+   --*/
+  function cleanVertices(linkModel, vertices) {
+    var polyline = getWirePolyline(linkModel, vertices);
+    return wireDropRedundantVertices(
+      vertices,
+      polyline[0],
+      polyline[polyline.length - 1]
+    );
   }
 
   /*-- Point to segment distance --*/
@@ -440,6 +469,8 @@ window._icegraph.wireLogic = function (ctx) {
 
   return {
     getInsertIndex: getInsertIndex,
+    getWirePolyline: getWirePolyline,
+    cleanVertices: cleanVertices,
     pointToSegmentDistance: pointToSegmentDistance,
     getElementCenter: getElementCenter,
     __updateWiresOnObstacles: __updateWiresOnObstacles,

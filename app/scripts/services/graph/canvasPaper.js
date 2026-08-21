@@ -124,6 +124,9 @@ window._icegraph.canvasPaper = function (ctx) {
     ctx.debounceDisableReplacedBlock =
       _interactions.debounceDisableReplacedBlock;
     _interactions.setup();
+
+    //-- Wire mode (click an output port to draw a wire by hand)
+    ctx.wireDrawSetup();
   }
 
   // Save the current paper level and spin up a fresh one for the submodule.

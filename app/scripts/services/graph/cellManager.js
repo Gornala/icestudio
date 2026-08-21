@@ -1411,28 +1411,10 @@ window._icegraph.cellManager = function (ctx) {
   }
 
   function step(offset) {
-    var processedWires = {};
+    //-- Wire corners follow via watchWiresOnCellMove()
     ctx.selection.each(function (cell) {
       cell.translate(offset.x, offset.y);
       ctx.selectionView.updateBox(cell);
-      var connectedWires = ctx.graph.getConnectedLinks(cell);
-      _.each(connectedWires, function (wire) {
-        if (processedWires[wire.id]) {
-          return;
-        }
-        var vertices = wire.get('vertices');
-        if (vertices && vertices.length) {
-          var newVertices = [];
-          _.each(vertices, function (vertex) {
-            newVertices.push({
-              x: vertex.x + offset.x,
-              y: vertex.y + offset.y,
-            });
-          });
-          wire.set('vertices', newVertices);
-        }
-        processedWires[wire.id] = true;
-      });
     });
   }
 

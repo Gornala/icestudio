@@ -134,6 +134,7 @@ angular.module('icestudio').service(
     var _dataManager = _icegraph.dataManager(ctx);
     var _cellManager = _icegraph.cellManager(ctx);
     var _fileIO = _icegraph.fileIO(ctx);
+    var _wireDraw = _icegraph.wireDraw(ctx);
     // interactions + canvasPaper are initialized inside createPaper()
 
     //-- Wire cross-module references into ctx so modules can call each other
@@ -153,7 +154,13 @@ angular.module('icestudio').service(
     ctx.__updateWiresOnObstacles = _wireLogic.__updateWiresOnObstacles;
     ctx.updatePortDefault = _wireLogic.updatePortDefault;
     ctx.getInsertIndex = _wireLogic.getInsertIndex;
+    ctx.getWirePolyline = _wireLogic.getWirePolyline;
+    ctx.cleanVertices = _wireLogic.cleanVertices;
     ctx.wireLogicLpSyncWireGroup = _wireLogic.lpSyncWireGroup;
+
+    ctx.wireDrawSetup = _wireDraw.setup;
+    ctx.wireDrawActive = _wireDraw.isActive;
+    ctx.wireDrawCancel = _wireDraw.cancel;
 
     ctx.graphToCells = _fileIO.graphToCells;
     ctx.graphOrigin = _fileIO.graphOrigin;

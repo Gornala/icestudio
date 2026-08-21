@@ -227,38 +227,15 @@ joint.ui.SelectionView = Backbone.View.extend({
         dx = snappedClientX - this._snappedClientX;
         dy = snappedClientY - this._snappedClientY;
 
-        // This hash of flags makes sure we're not adjusting vertices of one link twice.
-        // This could happen as one link can be an inbound link of one element in the selection
-        // and outbound link of another at the same time.
-        var processedLinks = {};
-
+        // Wire corners are handled by watchWiresOnCellMove(), which reacts to
+        // the position changes below. Doing it here as well would translate
+        // corners twice, and would miss blocks dragged straight on the paper.
         this.model.each(function (element) {
           // Translate the element itself.
           element.translate(dx, dy);
 
           // Translate also the `selection-box` of the element.
           this.updateBox(element);
-
-          // Translate link vertices as well.
-          var connectedLinks = this.options.graph.getConnectedLinks(element);
-
-          _.each(connectedLinks, function (link) {
-            if (processedLinks[link.id]) {
-              return;
-            }
-
-            var vertices = link.get('vertices');
-            if (vertices && vertices.length) {
-              var newVertices = [];
-              _.each(vertices, function (vertex) {
-                newVertices.push({ x: vertex.x + dx, y: vertex.y + dy });
-              });
-
-              link.set('vertices', newVertices);
-            }
-
-            processedLinks[link.id] = true;
-          });
         }, this);
 
         if (dx || dy) {

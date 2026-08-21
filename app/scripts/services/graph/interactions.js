@@ -2,7 +2,7 @@
 //-- interactions.js: Mouse/keyboard events, selection, block replacement
 //-- Loaded as a <script> tag before graph.js; exposes window._icegraph.interactions
 //---------------------------------------------------------------------------
-/* global isClickOnVertex, iceStudio */
+/* global isClickOnVertex, iceStudio, wireSnapPoint, watchWiresOnCellMove */
 'use strict';
 
 window._icegraph = window._icegraph || {};
@@ -300,26 +300,34 @@ window._icegraph.interactions = function (ctx) {
           return;
         }
 
-        var index = ctx.getInsertIndex(vertices, localPoint, linkModel);
+        //-- Snap onto the grid the blocks and the router already live on
+        var newVertex = wireSnapPoint(localPoint, ctx.gridsize);
 
         if (
-          !vertices.some(function (v) {
-            return v.x === localPoint.x && v.y === localPoint.y;
+          vertices.some(function (v) {
+            return v.x === newVertex.x && v.y === newVertex.y;
           })
         ) {
-          vertices.splice(index, 0, { x: localPoint.x, y: localPoint.y });
-          var cleanedVertices = vertices.map(function (v) {
-            return { x: v.x, y: v.y };
-          });
-          linkModel.set('vertices', cleanedVertices, { ui: true });
-          setTimeout(function () {
-            var linkView = ctx.paper.findViewByModel(linkModel);
-            if (!linkView) {
-              return;
-            }
-            linkModel.trigger('change:vertices');
-          }, 50);
+          return;
         }
+
+        //-- Index is derived from the polyline actually on screen, so the
+        //-- new corner lands where the user clicked and nowhere else
+        var index = ctx.getInsertIndex(vertices, newVertex, linkModel);
+
+        var newVertices = vertices.map(function (v) {
+          return { x: v.x, y: v.y };
+        });
+        newVertices.splice(index, 0, newVertex);
+
+        linkModel.set('vertices', newVertices, { ui: true });
+        setTimeout(function () {
+          var linkView = ctx.paper.findViewByModel(linkModel);
+          if (!linkView) {
+            return;
+          }
+          linkModel.trigger('change:vertices');
+        }, 50);
         return;
       }
 
@@ -883,6 +891,13 @@ window._icegraph.interactions = function (ctx) {
     ctx.graph.on('change:data', lpTriggerAutoRefresh);
     ctx.graph.off('change:deltas', lpTriggerAutoRefresh);
     ctx.graph.on('change:deltas', lpTriggerAutoRefresh);
+
+    //-- Keep hand-routed wires tidy when their blocks move. Reacting to
+    //-- position changes covers every way a block can be moved: JointJS'
+    //-- element drag, the selection box and the arrow keys alike.
+    watchWiresOnCellMove(ctx.graph, function () {
+      return ctx.paper;
+    });
 
     ctx.graph.on('add', function (cell) {
       if (cell.isLink()) {
