@@ -2,7 +2,7 @@
 //-- cellManager.js: Add, remove, drag, replace blocks; undo/redo; clipboard
 //-- Loaded as a <script> tag before graph.js; exposes window._icegraph.cellManager
 //---------------------------------------------------------------------------
-/* global iceStudio */
+/* global iceStudio, _icegraph */
 'use strict';
 
 window._icegraph = window._icegraph || {};
@@ -469,28 +469,41 @@ window._icegraph.cellManager = function (ctx) {
             ? formData.pkgImage
             : dep.package.image || '';
 
-        var nonBoundaryBlocks = (dep.design.graph.blocks || []).filter(
-          function (b) {
-            return (
-              b.type !== 'basic.input' &&
-              b.type !== 'basic.output' &&
-              !(
-                (b.type === 'basic.constant' || b.type === 'basic.memory') &&
-                !b.data.local
-              )
-            );
-          }
-        );
+        var oldBlocks = dep.design.graph.blocks || [];
+
+        var nonBoundaryBlocks = oldBlocks.filter(function (b) {
+          return !_icegraph.portLayout.isBoundaryBlock(b);
+        });
 
         // Build a lookup of old boundary block IDs by type+name so that
         // ports whose names are unchanged keep their old IDs.  This preserves
         // internal wire connections that reference those IDs.
         var oldBoundaryIds = {};
-        (dep.design.graph.blocks || []).forEach(function (b) {
+        oldBlocks.forEach(function (b) {
           if (b.type === 'basic.input' || b.type === 'basic.output') {
             oldBoundaryIds[b.type + ':' + b.data.name] = b.id;
           }
         });
+
+        // Boundary blocks are rebuilt from scratch, so their positions have to
+        // be re-derived too.  Ports that survive the edit keep the coordinates
+        // they had on the submodule sheet; only the added ones are placed, at
+        // the end of the column/row they belong to.
+        var nameOf = function (port) {
+          return port.name;
+        };
+        var inPositions = _icegraph.portLayout.layoutInputs(
+          oldBlocks,
+          formData.inPortsInfo.map(nameOf)
+        );
+        var outPositions = _icegraph.portLayout.layoutOutputs(
+          oldBlocks,
+          formData.outPortsInfo.map(nameOf)
+        );
+        var paramPositions = _icegraph.portLayout.layoutParams(
+          oldBlocks,
+          formData.inParamsInfo.map(nameOf)
+        );
 
         formData.inPortsInfo.forEach(function (port, idx) {
           var key = 'basic.input:' + port.name;
@@ -510,7 +523,7 @@ window._icegraph.cellManager = function (ctx) {
               virtual: true,
               clock: false,
             },
-            position: { x: 50, y: 80 + idx * 80 },
+            position: inPositions[idx],
           });
         });
 
@@ -531,7 +544,7 @@ window._icegraph.cellManager = function (ctx) {
               pins: pins,
               virtual: true,
             },
-            position: { x: 750, y: 80 + idx * 80 },
+            position: outPositions[idx],
           });
         });
 
@@ -540,7 +553,7 @@ window._icegraph.cellManager = function (ctx) {
             id: ctx.joint.util.uuid(),
             type: 'basic.constant',
             data: { name: param.name, value: '', local: false },
-            position: { x: 300 + idx * 150, y: 20 },
+            position: paramPositions[idx],
           });
         });
 
