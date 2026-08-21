@@ -42,10 +42,11 @@ window._iceforms.fields = function (deps) {
   //-- TEXTFIELD. It represents a Form Input text field
   //---------------------------------------------------------
   class TextField {
-    constructor(msg, value, formId) {
+    constructor(msg, value, formId, disabled) {
       this.msg = msg;
       this.value = value;
       this.formId = formId;
+      this.disabled = disabled === true;
       this.onChangeCallback = null;
 
       this.htmlTemplate = `
@@ -54,7 +55,7 @@ window._iceforms.fields = function (deps) {
               type="text"
               id="form%ID%"
               value="%VALUE%"
-              autocomplete="off"/>
+              autocomplete="off" %DISABLED%/>
       `;
     }
 
@@ -62,6 +63,9 @@ window._iceforms.fields = function (deps) {
       let html = this.htmlTemplate.replace('%TEXT%', this.msg);
       html = html.replace('%VALUE%', this.value);
       html = html.replace('%ID%', this.formId);
+      //-- A readonly input still returns its value on read(), unlike a
+      //-- disabled one, so the form keeps working when the field is locked
+      html = html.replace('%DISABLED%', this.disabled ? 'readonly' : '');
       return html;
     }
 
@@ -502,13 +506,14 @@ window._iceforms.fields = function (deps) {
   //-- GRIDFIELD. It represents a grid in a Form
   //---------------------------------------------------------
   class GridField {
-    constructor(formId, className, cols, data) {
+    constructor(formId, className, cols, data, readOnly) {
       this.cols = cols;
       this.data = data;
       this.tableId = `table${formId}`;
       this.table = null;
       this.className = className;
       this.onEnter = null;
+      this.readOnly = readOnly === true;
 
       this.htmlTemplate = `
         <div id="%TABLE_ID%" class="%CLASS_NAME%"></div>
@@ -522,10 +527,21 @@ window._iceforms.fields = function (deps) {
     }
 
     init() {
+      //-- readOnly columns make jspreadsheet tag every cell "readonly" and
+      //-- disable the checkbox inputs, which is what locks the grid for the
+      //-- user.  allowInsertRow/allowDeleteRow stay on regardless: with no
+      //-- context menu and no manual insert row there is no user-facing path
+      //-- to them, and the form still needs to fill the grid programmatically.
+      let cols = this.cols;
+      if (this.readOnly) {
+        cols = this.cols.map(function (col) {
+          return Object.assign({}, col, { readOnly: true });
+        });
+      }
       this.table = jspreadsheet(document.getElementById(this.tableId), {
         data: this.data,
-        columns: this.cols,
-        rowDrag: true,
+        columns: cols,
+        rowDrag: !this.readOnly,
         allowInsertRow: true,
         allowDeleteRow: true,
         allowInsertColumn: false,

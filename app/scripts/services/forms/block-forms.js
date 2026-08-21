@@ -33,9 +33,16 @@ window._iceforms.blockForms = function (deps) {
       portsInOutLeft,
       portsInOutRight,
       label,
-      blackbox
+      blackbox,
+      portsLocked
     ) {
       super();
+
+      //-- A linked code module mirrors the interface of the submodule that
+      //-- owns it: its name and ports are managed from the submodule settings
+      //-- dialog, so they are shown read-only here.
+      let locked = portsLocked === true;
+      this._portsLocked = locked;
 
       let portsInVal = portsIn !== undefined ? portsIn : '';
       let portsOutVal = portsOut !== undefined ? portsOut : '';
@@ -53,19 +60,22 @@ window._iceforms.blockForms = function (deps) {
       let field0 = new TextField(
         gettextCatalog.getString('Input ports'),
         portsInVal,
-        0
+        0,
+        locked
       );
 
       let field1 = new TextField(
         gettextCatalog.getString('Output ports'),
         portsOutVal,
-        1
+        1,
+        locked
       );
 
       let field2 = new TextField(
         gettextCatalog.getString('Input parameters'),
         paramsInVal,
-        2
+        2,
+        locked
       );
 
       const modulePortsLabel = gettextCatalog.getString('Module Ports');
@@ -73,7 +83,8 @@ window._iceforms.blockForms = function (deps) {
       let fieldLabel = new TextField(
         gettextCatalog.getString('Name'),
         labelVal,
-        9
+        9,
+        locked
       );
       this.addField(fieldLabel, modulePortsLabel);
       this._labelField = fieldLabel;
@@ -91,7 +102,8 @@ window._iceforms.blockForms = function (deps) {
         field3 = new TextField(
           gettextCatalog.getString('"Inout" Left ports'),
           portsInOutLeftVal,
-          3
+          3,
+          locked
         );
 
         this.addField(field3, modulePortsLabel);
@@ -99,7 +111,8 @@ window._iceforms.blockForms = function (deps) {
         field4 = new TextField(
           gettextCatalog.getString('"Inout" Right ports'),
           portsInOutRightVal,
-          4
+          4,
+          locked
         );
 
         this.addField(field4, modulePortsLabel);
@@ -190,7 +203,7 @@ window._iceforms.blockForms = function (deps) {
       ];
       const data = [['', 'IN', 1, true]];
 
-      let field7 = new GridField(7, 'ports-table', columns, data);
+      let field7 = new GridField(7, 'ports-table', columns, data, locked);
       field7.onEnter = () => this.onEnterIOPortsTable(field7.table);
       this.addField(field7, modulePortsLabel);
       this._field7 = field7;
@@ -240,6 +253,21 @@ window._iceforms.blockForms = function (deps) {
       );
 
       this.addField(field8, modulePortsLabel);
+
+      //-- Appended last on purpose: parseFields() addresses the first six
+      //-- fields positionally, so nothing may be inserted before them.
+      if (locked) {
+        this.addField(
+          new RawHtmlField(
+            '<p class="form-label" style="margin-top:8px;opacity:0.75">' +
+              gettextCatalog.getString(
+                'This code module is linked to its submodule. Its name and ports mirror the submodule interface and are edited from the submodule settings dialog.'
+              ) +
+              '</p>'
+          ),
+          modulePortsLabel
+        );
+      }
 
       const advancedLabel = gettextCatalog.getString('Advanced');
       let fieldBlackbox = new CheckboxField(
@@ -530,10 +558,10 @@ window._iceforms.blockForms = function (deps) {
           const i = nameToRowIndex.get(name);
           const r = instance.getData()[i];
           if (r[1] !== type) {
-            instance.setValueFromCoords(1, i, type);
+            instance.setValueFromCoords(1, i, type, true);
           }
           if (r[2] !== busWidth) {
-            instance.setValueFromCoords(2, i, busWidth);
+            instance.setValueFromCoords(2, i, busWidth, true);
           }
           usedIndexes.add(i);
         } else {
@@ -547,8 +575,8 @@ window._iceforms.blockForms = function (deps) {
               !usedIndexes.has(i) &&
               existingName
             ) {
-              instance.setValueFromCoords(0, i, name);
-              instance.setValueFromCoords(2, i, busWidth);
+              instance.setValueFromCoords(0, i, name, true);
+              instance.setValueFromCoords(2, i, busWidth, true);
               usedIndexes.add(i);
               reused = true;
               break;
@@ -895,6 +923,20 @@ window._iceforms.blockForms = function (deps) {
       );
 
       var pkg = pkgInfo || {};
+
+      //-- "Linked code module": keep exactly one basic.code block inside the
+      //-- submodule whose name and ports mirror the submodule's own, with every
+      //-- generated port wired to it.
+      var linkedCodeVal = pkg.linkedCode ? true : false;
+      var fieldLinkedCode = new CheckboxField(
+        gettextCatalog.getString('Linked code module'),
+        linkedCodeVal,
+        11
+      );
+      this.addField(fieldLinkedCode, gettextCatalog.getString('Advanced'));
+      this._linkedCodeField = fieldLinkedCode;
+      this.iniLinkedCode = linkedCodeVal;
+
       var pkgTabLabel = gettextCatalog.getString('Package Info');
 
       var fieldPkgVersion = new TextField(
@@ -959,6 +1001,9 @@ window._iceforms.blockForms = function (deps) {
     }
     get pkgImage() {
       return this._pkgImageField ? this._pkgImageField.read() : '';
+    }
+    get linkedCode() {
+      return this._linkedCodeField ? this._linkedCodeField.read() : false;
     }
 
     init() {
@@ -1078,6 +1123,7 @@ window._iceforms.blockForms = function (deps) {
         var inoutLeft = this.inoutLeftPortsInfo || [];
         var inoutRight = this.inoutRightPortsInfo || [];
         var codeStr = (this.code || '').trim();
+        var linkedCode = this.linkedCode;
         var yStep = 80;
         var codeBlockId = generateBlockId();
 
@@ -1196,7 +1242,8 @@ window._iceforms.blockForms = function (deps) {
           }
         });
 
-        if (codeStr) {
+        var codeBlock = null;
+        if (codeStr || linkedCode) {
           var leftCount = Math.max(
             portsIn.length + inoutLeft.length,
             params.length
@@ -1206,7 +1253,7 @@ window._iceforms.blockForms = function (deps) {
             300,
             Math.max(leftCount, rightCount) * 80 + 160
           );
-          allBlocks.push({
+          codeBlock = {
             id: codeBlockId,
             type: 'basic.code',
             data: {
@@ -1224,10 +1271,24 @@ window._iceforms.blockForms = function (deps) {
             },
             position: { x: 300, y: 150 },
             size: { width: 800, height: codeHeight },
-          });
+          };
+          if (linkedCode) {
+            codeBlock.data.linked = true;
+          }
+          allBlocks.push(codeBlock);
         }
 
         graphData = { blocks: allBlocks, wires: allWires };
+
+        //-- A linked code module owns every boundary wire, including the
+        //-- tri-state ones the loop above leaves out.
+        if (linkedCode && codeBlock) {
+          graphData.wires = window._icelinkedcode.rebuildWires(
+            graphData.blocks,
+            graphData.wires,
+            codeBlock
+          );
+        }
       }
 
       var iceProject = {
@@ -1329,17 +1390,22 @@ window._iceforms.blockForms = function (deps) {
   //-- CLASS: FormBasicMemory
   //-------------------------------------------------------------------------
   class FormBasicMemory extends Form {
-    constructor(names, value, local) {
+    constructor(names, value, local, nameLocked) {
       super();
 
       let namesVal = names !== undefined ? names : '';
       let valueVal = value !== undefined ? value : 10;
       let localVal = local !== undefined ? local : false;
 
+      //-- A parameter of a submodule with a linked code module mirrors a code
+      //-- module parameter, so neither its name nor its scope may change here.
+      let locked = nameLocked === true;
+
       let field0 = new TextField(
         gettextCatalog.getString('Memory block names'),
         namesVal,
-        0
+        0,
+        locked
       );
 
       let options = [
@@ -1367,7 +1433,8 @@ window._iceforms.blockForms = function (deps) {
       let field2 = new CheckboxField(
         gettextCatalog.getString('Local parameter'),
         localVal,
-        2
+        2,
+        locked
       );
 
       this.addField(field0);
@@ -1464,22 +1531,28 @@ window._iceforms.blockForms = function (deps) {
   //-- CLASS: FormBasicConstant
   //-------------------------------------------------------------------------
   class FormBasicConstant extends Form {
-    constructor(names, local) {
+    constructor(names, local, nameLocked) {
       super();
 
       let namesVal = names !== undefined ? names : '';
       let localVal = local !== undefined ? local : false;
 
+      //-- A parameter of a submodule with a linked code module mirrors a code
+      //-- module parameter, so neither its name nor its scope may change here.
+      let locked = nameLocked === true;
+
       let field0 = new TextField(
         gettextCatalog.getString('Constant names'),
         namesVal,
-        0
+        0,
+        locked
       );
 
       let field1 = new CheckboxField(
         gettextCatalog.getString('Local parameter'),
         localVal,
-        1
+        1,
+        locked
       );
 
       this.addField(field0);

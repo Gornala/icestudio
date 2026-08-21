@@ -147,7 +147,7 @@ window._iceblockforms.memoryConstantForms = function (ctx) {
     return cell;
   }
 
-  function editBasicConstant(cellView) {
+  function editBasicConstant(cellView, nameLocked) {
     //-- Get the current memory block
     let block = cellView.model.attributes;
 
@@ -156,7 +156,7 @@ window._iceblockforms.memoryConstantForms = function (ctx) {
     let local = block.data.local;
 
     //-- Create the form
-    let form = new ctx.forms.FormBasicConstant(name, local);
+    let form = new ctx.forms.FormBasicConstant(name, local, nameLocked);
 
     //-- Display the form
     form.display((evt) => {
@@ -194,7 +194,7 @@ window._iceblockforms.memoryConstantForms = function (ctx) {
     });
   }
 
-  function editBasicMemory(cellView) {
+  function editBasicMemory(cellView, nameLocked) {
     //-- Get the current memory block
     let block = cellView.model.attributes;
 
@@ -204,7 +204,7 @@ window._iceblockforms.memoryConstantForms = function (ctx) {
     let local = block.data.local;
 
     //-- Create the form
-    let form = new ctx.forms.FormBasicMemory(name, format, local);
+    let form = new ctx.forms.FormBasicMemory(name, format, local, nameLocked);
 
     //-- Display the form
     form.display((evt) => {

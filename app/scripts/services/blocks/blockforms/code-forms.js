@@ -172,7 +172,8 @@ window._iceblockforms.codeForms = function (ctx) {
       inoutLeftPortNames,
       inoutRightPortNames,
       block.data.label || '',
-      block.data.blackbox || false
+      block.data.blackbox || false,
+      block.data.linked === true
     );
 
     //-- Display the form
@@ -218,6 +219,9 @@ window._iceblockforms.codeForms = function (ctx) {
       }
       blockInstance.data.label = form.label;
       blockInstance.data.blackbox = form.blackbox || false;
+      if (block.data.linked) {
+        blockInstance.data.linked = true;
+      }
 
       //-- Build the cell
       let cell = loadBasicCode(blockInstance);
@@ -341,6 +345,7 @@ window._iceblockforms.codeForms = function (ctx) {
         pkgDesc: form.pkgDesc,
         pkgAuthor: form.pkgAuthor,
         pkgImage: form.pkgImage,
+        linkedCode: form.linkedCode,
       });
     });
   }
@@ -379,6 +384,7 @@ window._iceblockforms.codeForms = function (ctx) {
         pkgDesc: form.pkgDesc,
         pkgAuthor: form.pkgAuthor,
         pkgImage: form.pkgImage,
+        linkedCode: form.linkedCode,
       });
     });
   }

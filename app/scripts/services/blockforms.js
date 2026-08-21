@@ -269,6 +269,14 @@ angular.module('icestudio').service(
         virtual = true;
       }
 
+      //-- Inside a submodule with a linked code module the port names mirror
+      //-- the code module interface: they are managed from the submodule
+      //-- settings dialog, never from here.
+      let nameLocked = !!(
+        cellView.paper &&
+        window._icelinkedcode.findLinkedCell(cellView.paper.model)
+      );
+
       //-- InOut-pin option is present or not
       if (allowInoutPorts) {
         inoutValue =
@@ -285,7 +293,8 @@ angular.module('icestudio').service(
             virtual,
             clock,
             disabled,
-            inoutValue
+            inoutValue,
+            nameLocked
           );
           _portForms.editBasicPort(form, cellView, callback);
           break;
@@ -293,7 +302,13 @@ angular.module('icestudio').service(
         //-- Output port
         case blocks.BASIC_OUTPUT:
           //-- Build the form, and pass the actual block data
-          form = new forms.FormBasicOutput(name, virtual, disabled, inoutValue);
+          form = new forms.FormBasicOutput(
+            name,
+            virtual,
+            disabled,
+            inoutValue,
+            nameLocked
+          );
           _portForms.editBasicPort(form, cellView, callback);
           break;
 
@@ -312,11 +327,11 @@ angular.module('icestudio').service(
           break;
 
         case blocks.BASIC_CONSTANT:
-          _memConstForms.editBasicConstant(cellView);
+          _memConstForms.editBasicConstant(cellView, nameLocked);
           break;
 
         case blocks.BASIC_MEMORY:
-          _memConstForms.editBasicMemory(cellView);
+          _memConstForms.editBasicMemory(cellView, nameLocked);
           break;
 
         case blocks.BASIC_CODE:

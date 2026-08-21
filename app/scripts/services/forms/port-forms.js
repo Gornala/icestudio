@@ -21,14 +21,16 @@ window._iceforms.portForms = function (deps) {
   //--    ports. All their common stuff is place here
   //-------------------------------------------------------------
   class FormBasicPort extends Form {
-    constructor(msg, name, virtual, disabled) {
+    constructor(msg, name, virtual, disabled, nameLocked) {
       super();
 
       let nameVal = name !== undefined ? name : '';
       let virtualVal = virtual !== undefined ? virtual : false;
       let disabledVal = disabled !== undefined ? disabled : false;
 
-      let field0 = new TextField(msg, nameVal, 0);
+      //-- Inside a submodule with a linked code module the port name mirrors
+      //-- a code-module port, so it is read-only here.
+      let field0 = new TextField(msg, nameVal, 0, nameLocked === true);
 
       let field1 = new CheckboxField(
         gettextCatalog.getString('FPGA pin'),
@@ -94,7 +96,7 @@ window._iceforms.portForms = function (deps) {
   }
 
   class FormBasicInput extends FormBasicPort {
-    constructor(name, virtual, clock, disabled, inoutValue) {
+    constructor(name, virtual, clock, disabled, inoutValue, nameLocked) {
       let nameVal = name !== undefined ? name : '';
       let virtualVal = virtual !== undefined ? virtual : false;
       let clockVal = clock !== undefined ? clock : false;
@@ -104,7 +106,8 @@ window._iceforms.portForms = function (deps) {
         gettextCatalog.getString('Input port names'),
         nameVal,
         virtualVal,
-        disabledVal
+        disabledVal,
+        nameLocked
       );
 
       this.type = blocks.BASIC_INPUT;
@@ -179,7 +182,7 @@ window._iceforms.portForms = function (deps) {
   }
 
   class FormBasicOutput extends FormBasicPort {
-    constructor(name, virtual, disabled, inoutValue) {
+    constructor(name, virtual, disabled, inoutValue, nameLocked) {
       let nameVal = name !== undefined ? name : '';
       let virtualVal = virtual !== undefined ? virtual : false;
       let disabledVal = disabled !== undefined ? disabled : false;
@@ -188,7 +191,8 @@ window._iceforms.portForms = function (deps) {
         gettextCatalog.getString('Output port names'),
         nameVal,
         virtualVal,
-        disabledVal
+        disabledVal,
+        nameLocked
       );
 
       this.type = blocks.BASIC_OUTPUT;

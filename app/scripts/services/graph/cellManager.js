@@ -2,7 +2,7 @@
 //-- cellManager.js: Add, remove, drag, replace blocks; undo/redo; clipboard
 //-- Loaded as a <script> tag before graph.js; exposes window._icegraph.cellManager
 //---------------------------------------------------------------------------
-/* global iceStudio, _icegraph */
+/* global iceStudio, _icegraph, _icelinkedcode */
 'use strict';
 
 window._icegraph = window._icegraph || {};
@@ -50,9 +50,33 @@ window._icegraph.cellManager = function (ctx) {
     });
   }
 
+  //-- Inside a submodule that owns a linked code module the port set is
+  //-- derived from the submodule interface, so it may only be edited from the
+  //-- submodule settings dialog.  Returns true when the caller must back off.
+  function blockedByLinkedCode() {
+    if (!_icelinkedcode.findLinkedCell(ctx.graph)) {
+      return false;
+    }
+    alertify.warning(
+      ctx.gettextCatalog.getString(
+        'This submodule has a linked code module: add its ports from the submodule settings dialog.'
+      )
+    );
+    return true;
+  }
+
   function createBasicBlock(type) {
     if (type === window._iceblocks.BASIC_SUBMODULE) {
       createSubmodule();
+      return;
+    }
+    if (
+      (type === window._iceblocks.BASIC_INPUT ||
+        type === window._iceblocks.BASIC_OUTPUT ||
+        type === window._iceblocks.BASIC_CONSTANT ||
+        type === window._iceblocks.BASIC_MEMORY) &&
+      blockedByLinkedCode()
+    ) {
       return;
     }
     var allowInoutPorts =
@@ -89,7 +113,8 @@ window._icegraph.cellManager = function (ctx) {
     inoutRight,
     code,
     label,
-    forceCodeBlock
+    forceCodeBlock,
+    linkedCode
   ) {
     var allBlocks = [];
     var allWires = [];
@@ -102,7 +127,7 @@ window._icegraph.cellManager = function (ctx) {
       return m ? parseInt(m[1]) - parseInt(m[2]) + 1 : undefined;
     };
     var codeBlockId = ctx.joint.util.uuid();
-    var includeCode = forceCodeBlock || !!code;
+    var includeCode = forceCodeBlock || linkedCode || !!code;
 
     // Layout constants
     var CODE_X = 398;
@@ -286,6 +311,16 @@ window._icegraph.cellManager = function (ctx) {
       });
     }
 
+    //-- A linked code module owns every boundary wire, tri-state ports
+    //-- included, so let the shared helper lay them all out at once.
+    if (includeCode && linkedCode) {
+      var codeBlock = allBlocks.filter(function (block) {
+        return block.id === codeBlockId;
+      })[0];
+      codeBlock.data.linked = true;
+      allWires = _icelinkedcode.rebuildWires(allBlocks, allWires, codeBlock);
+    }
+
     return { blocks: allBlocks, wires: allWires };
   }
 
@@ -299,6 +334,7 @@ window._icegraph.cellManager = function (ctx) {
       var inoutRight = formData.inoutRightPortsInfo || [];
       var code = (formData.code || '').trim();
       var label = formData.label || 'submodule';
+      var linkedCode = formData.linkedCode === true;
 
       var subGraph = buildSubmoduleDesign(
         portsIn,
@@ -307,7 +343,9 @@ window._icegraph.cellManager = function (ctx) {
         inoutLeft,
         inoutRight,
         code,
-        label
+        label,
+        false,
+        linkedCode
       );
 
       var boardName =
@@ -449,6 +487,7 @@ window._icegraph.cellManager = function (ctx) {
       image: dep.package.image || '',
       blockDesign: dep.design,
       blockDependencies: blockDependencies,
+      linkedCode: !!_icelinkedcode.findLinkedBlock(dep.design.graph.blocks),
     };
 
     ctx.blockforms.getCodeFormDataWith(
@@ -558,6 +597,23 @@ window._icegraph.cellManager = function (ctx) {
         });
 
         dep.design.graph.blocks = nonBoundaryBlocks;
+
+        //-- Keep the linked code module in step with the new interface: same
+        //-- name, same ports, every boundary block wired straight to it.
+        if (formData.linkedCode === true) {
+          _icelinkedcode.resyncDesign(
+            dep.design.graph,
+            _icelinkedcode.ifaceFromBlocks(
+              dep.design.graph.blocks,
+              dep.package.name
+            ),
+            ctx.joint.util.uuid()
+          );
+        } else {
+          //-- Unchecking the box only breaks the link; the Verilog the user
+          //-- wrote stays where it is.
+          _icelinkedcode.unlinkDesign(dep.design.graph);
+        }
 
         var oldCell = ctx.graph.getCell(cellId);
         if (!oldCell) {
@@ -1213,9 +1269,48 @@ window._icegraph.cellManager = function (ctx) {
     }
   }
 
+  //-- Cells a linked code module owns: the code block itself, the boundary
+  //-- ports whose names it mirrors, and the wires in between.
+  function isOwnedByLinkedCode(cell, linkedCell) {
+    if (cell.id === linkedCell.id) {
+      return true;
+    }
+    if (cell.isLink()) {
+      var source = cell.get('source') || {};
+      var target = cell.get('target') || {};
+      return source.id === linkedCell.id || target.id === linkedCell.id;
+    }
+    var type = cell.get('type');
+    var data = cell.get('data') || {};
+    if (type === 'ice.Input' || type === 'ice.Output') {
+      return !!data.virtual;
+    }
+    return (type === 'ice.Constant' || type === 'ice.Memory') && !data.local;
+  }
+
   function removeSelected() {
     if (hasSelection()) {
-      var hadVirtualIO = ctx.selection.models.some(function (cell) {
+      var models = ctx.selection.models;
+      var linkedCell = _icelinkedcode.findLinkedCell(ctx.graph);
+      if (linkedCell) {
+        var removable = models.filter(function (cell) {
+          return !isOwnedByLinkedCode(cell, linkedCell);
+        });
+        if (removable.length !== models.length) {
+          alertify.warning(
+            ctx.gettextCatalog.getString(
+              'The linked code module, its ports and its wiring can only be changed from the submodule settings dialog.'
+            )
+          );
+        }
+        models = removable;
+        if (models.length === 0) {
+          ctx.selectionView.cancelSelection();
+          return;
+        }
+      }
+
+      var hadVirtualIO = models.some(function (cell) {
         var t = cell.get('type');
         return (
           (t === 'ice.Input' || t === 'ice.Output') &&
@@ -1223,7 +1318,7 @@ window._icegraph.cellManager = function (ctx) {
             (cell.get('data') && cell.get('data').virtual))
         );
       });
-      ctx.graph.removeCells(ctx.selection.models);
+      ctx.graph.removeCells(models);
       ctx.selectionView.cancelSelection();
       ctx.service.updateWires();
       $('body').trigger('Graph::lpRefresh');
