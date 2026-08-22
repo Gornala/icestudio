@@ -20,6 +20,20 @@ joint.shapes.ice.Info = joint.shapes.ice.Model.extend({
 });
 
 joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
+  //-- data.text is a render-time copy of data.info, produced by
+  //-- loadBasicInfo() so that the stock example blocks can be translated.
+  //-- applyText() prefers it over data.info, so it has to go the moment the
+  //-- user types: otherwise the block keeps rendering the text it was loaded
+  //-- with, whatever the editor now contains. Duplicated blocks made this
+  //-- very visible — the copy rendered the original's text. pruneProject()
+  //-- strips data.text on save, so nothing on disk depends on it.
+  dropStaleText: function () {
+    var data = this.model.attributes.data;
+    if (data && typeof data.text !== 'undefined') {
+      delete data.text;
+    }
+  },
+
   initialize: function () {
     var self = this;
     _.bindAll(this, 'updateBox');
@@ -199,6 +213,7 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
           self.model.set('deltas', deltas);
           self.deltas = [];
           self.model.attributes.data.info = self.editor.session.getValue();
+          self.dropStaleText();
         }, undoGroupingInterval);
         self.counter = Date.now();
       }
@@ -266,6 +281,7 @@ joint.shapes.ice.InfoView = joint.shapes.ice.ModelView.extend({
     } else {
       // Set data.info
       this.model.attributes.data.info = this.editor.session.getValue();
+      this.dropStaleText();
     }
     setTimeout(
       function (self) {

@@ -143,6 +143,19 @@ window._icegraph.fileIO = function (ctx) {
     _graph.wires = ctx.utils.clone(tempw);
 
     _.each(_graph.blocks, function (blockInstance) {
+      //-- opt.new means "make a copy" (paste / duplicate). The incoming
+      //-- blockInstance may be the live model's own attributes:
+      //-- utils.cellsToProject() hands out data, position and size by
+      //-- reference, loadBasic()/loadGeneric() pass data straight into the new
+      //-- cell, and Backbone's cell.clone() is shallow. Without a private deep
+      //-- copy the duplicate and the original end up sharing one data object,
+      //-- so editing the copy (an Info block's text, a code block's ports)
+      //-- writes into the original as well. Copying here also stops the
+      //-- opt.reset pin rewrite below from mutating the source design.
+      if (opt.new) {
+        blockInstance = ctx.utils.clone(blockInstance);
+      }
+
       if (
         blockInstance.type !== false &&
         blockInstance.type.indexOf('basic.') > -1
