@@ -103,6 +103,27 @@ angular
         iceStudio.bus.events.publish('Navigation::ReadWrite');
       };
 
+      //-- Bring the paper back to the top level and drop every submodule
+      //-- navigation flag. Called by project.load() before a file replaces the
+      //-- current design: without it the paper stack, the breadcrumbs and
+      //-- common.submoduleHeap keep pointing into a design that no longer
+      //-- exists, and the stale depth makes project.update() write the wrong
+      //-- graph into project.design.
+      var resetSubmoduleNavigation = function () {
+        while (graph.getPaperStackDepth() > 0) {
+          graph.popPaper();
+        }
+        graph.breadcrumbs = [graph.breadcrumbs[0] || { name: '', type: '' }];
+        common.submoduleHeap = [];
+        common.submoduleId = false;
+        common.submoduleUID = false;
+        $scope.toRestore = false;
+        $scope.isNavigating = false;
+        $scope.topModule = true;
+        syncSubmoduleDepth();
+      };
+      common.resetSubmoduleNavigation = resetSubmoduleNavigation;
+
       $scope.breadcrumbsNavigate = function (selectedItem) {
         var item;
         if (!$scope.isNavigating) {
@@ -266,6 +287,14 @@ angular
           common.submoduleHeap.push(heap);
         }
 
+        //-- Snapshot the level we are leaving BEFORE pushPaper() swaps
+        //-- ctx.graph for a brand-new, empty paper. Reading the graph after
+        //-- the push would store an empty block list and an empty dependency
+        //-- set as the top-level design, which the next save writes to disk.
+        if (args.update) {
+          project.update({ deps: false });
+        }
+
         // When leaving the top level to enter a submodule, hide the current
         // paper (keeping all cells and ACE editors live) and spin up a fresh
         // paper for the submodule.  On back-navigation popPaper() restores the
@@ -275,18 +304,10 @@ angular
         }
 
         //  utils.beginBlockingTask();
-        if (args.update) {
-          graph.resetView();
-          project.update({ deps: false }, function () {
-            graph.loadDesign(args.project.design, opt, function () {
-              //  utils.endBlockingTask();
-            });
-          });
-        } else {
-          graph.resetView();
-
-          graph.loadDesign(args.project.design, opt, function () {});
-        }
+        graph.resetView();
+        graph.loadDesign(args.project.design, opt, function () {
+          //  utils.endBlockingTask();
+        });
         $scope.topModule = false;
         $scope.information = args.project.package;
         if (

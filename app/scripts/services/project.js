@@ -132,6 +132,14 @@ angular
           return;
         }
 
+        //-- Opening (or time-travelling to) a project while the paper is
+        //-- inside a submodule would leave the paper stack, the breadcrumbs
+        //-- and common.submoduleHeap pointing at a design that is about to be
+        //-- replaced. Come back to the top level before loading anything.
+        if (typeof common.resetSubmoduleNavigation === 'function') {
+          common.resetSubmoduleNavigation();
+        }
+
         data = this.adaptToTheTop(data);
         project = _safeUpgradeVersion(data, name);
 
@@ -781,14 +789,31 @@ angular
         project = utils.clone(this.backup);
       };
 
+      //-- True only when the paper really is showing the top-level design.
+      //-- Both indicators must agree: subModuleActive mirrors the breadcrumb
+      //-- depth and is only refreshed on navigation events, while the paper
+      //-- stack is pushed/popped synchronously by pushPaper()/popPaper().
+      //-- If either one says we are below the top level, the cells currently
+      //-- on the paper are NOT the top-level design and must never replace it.
+      function showingTopLevelDesign() {
+        if (subModuleActive) {
+          return false;
+        }
+        if (typeof graph.getPaperStackDepth === 'function') {
+          return graph.getPaperStackDepth() === 0;
+        }
+        return true;
+      }
+
       this.update = function (opt, callback) {
         let graphData = graph.toJSON();
         let p = utils.cellsToProject(graphData.cells, opt);
 
-        if (!subModuleActive) {
+        if (showingTopLevelDesign()) {
           // Only update the top-level design when the paper is showing it.
-          // When subModuleActive is true the displayed graph is a submodule,
-          // not the top-level design — overwriting project.design.graph or
+          // Otherwise the displayed graph belongs to a submodule (or to a
+          // freshly pushed, still-empty submodule paper), not to the top-level
+          // design — overwriting project.design.graph or
           // common.allDependencies here would corrupt the parent design.
           // Submodule edits reach common.allDependencies via
           // common.commitSubmoduleEdits() on navigation instead.
@@ -826,7 +851,18 @@ angular
       this.updateTitle = function (name) {
         if (name) {
           this.name = name;
-          graph.resetBreadcrumbs(name);
+          //-- Saving from inside a submodule must not throw the navigation
+          //-- stack away. resetBreadcrumbs() collapses the trail to a single
+          //-- entry while the paper stack and common.submoduleHeap stay one
+          //-- or more levels deep, so the next navigation would mistake a
+          //-- submodule paper for the top-level design. Rename the root
+          //-- crumb instead and leave the trail intact.
+          if (graph.breadcrumbs.length > 1) {
+            graph.breadcrumbs[0].name = name;
+            utils.rootScopeSafeApply();
+          } else {
+            graph.resetBreadcrumbs(name);
+          }
         }
         var title = (this.changed ? '*' : '') + this.name + ' ─ Icestudio';
         utils.updateWindowTitle(title);
